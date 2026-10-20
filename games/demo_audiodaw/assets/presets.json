@@ -1,0 +1,209 @@
+[
+  { "name": "Monarch", "instrument": { "is": "MonoSynth", "options": {
+    "oscillator": { "type": "fatsawtooth", "count": 2, "spread": 18 },
+    "filter": { "type": "lowpass", "rolloff": -24, "Q": 3 },
+    "envelope": { "attack": 0.004, "decay": 0.35, "sustain": 0.7, "release": 0.2 },
+    "filterEnvelope": { "attack": 0.004, "decay": 0.3, "sustain": 0.25, "release": 0.2, "baseFrequency": 180, "octaves": 3.5, "exponent": 2 },
+    "portamento": 0, "volume": -8 } } },
+  { "name": "Acid Line", "instrument": { "is": "MonoSynth", "options": {
+    "oscillator": { "type": "sawtooth" },
+    "filter": { "type": "lowpass", "rolloff": -24, "Q": 9 },
+    "envelope": { "attack": 0.002, "decay": 0.2, "sustain": 0.6, "release": 0.05 },
+    "filterEnvelope": { "attack": 0.002, "decay": 0.22, "sustain": 0.05, "release": 0.08, "baseFrequency": 120, "octaves": 4.2, "exponent": 2 },
+    "portamento": 0.06, "volume": -10 } },
+    "effects": [{ "is": "Distortion", "on": true, "options": { "distortion": 0.35, "oversample": "2x", "wet": 0.8 } }] },
+  { "name": "Chorale 6", "instrument": { "is": "Synth", "voices": 6, "options": {
+    "oscillator": { "type": "sawtooth" },
+    "envelope": { "attack": 0.35, "decay": 1, "sustain": 0.8, "release": 0.5 },
+    "volume": -14 } } },
+  { "name": "Operator 7", "instrument": { "is": "FMSynth", "voices": 6, "options": {
+    "harmonicity": 3.5, "modulationIndex": 12,
+    "oscillator": { "type": "sine" },
+    "envelope": { "attack": 0.002, "decay": 1.8, "sustain": 0.1, "release": 0.8 },
+    "modulation": { "type": "sine" },
+    "modulationEnvelope": { "attack": 0.002, "decay": 0.6, "sustain": 0.05, "release": 0.5 },
+    "volume": -14 } } },
+  { "name": "Beatbox", "instrument": { "is": "DrumKit", "options": { "volume": 0, "pads": {
+    "C1": { "name": "KICK", "is": "MembraneSynth", "pitch": "C1", "options": {
+      "pitchDecay": 0.05, "octaves": 6, "oscillator": { "type": "sine" },
+      "envelope": { "attack": 0.001, "decay": 0.45, "sustain": 0, "release": 0.1 }, "volume": -4 } },
+    "D1": { "name": "SNARE", "is": "NoiseSynth", "options": {
+      "noise": { "type": "white" },
+      "envelope": { "attack": 0.001, "decay": 0.18, "sustain": 0, "release": 0.05 }, "volume": -10 } },
+    "D#1": { "name": "CLAP", "is": "NoiseSynth", "options": {
+      "noise": { "type": "pink" },
+      "envelope": { "attack": 0.004, "decay": 0.12, "sustain": 0, "release": 0.08 }, "volume": -10 } },
+    "F1": { "name": "LO TOM", "is": "MembraneSynth", "pitch": "G1", "options": {
+      "pitchDecay": 0.08, "octaves": 2.5, "oscillator": { "type": "sine" },
+      "envelope": { "attack": 0.001, "decay": 0.35, "sustain": 0, "release": 0.1 }, "volume": -8 } },
+    "F#1": { "name": "CL HAT", "is": "MetalSynth", "pitch": "C4", "choke": "a", "options": {
+      "harmonicity": 5.1, "modulationIndex": 32, "resonance": 7000, "octaves": 1.5,
+      "envelope": { "attack": 0.001, "decay": 0.05, "release": 0.02 }, "volume": -22 } },
+    "A#1": { "name": "OP HAT", "is": "MetalSynth", "pitch": "C4", "choke": "a", "options": {
+      "harmonicity": 5.1, "modulationIndex": 32, "resonance": 7000, "octaves": 1.5,
+      "envelope": { "attack": 0.001, "decay": 0.4, "release": 0.2 }, "volume": -22 } },
+    "C2": { "name": "HI TOM", "is": "MembraneSynth", "pitch": "D2", "options": {
+      "pitchDecay": 0.08, "octaves": 2.5, "oscillator": { "type": "sine" },
+      "envelope": { "attack": 0.001, "decay": 0.3, "sustain": 0, "release": 0.1 }, "volume": -8 } },
+    "G#2": { "name": "COWBELL", "is": "MetalSynth", "pitch": "C4", "options": {
+      "harmonicity": 1.5, "modulationIndex": 4, "resonance": 800, "octaves": 0.5,
+      "envelope": { "attack": 0.001, "decay": 0.15, "release": 0.05 }, "volume": -18 } } } } } },
+  { "name": "Soft Kit", "instrument": { "is": "DrumKit", "options": { "volume": -2, "pads": {
+    "C1": { "name": "KICK", "is": "MembraneSynth", "pitch": "A0", "options": {
+      "pitchDecay": 0.03, "octaves": 4, "oscillator": { "type": "sine" },
+      "envelope": { "attack": 0.002, "decay": 0.6, "sustain": 0, "release": 0.2 }, "volume": -6 } },
+    "D1": { "name": "SNARE", "is": "NoiseSynth", "options": {
+      "noise": { "type": "pink" },
+      "envelope": { "attack": 0.002, "decay": 0.25, "sustain": 0, "release": 0.1 }, "volume": -12 } },
+    "D#1": { "name": "CLAP", "is": "NoiseSynth", "options": {
+      "noise": { "type": "brown" },
+      "envelope": { "attack": 0.006, "decay": 0.15, "sustain": 0, "release": 0.1 }, "volume": -12 } },
+    "F1": { "name": "LO TOM", "is": "MembraneSynth", "pitch": "F1", "options": {
+      "pitchDecay": 0.1, "octaves": 2, "oscillator": { "type": "sine" },
+      "envelope": { "attack": 0.002, "decay": 0.5, "sustain": 0, "release": 0.2 }, "volume": -10 } },
+    "F#1": { "name": "CL HAT", "is": "MetalSynth", "pitch": "C4", "choke": "a", "options": {
+      "harmonicity": 4, "modulationIndex": 20, "resonance": 5000, "octaves": 1,
+      "envelope": { "attack": 0.002, "decay": 0.06, "release": 0.03 }, "volume": -26 } },
+    "A#1": { "name": "OP HAT", "is": "MetalSynth", "pitch": "C4", "choke": "a", "options": {
+      "harmonicity": 4, "modulationIndex": 20, "resonance": 5000, "octaves": 1,
+      "envelope": { "attack": 0.002, "decay": 0.6, "release": 0.3 }, "volume": -26 } },
+    "C2": { "name": "HI TOM", "is": "MembraneSynth", "pitch": "C2", "options": {
+      "pitchDecay": 0.1, "octaves": 2, "oscillator": { "type": "sine" },
+      "envelope": { "attack": 0.002, "decay": 0.4, "sustain": 0, "release": 0.2 }, "volume": -10 } },
+    "G#2": { "name": "COWBELL", "is": "MetalSynth", "pitch": "C4", "options": {
+      "harmonicity": 1.5, "modulationIndex": 3, "resonance": 700, "octaves": 0.4,
+      "envelope": { "attack": 0.002, "decay": 0.2, "release": 0.08 }, "volume": -22 } } } } } },
+  { "name": "Kick", "instrument": { "is": "MembraneSynth", "options": {
+    "pitchDecay": 0.05, "octaves": 6,
+    "oscillator": { "type": "sine" },
+    "envelope": { "attack": 0.001, "decay": 0.45, "sustain": 0, "release": 0.1 },
+    "volume": -4 } } },
+  { "name": "Tom", "instrument": { "is": "MembraneSynth", "options": {
+    "pitchDecay": 0.08, "octaves": 2.5,
+    "oscillator": { "type": "sine" },
+    "envelope": { "attack": 0.001, "decay": 0.35, "sustain": 0, "release": 0.1 },
+    "volume": -8 } } },
+  { "name": "Snare", "instrument": { "is": "NoiseSynth", "options": {
+    "noise": { "type": "white" },
+    "envelope": { "attack": 0.001, "decay": 0.18, "sustain": 0, "release": 0.05 },
+    "volume": -10 } } },
+  { "name": "Clap", "instrument": { "is": "NoiseSynth", "options": {
+    "noise": { "type": "pink" },
+    "envelope": { "attack": 0.004, "decay": 0.12, "sustain": 0, "release": 0.08 },
+    "volume": -10 } } },
+  { "name": "Closed Hat", "instrument": { "is": "MetalSynth", "options": {
+    "harmonicity": 5.1, "modulationIndex": 32, "resonance": 7000, "octaves": 1.5,
+    "envelope": { "attack": 0.001, "decay": 0.05, "release": 0.02 },
+    "volume": -22 } } },
+  { "name": "Open Hat", "instrument": { "is": "MetalSynth", "options": {
+    "harmonicity": 5.1, "modulationIndex": 32, "resonance": 7000, "octaves": 1.5,
+    "envelope": { "attack": 0.001, "decay": 0.4, "release": 0.2 },
+    "volume": -22 } } },
+  { "name": "Cowbell", "instrument": { "is": "MetalSynth", "options": {
+    "harmonicity": 1.5, "modulationIndex": 4, "resonance": 800, "octaves": 0.5,
+    "envelope": { "attack": 0.001, "decay": 0.15, "release": 0.05 },
+    "volume": -18 } } },
+  { "name": "Plain Synth", "instrument": { "is": "Synth", "options": {
+    "oscillator": { "type": "triangle" },
+    "envelope": { "attack": 0.01, "decay": 0.2, "sustain": 0.6, "release": 0.4 },
+    "volume": -10 } } },
+  { "name": "AM Bell", "instrument": { "is": "AMSynth", "options": {
+    "harmonicity": 2.5,
+    "oscillator": { "type": "sine" },
+    "envelope": { "attack": 0.005, "decay": 0.6, "sustain": 0.2, "release": 0.8 },
+    "modulation": { "type": "square" },
+    "modulationEnvelope": { "attack": 0.01, "decay": 0.3, "sustain": 0.5, "release": 0.5 },
+    "volume": -2 } } },
+  { "name": "Pluck", "instrument": { "is": "PluckSynth", "options": {
+    "attackNoise": 1.2, "dampening": 3800, "resonance": 0.96, "release": 1,
+    "volume": -6 } } },
+  { "name": "Twin Lead", "instrument": { "is": "DuoSynth", "options": {
+    "harmonicity": 1.005, "vibratoAmount": 0.15, "vibratoRate": 5.5,
+    "voice0": { "oscillator": { "type": "sawtooth" }, "filter": { "type": "lowpass", "rolloff": -24, "Q": 2 },
+      "envelope": { "attack": 0.01, "decay": 0.3, "sustain": 0.7, "release": 0.4 },
+      "filterEnvelope": { "attack": 0.01, "decay": 0.4, "sustain": 0.4, "release": 0.4, "baseFrequency": 400, "octaves": 3 } },
+    "voice1": { "oscillator": { "type": "square" }, "filter": { "type": "lowpass", "rolloff": -24, "Q": 2 },
+      "envelope": { "attack": 0.01, "decay": 0.3, "sustain": 0.7, "release": 0.4 },
+      "filterEnvelope": { "attack": 0.01, "decay": 0.4, "sustain": 0.4, "release": 0.4, "baseFrequency": 400, "octaves": 3 } },
+    "volume": -14 } } },
+  { "name": "Poly Brass", "instrument": { "is": "MonoSynth", "voices": 6, "options": {
+    "oscillator": { "type": "sawtooth" },
+    "filter": { "type": "lowpass", "rolloff": -24, "Q": 1.5 },
+    "envelope": { "attack": 0.06, "decay": 0.4, "sustain": 0.8, "release": 0.5 },
+    "filterEnvelope": { "attack": 0.08, "decay": 0.5, "sustain": 0.5, "release": 0.5, "baseFrequency": 300, "octaves": 3.5 },
+    "volume": -16 } } },
+  { "name": "AM Keys", "instrument": { "is": "AMSynth", "voices": 6, "options": {
+    "harmonicity": 2,
+    "oscillator": { "type": "triangle" },
+    "modulation": { "type": "sine" },
+    "envelope": { "attack": 0.004, "decay": 0.8, "sustain": 0.3, "release": 0.5 },
+    "modulationEnvelope": { "attack": 0.004, "decay": 0.5, "sustain": 0.2, "release": 0.6 },
+    "volume": -12 } } },
+  { "name": "Duo Pad", "instrument": { "is": "DuoSynth", "voices": 6, "options": {
+    "harmonicity": 2, "vibratoAmount": 0.2, "vibratoRate": 4,
+    "voice0": { "oscillator": { "type": "triangle" }, "envelope": { "attack": 0.6, "decay": 1, "sustain": 0.8, "release": 0.8 } },
+    "voice1": { "oscillator": { "type": "sine" }, "envelope": { "attack": 0.9, "decay": 1, "sustain": 0.8, "release": 0.8 } },
+    "volume": -18 } } },
+  { "name": "Air Pad", "instrument": { "is": "Synth", "voices": 6, "options": {
+    "oscillator": { "type": "sawtooth" },
+    "envelope": { "attack": 0.6, "decay": 1.5, "sustain": 0.85, "release": 1 },
+    "volume": -20 } } },
+  { "name": "Stab Pad", "instrument": { "is": "MonoSynth", "voices": 6, "options": {
+    "oscillator": { "type": "sawtooth" },
+    "filter": { "type": "lowpass", "rolloff": -12, "Q": 1 },
+    "envelope": { "attack": 0.008, "decay": 0.3, "sustain": 0.45, "release": 0.15 },
+    "filterEnvelope": { "attack": 0.004, "decay": 0.28, "sustain": 0.3, "release": 0.15, "baseFrequency": 450, "octaves": 3, "exponent": 2 },
+    "volume": -22 } } },
+  { "name": "Swell", "instrument": { "is": "Synth", "voices": 6, "options": {
+    "oscillator": { "type": "sawtooth" },
+    "envelope": { "attack": 2.5, "decay": 1, "sustain": 1, "release": 1.5 },
+    "volume": -22 } },
+    "effects": [{ "is": "Filter", "on": true, "options": { "type": "lowpass", "frequency": 2400, "rolloff": -24, "Q": 0.7 } }] },
+  { "name": "Sub", "instrument": { "is": "MonoSynth", "options": {
+    "oscillator": { "type": "sine" },
+    "filter": { "type": "lowpass", "rolloff": -12, "Q": 0 },
+    "envelope": { "attack": 0.008, "decay": 0.25, "sustain": 0.9, "release": 0.35 },
+    "filterEnvelope": { "attack": 0.01, "decay": 0.1, "sustain": 1, "release": 0.3, "baseFrequency": 220, "octaves": 0, "exponent": 2 },
+    "volume": -6 } } },
+  { "name": "Reese", "instrument": { "is": "MonoSynth", "options": {
+    "oscillator": { "type": "fatsawtooth", "count": 2, "spread": 38 },
+    "filter": { "type": "lowpass", "rolloff": -24, "Q": 2 },
+    "envelope": { "attack": 0.02, "decay": 0.3, "sustain": 0.85, "release": 0.3 },
+    "filterEnvelope": { "attack": 0.06, "decay": 0.8, "sustain": 0.35, "release": 0.3, "baseFrequency": 130, "octaves": 2.5, "exponent": 2 },
+    "volume": -18 } } },
+  { "name": "Ping", "instrument": { "is": "FMSynth", "options": {
+    "harmonicity": 1, "modulationIndex": 3,
+    "oscillator": { "type": "sine" },
+    "envelope": { "attack": 0.002, "decay": 0.5, "sustain": 0, "release": 0.5 },
+    "modulation": { "type": "sine" },
+    "modulationEnvelope": { "attack": 0.002, "decay": 0.2, "sustain": 0, "release": 0.3 },
+    "volume": -10 } } },
+  { "name": "Square Lead", "instrument": { "is": "MonoSynth", "voices": 6, "options": {
+    "oscillator": { "type": "square" },
+    "filter": { "type": "lowpass", "rolloff": -24, "Q": 1 },
+    "envelope": { "attack": 0.008, "decay": 0.3, "sustain": 0.65, "release": 0.3 },
+    "filterEnvelope": { "attack": 0.005, "decay": 0.35, "sustain": 0.5, "release": 0.3, "baseFrequency": 900, "octaves": 2.5, "exponent": 2 },
+    "volume": -20 } } },
+  { "name": "Jungle Kit", "instrument": { "is": "DrumKit", "options": { "volume": 0, "pads": {
+    "C1": { "name": "KICK", "is": "MembraneSynth", "pitch": "F1", "options": {
+      "pitchDecay": 0.03, "octaves": 5, "oscillator": { "type": "sine" },
+      "envelope": { "attack": 0.001, "decay": 0.32, "sustain": 0, "release": 0.08 }, "volume": -3 } },
+    "D1": { "name": "SNARE", "is": "NoiseSynth", "options": {
+      "noise": { "type": "white" },
+      "envelope": { "attack": 0.001, "decay": 0.14, "sustain": 0, "release": 0.04 }, "volume": -9 } },
+    "E1": { "name": "BODY", "is": "MembraneSynth", "pitch": "C3", "options": {
+      "pitchDecay": 0.012, "octaves": 1.5, "oscillator": { "type": "sine" },
+      "envelope": { "attack": 0.001, "decay": 0.12, "sustain": 0, "release": 0.04 }, "volume": -11 } },
+    "F#1": { "name": "CL HAT", "is": "MetalSynth", "pitch": "C4", "choke": "a", "options": {
+      "harmonicity": 5.1, "modulationIndex": 32, "resonance": 9000, "octaves": 1.5,
+      "envelope": { "attack": 0.001, "decay": 0.035, "release": 0.02 }, "volume": -27 } },
+    "G#1": { "name": "TICK", "is": "MetalSynth", "pitch": "C4", "choke": "a", "options": {
+      "harmonicity": 8, "modulationIndex": 40, "resonance": 11000, "octaves": 1,
+      "envelope": { "attack": 0.001, "decay": 0.015, "release": 0.01 }, "volume": -29 } },
+    "A#1": { "name": "OP HAT", "is": "MetalSynth", "pitch": "C4", "choke": "a", "options": {
+      "harmonicity": 5.1, "modulationIndex": 32, "resonance": 9000, "octaves": 1.5,
+      "envelope": { "attack": 0.001, "decay": 0.25, "release": 0.15 }, "volume": -27 } },
+    "C#2": { "name": "RIDE", "is": "MetalSynth", "pitch": "C4", "options": {
+      "harmonicity": 5.8, "modulationIndex": 24, "resonance": 6000, "octaves": 1.2,
+      "envelope": { "attack": 0.001, "decay": 1.2, "release": 0.6 }, "volume": -32 } } } } } }
+]

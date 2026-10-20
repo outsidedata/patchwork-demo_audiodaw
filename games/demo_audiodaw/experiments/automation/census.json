@@ -1,0 +1,2279 @@
+[
+  {
+    "owner": "Synth",
+    "path": "volume",
+    "kind": "glides",
+    "holds": "Param",
+    "step": false,
+    "hidden": false,
+    "range": "-60…6"
+  },
+  {
+    "owner": "Synth",
+    "path": "detune",
+    "kind": "glides",
+    "holds": "Signal",
+    "step": false,
+    "hidden": false,
+    "range": "-1200…1200"
+  },
+  {
+    "owner": "Synth",
+    "path": "portamento",
+    "kind": "set",
+    "holds": "number",
+    "step": false,
+    "hidden": false,
+    "range": "0…1"
+  },
+  {
+    "owner": "Synth",
+    "path": "envelope.attack",
+    "kind": "set",
+    "holds": "number",
+    "step": false,
+    "hidden": false,
+    "range": "0.001…5 log"
+  },
+  {
+    "owner": "Synth",
+    "path": "envelope.decay",
+    "kind": "set",
+    "holds": "number",
+    "step": false,
+    "hidden": false,
+    "range": "0.001…5 log"
+  },
+  {
+    "owner": "Synth",
+    "path": "envelope.release",
+    "kind": "set",
+    "holds": "number",
+    "step": false,
+    "hidden": false,
+    "range": "0.001…5 log"
+  },
+  {
+    "owner": "Synth",
+    "path": "envelope.sustain",
+    "kind": "set",
+    "holds": "number",
+    "step": false,
+    "hidden": false,
+    "range": "0…1"
+  },
+  {
+    "owner": "Synth",
+    "path": "oscillator.partialCount",
+    "kind": "set",
+    "holds": "number",
+    "step": false,
+    "hidden": false
+  },
+  {
+    "owner": "Synth",
+    "path": "oscillator.phase",
+    "kind": "set",
+    "holds": "number",
+    "step": false,
+    "hidden": false,
+    "range": "0…360"
+  },
+  {
+    "owner": "MonoSynth",
+    "path": "volume",
+    "kind": "glides",
+    "holds": "Param",
+    "step": false,
+    "hidden": false,
+    "range": "-60…6"
+  },
+  {
+    "owner": "MonoSynth",
+    "path": "detune",
+    "kind": "glides",
+    "holds": "Signal",
+    "step": false,
+    "hidden": false,
+    "range": "-1200…1200"
+  },
+  {
+    "owner": "MonoSynth",
+    "path": "portamento",
+    "kind": "set",
+    "holds": "number",
+    "step": false,
+    "hidden": false,
+    "range": "0…1"
+  },
+  {
+    "owner": "MonoSynth",
+    "path": "envelope.attack",
+    "kind": "set",
+    "holds": "number",
+    "step": false,
+    "hidden": false,
+    "range": "0.001…5 log"
+  },
+  {
+    "owner": "MonoSynth",
+    "path": "envelope.decay",
+    "kind": "set",
+    "holds": "number",
+    "step": false,
+    "hidden": false,
+    "range": "0.001…5 log"
+  },
+  {
+    "owner": "MonoSynth",
+    "path": "envelope.release",
+    "kind": "set",
+    "holds": "number",
+    "step": false,
+    "hidden": false,
+    "range": "0.001…5 log"
+  },
+  {
+    "owner": "MonoSynth",
+    "path": "envelope.sustain",
+    "kind": "set",
+    "holds": "number",
+    "step": false,
+    "hidden": false,
+    "range": "0…1"
+  },
+  {
+    "owner": "MonoSynth",
+    "path": "filter.Q",
+    "kind": "glides",
+    "holds": "Signal",
+    "step": false,
+    "hidden": false,
+    "range": "0…30"
+  },
+  {
+    "owner": "MonoSynth",
+    "path": "filter.detune",
+    "kind": "glides",
+    "holds": "Signal",
+    "step": false,
+    "hidden": false,
+    "range": "-1200…1200"
+  },
+  {
+    "owner": "MonoSynth",
+    "path": "filter.frequency",
+    "kind": "glides",
+    "holds": "Signal",
+    "step": false,
+    "hidden": true,
+    "range": "0.05…20 log"
+  },
+  {
+    "owner": "MonoSynth",
+    "path": "filter.gain",
+    "kind": "glides",
+    "holds": "Signal",
+    "step": false,
+    "hidden": false,
+    "range": "-40…40"
+  },
+  {
+    "owner": "MonoSynth",
+    "path": "filter.rolloff",
+    "kind": "set",
+    "holds": "number",
+    "step": false,
+    "hidden": false
+  },
+  {
+    "owner": "MonoSynth",
+    "path": "filterEnvelope.attack",
+    "kind": "set",
+    "holds": "number",
+    "step": false,
+    "hidden": false,
+    "range": "0.001…5 log"
+  },
+  {
+    "owner": "MonoSynth",
+    "path": "filterEnvelope.decay",
+    "kind": "set",
+    "holds": "number",
+    "step": false,
+    "hidden": false,
+    "range": "0.001…5 log"
+  },
+  {
+    "owner": "MonoSynth",
+    "path": "filterEnvelope.release",
+    "kind": "set",
+    "holds": "number",
+    "step": false,
+    "hidden": false,
+    "range": "0.001…5 log"
+  },
+  {
+    "owner": "MonoSynth",
+    "path": "filterEnvelope.sustain",
+    "kind": "set",
+    "holds": "number",
+    "step": false,
+    "hidden": false,
+    "range": "0…1"
+  },
+  {
+    "owner": "MonoSynth",
+    "path": "filterEnvelope.baseFrequency",
+    "kind": "set",
+    "holds": "number",
+    "step": false,
+    "hidden": false,
+    "range": "20…8000 log"
+  },
+  {
+    "owner": "MonoSynth",
+    "path": "filterEnvelope.exponent",
+    "kind": "set",
+    "holds": "number",
+    "step": false,
+    "hidden": false,
+    "range": "1…8"
+  },
+  {
+    "owner": "MonoSynth",
+    "path": "filterEnvelope.octaves",
+    "kind": "set",
+    "holds": "number",
+    "step": false,
+    "hidden": false,
+    "range": "0…10"
+  },
+  {
+    "owner": "MonoSynth",
+    "path": "oscillator.detune",
+    "kind": "glides",
+    "holds": "Signal",
+    "step": false,
+    "hidden": false,
+    "range": "-1200…1200"
+  },
+  {
+    "owner": "MonoSynth",
+    "path": "oscillator.frequency",
+    "kind": "glides",
+    "holds": "Signal",
+    "step": false,
+    "hidden": true,
+    "range": "0.05…20 log"
+  },
+  {
+    "owner": "MonoSynth",
+    "path": "oscillator.partialCount",
+    "kind": "set",
+    "holds": "number",
+    "step": false,
+    "hidden": false
+  },
+  {
+    "owner": "MonoSynth",
+    "path": "oscillator.phase",
+    "kind": "set",
+    "holds": "number",
+    "step": false,
+    "hidden": false,
+    "range": "0…360"
+  },
+  {
+    "owner": "FMSynth",
+    "path": "volume",
+    "kind": "glides",
+    "holds": "Param",
+    "step": false,
+    "hidden": false,
+    "range": "-60…6"
+  },
+  {
+    "owner": "FMSynth",
+    "path": "detune",
+    "kind": "glides",
+    "holds": "Signal",
+    "step": false,
+    "hidden": false,
+    "range": "-1200…1200"
+  },
+  {
+    "owner": "FMSynth",
+    "path": "portamento",
+    "kind": "set",
+    "holds": "number",
+    "step": false,
+    "hidden": false,
+    "range": "0…1"
+  },
+  {
+    "owner": "FMSynth",
+    "path": "harmonicity",
+    "kind": "glides",
+    "holds": "Signal",
+    "step": false,
+    "hidden": false,
+    "range": "0.1…16 log"
+  },
+  {
+    "owner": "FMSynth",
+    "path": "oscillator.partialCount",
+    "kind": "set",
+    "holds": "number",
+    "step": false,
+    "hidden": false
+  },
+  {
+    "owner": "FMSynth",
+    "path": "oscillator.phase",
+    "kind": "set",
+    "holds": "number",
+    "step": false,
+    "hidden": false,
+    "range": "0…360"
+  },
+  {
+    "owner": "FMSynth",
+    "path": "envelope.attack",
+    "kind": "set",
+    "holds": "number",
+    "step": false,
+    "hidden": false,
+    "range": "0.001…5 log"
+  },
+  {
+    "owner": "FMSynth",
+    "path": "envelope.decay",
+    "kind": "set",
+    "holds": "number",
+    "step": false,
+    "hidden": false,
+    "range": "0.001…5 log"
+  },
+  {
+    "owner": "FMSynth",
+    "path": "envelope.release",
+    "kind": "set",
+    "holds": "number",
+    "step": false,
+    "hidden": false,
+    "range": "0.001…5 log"
+  },
+  {
+    "owner": "FMSynth",
+    "path": "envelope.sustain",
+    "kind": "set",
+    "holds": "number",
+    "step": false,
+    "hidden": false,
+    "range": "0…1"
+  },
+  {
+    "owner": "FMSynth",
+    "path": "modulation.partialCount",
+    "kind": "set",
+    "holds": "number",
+    "step": false,
+    "hidden": false
+  },
+  {
+    "owner": "FMSynth",
+    "path": "modulation.phase",
+    "kind": "set",
+    "holds": "number",
+    "step": false,
+    "hidden": false,
+    "range": "0…360"
+  },
+  {
+    "owner": "FMSynth",
+    "path": "modulationEnvelope.attack",
+    "kind": "set",
+    "holds": "number",
+    "step": false,
+    "hidden": false,
+    "range": "0.001…5 log"
+  },
+  {
+    "owner": "FMSynth",
+    "path": "modulationEnvelope.decay",
+    "kind": "set",
+    "holds": "number",
+    "step": false,
+    "hidden": false,
+    "range": "0.001…5 log"
+  },
+  {
+    "owner": "FMSynth",
+    "path": "modulationEnvelope.release",
+    "kind": "set",
+    "holds": "number",
+    "step": false,
+    "hidden": false,
+    "range": "0.001…5 log"
+  },
+  {
+    "owner": "FMSynth",
+    "path": "modulationEnvelope.sustain",
+    "kind": "set",
+    "holds": "number",
+    "step": false,
+    "hidden": false,
+    "range": "0…1"
+  },
+  {
+    "owner": "FMSynth",
+    "path": "modulationIndex",
+    "kind": "glides",
+    "holds": "Signal",
+    "step": false,
+    "hidden": false,
+    "range": "0…100"
+  },
+  {
+    "owner": "AMSynth",
+    "path": "volume",
+    "kind": "glides",
+    "holds": "Param",
+    "step": false,
+    "hidden": false,
+    "range": "-60…6"
+  },
+  {
+    "owner": "AMSynth",
+    "path": "detune",
+    "kind": "glides",
+    "holds": "Signal",
+    "step": false,
+    "hidden": false,
+    "range": "-1200…1200"
+  },
+  {
+    "owner": "AMSynth",
+    "path": "portamento",
+    "kind": "set",
+    "holds": "number",
+    "step": false,
+    "hidden": false,
+    "range": "0…1"
+  },
+  {
+    "owner": "AMSynth",
+    "path": "harmonicity",
+    "kind": "glides",
+    "holds": "Signal",
+    "step": false,
+    "hidden": false,
+    "range": "0.1…16 log"
+  },
+  {
+    "owner": "AMSynth",
+    "path": "oscillator.partialCount",
+    "kind": "set",
+    "holds": "number",
+    "step": false,
+    "hidden": false
+  },
+  {
+    "owner": "AMSynth",
+    "path": "oscillator.phase",
+    "kind": "set",
+    "holds": "number",
+    "step": false,
+    "hidden": false,
+    "range": "0…360"
+  },
+  {
+    "owner": "AMSynth",
+    "path": "envelope.attack",
+    "kind": "set",
+    "holds": "number",
+    "step": false,
+    "hidden": false,
+    "range": "0.001…5 log"
+  },
+  {
+    "owner": "AMSynth",
+    "path": "envelope.decay",
+    "kind": "set",
+    "holds": "number",
+    "step": false,
+    "hidden": false,
+    "range": "0.001…5 log"
+  },
+  {
+    "owner": "AMSynth",
+    "path": "envelope.release",
+    "kind": "set",
+    "holds": "number",
+    "step": false,
+    "hidden": false,
+    "range": "0.001…5 log"
+  },
+  {
+    "owner": "AMSynth",
+    "path": "envelope.sustain",
+    "kind": "set",
+    "holds": "number",
+    "step": false,
+    "hidden": false,
+    "range": "0…1"
+  },
+  {
+    "owner": "AMSynth",
+    "path": "modulation.partialCount",
+    "kind": "set",
+    "holds": "number",
+    "step": false,
+    "hidden": false
+  },
+  {
+    "owner": "AMSynth",
+    "path": "modulation.phase",
+    "kind": "set",
+    "holds": "number",
+    "step": false,
+    "hidden": false,
+    "range": "0…360"
+  },
+  {
+    "owner": "AMSynth",
+    "path": "modulationEnvelope.attack",
+    "kind": "set",
+    "holds": "number",
+    "step": false,
+    "hidden": false,
+    "range": "0.001…5 log"
+  },
+  {
+    "owner": "AMSynth",
+    "path": "modulationEnvelope.decay",
+    "kind": "set",
+    "holds": "number",
+    "step": false,
+    "hidden": false,
+    "range": "0.001…5 log"
+  },
+  {
+    "owner": "AMSynth",
+    "path": "modulationEnvelope.release",
+    "kind": "set",
+    "holds": "number",
+    "step": false,
+    "hidden": false,
+    "range": "0.001…5 log"
+  },
+  {
+    "owner": "AMSynth",
+    "path": "modulationEnvelope.sustain",
+    "kind": "set",
+    "holds": "number",
+    "step": false,
+    "hidden": false,
+    "range": "0…1"
+  },
+  {
+    "owner": "DuoSynth",
+    "path": "volume",
+    "kind": "glides",
+    "holds": "Param",
+    "step": false,
+    "hidden": false,
+    "range": "-60…6"
+  },
+  {
+    "owner": "DuoSynth",
+    "path": "detune",
+    "kind": "glides",
+    "holds": "Signal",
+    "step": false,
+    "hidden": false,
+    "range": "-1200…1200"
+  },
+  {
+    "owner": "DuoSynth",
+    "path": "portamento",
+    "kind": "set",
+    "holds": "number",
+    "step": false,
+    "hidden": false,
+    "range": "0…1"
+  },
+  {
+    "owner": "DuoSynth",
+    "path": "vibratoAmount",
+    "kind": "glides",
+    "holds": "Param",
+    "step": false,
+    "hidden": false,
+    "range": "0…1"
+  },
+  {
+    "owner": "DuoSynth",
+    "path": "vibratoRate",
+    "kind": "glides",
+    "holds": "Signal",
+    "step": false,
+    "hidden": false,
+    "range": "0.1…20 log"
+  },
+  {
+    "owner": "DuoSynth",
+    "path": "harmonicity",
+    "kind": "glides",
+    "holds": "Signal",
+    "step": false,
+    "hidden": false,
+    "range": "0.1…16 log"
+  },
+  {
+    "owner": "DuoSynth",
+    "path": "voice0.envelope.attack",
+    "kind": "set",
+    "holds": "number",
+    "step": false,
+    "hidden": false,
+    "range": "0.001…5 log"
+  },
+  {
+    "owner": "DuoSynth",
+    "path": "voice0.envelope.decay",
+    "kind": "set",
+    "holds": "number",
+    "step": false,
+    "hidden": false,
+    "range": "0.001…5 log"
+  },
+  {
+    "owner": "DuoSynth",
+    "path": "voice0.envelope.release",
+    "kind": "set",
+    "holds": "number",
+    "step": false,
+    "hidden": false,
+    "range": "0.001…5 log"
+  },
+  {
+    "owner": "DuoSynth",
+    "path": "voice0.envelope.sustain",
+    "kind": "set",
+    "holds": "number",
+    "step": false,
+    "hidden": false,
+    "range": "0…1"
+  },
+  {
+    "owner": "DuoSynth",
+    "path": "voice0.filter.Q",
+    "kind": "glides",
+    "holds": "Signal",
+    "step": false,
+    "hidden": false,
+    "range": "0…30"
+  },
+  {
+    "owner": "DuoSynth",
+    "path": "voice0.filter.detune",
+    "kind": "glides",
+    "holds": "Signal",
+    "step": false,
+    "hidden": false,
+    "range": "-1200…1200"
+  },
+  {
+    "owner": "DuoSynth",
+    "path": "voice0.filter.frequency",
+    "kind": "glides",
+    "holds": "Signal",
+    "step": false,
+    "hidden": true,
+    "range": "0.05…20 log"
+  },
+  {
+    "owner": "DuoSynth",
+    "path": "voice0.filter.gain",
+    "kind": "glides",
+    "holds": "Signal",
+    "step": false,
+    "hidden": false,
+    "range": "-40…40"
+  },
+  {
+    "owner": "DuoSynth",
+    "path": "voice0.filter.rolloff",
+    "kind": "set",
+    "holds": "number",
+    "step": false,
+    "hidden": false
+  },
+  {
+    "owner": "DuoSynth",
+    "path": "voice0.filterEnvelope.attack",
+    "kind": "set",
+    "holds": "number",
+    "step": false,
+    "hidden": false,
+    "range": "0.001…5 log"
+  },
+  {
+    "owner": "DuoSynth",
+    "path": "voice0.filterEnvelope.decay",
+    "kind": "set",
+    "holds": "number",
+    "step": false,
+    "hidden": false,
+    "range": "0.001…5 log"
+  },
+  {
+    "owner": "DuoSynth",
+    "path": "voice0.filterEnvelope.release",
+    "kind": "set",
+    "holds": "number",
+    "step": false,
+    "hidden": false,
+    "range": "0.001…5 log"
+  },
+  {
+    "owner": "DuoSynth",
+    "path": "voice0.filterEnvelope.sustain",
+    "kind": "set",
+    "holds": "number",
+    "step": false,
+    "hidden": false,
+    "range": "0…1"
+  },
+  {
+    "owner": "DuoSynth",
+    "path": "voice0.filterEnvelope.baseFrequency",
+    "kind": "set",
+    "holds": "number",
+    "step": false,
+    "hidden": false,
+    "range": "20…8000 log"
+  },
+  {
+    "owner": "DuoSynth",
+    "path": "voice0.filterEnvelope.exponent",
+    "kind": "set",
+    "holds": "number",
+    "step": false,
+    "hidden": false,
+    "range": "1…8"
+  },
+  {
+    "owner": "DuoSynth",
+    "path": "voice0.filterEnvelope.octaves",
+    "kind": "set",
+    "holds": "number",
+    "step": false,
+    "hidden": false,
+    "range": "0…10"
+  },
+  {
+    "owner": "DuoSynth",
+    "path": "voice0.oscillator.detune",
+    "kind": "glides",
+    "holds": "Signal",
+    "step": false,
+    "hidden": false,
+    "range": "-1200…1200"
+  },
+  {
+    "owner": "DuoSynth",
+    "path": "voice0.oscillator.frequency",
+    "kind": "glides",
+    "holds": "Signal",
+    "step": false,
+    "hidden": true,
+    "range": "0.05…20 log"
+  },
+  {
+    "owner": "DuoSynth",
+    "path": "voice0.oscillator.partialCount",
+    "kind": "set",
+    "holds": "number",
+    "step": false,
+    "hidden": false
+  },
+  {
+    "owner": "DuoSynth",
+    "path": "voice0.oscillator.phase",
+    "kind": "set",
+    "holds": "number",
+    "step": false,
+    "hidden": false,
+    "range": "0…360"
+  },
+  {
+    "owner": "DuoSynth",
+    "path": "voice1.envelope.attack",
+    "kind": "set",
+    "holds": "number",
+    "step": false,
+    "hidden": false,
+    "range": "0.001…5 log"
+  },
+  {
+    "owner": "DuoSynth",
+    "path": "voice1.envelope.decay",
+    "kind": "set",
+    "holds": "number",
+    "step": false,
+    "hidden": false,
+    "range": "0.001…5 log"
+  },
+  {
+    "owner": "DuoSynth",
+    "path": "voice1.envelope.release",
+    "kind": "set",
+    "holds": "number",
+    "step": false,
+    "hidden": false,
+    "range": "0.001…5 log"
+  },
+  {
+    "owner": "DuoSynth",
+    "path": "voice1.envelope.sustain",
+    "kind": "set",
+    "holds": "number",
+    "step": false,
+    "hidden": false,
+    "range": "0…1"
+  },
+  {
+    "owner": "DuoSynth",
+    "path": "voice1.filter.Q",
+    "kind": "glides",
+    "holds": "Signal",
+    "step": false,
+    "hidden": false,
+    "range": "0…30"
+  },
+  {
+    "owner": "DuoSynth",
+    "path": "voice1.filter.detune",
+    "kind": "glides",
+    "holds": "Signal",
+    "step": false,
+    "hidden": false,
+    "range": "-1200…1200"
+  },
+  {
+    "owner": "DuoSynth",
+    "path": "voice1.filter.frequency",
+    "kind": "glides",
+    "holds": "Signal",
+    "step": false,
+    "hidden": true,
+    "range": "0.05…20 log"
+  },
+  {
+    "owner": "DuoSynth",
+    "path": "voice1.filter.gain",
+    "kind": "glides",
+    "holds": "Signal",
+    "step": false,
+    "hidden": false,
+    "range": "-40…40"
+  },
+  {
+    "owner": "DuoSynth",
+    "path": "voice1.filter.rolloff",
+    "kind": "set",
+    "holds": "number",
+    "step": false,
+    "hidden": false
+  },
+  {
+    "owner": "DuoSynth",
+    "path": "voice1.filterEnvelope.attack",
+    "kind": "set",
+    "holds": "number",
+    "step": false,
+    "hidden": false,
+    "range": "0.001…5 log"
+  },
+  {
+    "owner": "DuoSynth",
+    "path": "voice1.filterEnvelope.decay",
+    "kind": "set",
+    "holds": "number",
+    "step": false,
+    "hidden": false,
+    "range": "0.001…5 log"
+  },
+  {
+    "owner": "DuoSynth",
+    "path": "voice1.filterEnvelope.release",
+    "kind": "set",
+    "holds": "number",
+    "step": false,
+    "hidden": false,
+    "range": "0.001…5 log"
+  },
+  {
+    "owner": "DuoSynth",
+    "path": "voice1.filterEnvelope.sustain",
+    "kind": "set",
+    "holds": "number",
+    "step": false,
+    "hidden": false,
+    "range": "0…1"
+  },
+  {
+    "owner": "DuoSynth",
+    "path": "voice1.filterEnvelope.baseFrequency",
+    "kind": "set",
+    "holds": "number",
+    "step": false,
+    "hidden": false,
+    "range": "20…8000 log"
+  },
+  {
+    "owner": "DuoSynth",
+    "path": "voice1.filterEnvelope.exponent",
+    "kind": "set",
+    "holds": "number",
+    "step": false,
+    "hidden": false,
+    "range": "1…8"
+  },
+  {
+    "owner": "DuoSynth",
+    "path": "voice1.filterEnvelope.octaves",
+    "kind": "set",
+    "holds": "number",
+    "step": false,
+    "hidden": false,
+    "range": "0…10"
+  },
+  {
+    "owner": "DuoSynth",
+    "path": "voice1.oscillator.detune",
+    "kind": "glides",
+    "holds": "Signal",
+    "step": false,
+    "hidden": false,
+    "range": "-1200…1200"
+  },
+  {
+    "owner": "DuoSynth",
+    "path": "voice1.oscillator.frequency",
+    "kind": "glides",
+    "holds": "Signal",
+    "step": false,
+    "hidden": true,
+    "range": "0.05…20 log"
+  },
+  {
+    "owner": "DuoSynth",
+    "path": "voice1.oscillator.partialCount",
+    "kind": "set",
+    "holds": "number",
+    "step": false,
+    "hidden": false
+  },
+  {
+    "owner": "DuoSynth",
+    "path": "voice1.oscillator.phase",
+    "kind": "set",
+    "holds": "number",
+    "step": false,
+    "hidden": false,
+    "range": "0…360"
+  },
+  {
+    "owner": "MembraneSynth",
+    "path": "volume",
+    "kind": "glides",
+    "holds": "Param",
+    "step": false,
+    "hidden": false,
+    "range": "-60…6"
+  },
+  {
+    "owner": "MembraneSynth",
+    "path": "detune",
+    "kind": "glides",
+    "holds": "Signal",
+    "step": false,
+    "hidden": false,
+    "range": "-1200…1200"
+  },
+  {
+    "owner": "MembraneSynth",
+    "path": "portamento",
+    "kind": "set",
+    "holds": "number",
+    "step": false,
+    "hidden": false,
+    "range": "0…1"
+  },
+  {
+    "owner": "MembraneSynth",
+    "path": "envelope.attack",
+    "kind": "set",
+    "holds": "number",
+    "step": false,
+    "hidden": false,
+    "range": "0.001…5 log"
+  },
+  {
+    "owner": "MembraneSynth",
+    "path": "envelope.decay",
+    "kind": "set",
+    "holds": "number",
+    "step": false,
+    "hidden": false,
+    "range": "0.001…5 log"
+  },
+  {
+    "owner": "MembraneSynth",
+    "path": "envelope.release",
+    "kind": "set",
+    "holds": "number",
+    "step": false,
+    "hidden": false,
+    "range": "0.001…5 log"
+  },
+  {
+    "owner": "MembraneSynth",
+    "path": "envelope.sustain",
+    "kind": "set",
+    "holds": "number",
+    "step": false,
+    "hidden": false,
+    "range": "0…1"
+  },
+  {
+    "owner": "MembraneSynth",
+    "path": "oscillator.partialCount",
+    "kind": "set",
+    "holds": "number",
+    "step": false,
+    "hidden": false
+  },
+  {
+    "owner": "MembraneSynth",
+    "path": "oscillator.phase",
+    "kind": "set",
+    "holds": "number",
+    "step": false,
+    "hidden": false,
+    "range": "0…360"
+  },
+  {
+    "owner": "MembraneSynth",
+    "path": "octaves",
+    "kind": "set",
+    "holds": "number",
+    "step": false,
+    "hidden": false,
+    "range": "0…10"
+  },
+  {
+    "owner": "MembraneSynth",
+    "path": "pitchDecay",
+    "kind": "set",
+    "holds": "number",
+    "step": false,
+    "hidden": false,
+    "range": "0.001…0.5 log"
+  },
+  {
+    "owner": "MetalSynth",
+    "path": "volume",
+    "kind": "glides",
+    "holds": "Param",
+    "step": false,
+    "hidden": false,
+    "range": "-60…6"
+  },
+  {
+    "owner": "MetalSynth",
+    "path": "detune",
+    "kind": "glides",
+    "holds": "Signal",
+    "step": false,
+    "hidden": false,
+    "range": "-1200…1200"
+  },
+  {
+    "owner": "MetalSynth",
+    "path": "portamento",
+    "kind": "set",
+    "holds": "number",
+    "step": false,
+    "hidden": false,
+    "range": "0…1"
+  },
+  {
+    "owner": "MetalSynth",
+    "path": "envelope.attack",
+    "kind": "set",
+    "holds": "number",
+    "step": false,
+    "hidden": false,
+    "range": "0.001…5 log"
+  },
+  {
+    "owner": "MetalSynth",
+    "path": "envelope.decay",
+    "kind": "set",
+    "holds": "number",
+    "step": false,
+    "hidden": false,
+    "range": "0.001…5 log"
+  },
+  {
+    "owner": "MetalSynth",
+    "path": "envelope.release",
+    "kind": "set",
+    "holds": "number",
+    "step": false,
+    "hidden": false,
+    "range": "0.001…5 log"
+  },
+  {
+    "owner": "MetalSynth",
+    "path": "envelope.sustain",
+    "kind": "set",
+    "holds": "number",
+    "step": false,
+    "hidden": false,
+    "range": "0…1"
+  },
+  {
+    "owner": "MetalSynth",
+    "path": "harmonicity",
+    "kind": "set",
+    "holds": "number",
+    "step": false,
+    "hidden": false,
+    "range": "0.1…16 log"
+  },
+  {
+    "owner": "MetalSynth",
+    "path": "modulationIndex",
+    "kind": "set",
+    "holds": "number",
+    "step": false,
+    "hidden": false,
+    "range": "0…100"
+  },
+  {
+    "owner": "MetalSynth",
+    "path": "octaves",
+    "kind": "set",
+    "holds": "number",
+    "step": false,
+    "hidden": false,
+    "range": "0…10"
+  },
+  {
+    "owner": "MetalSynth",
+    "path": "resonance",
+    "kind": "set",
+    "holds": "number",
+    "step": false,
+    "hidden": false,
+    "range": "100…12000 log"
+  },
+  {
+    "owner": "NoiseSynth",
+    "path": "volume",
+    "kind": "glides",
+    "holds": "Param",
+    "step": false,
+    "hidden": false,
+    "range": "-60…6"
+  },
+  {
+    "owner": "NoiseSynth",
+    "path": "envelope.attack",
+    "kind": "set",
+    "holds": "number",
+    "step": false,
+    "hidden": false,
+    "range": "0.001…5 log"
+  },
+  {
+    "owner": "NoiseSynth",
+    "path": "envelope.decay",
+    "kind": "set",
+    "holds": "number",
+    "step": false,
+    "hidden": false,
+    "range": "0.001…5 log"
+  },
+  {
+    "owner": "NoiseSynth",
+    "path": "envelope.release",
+    "kind": "set",
+    "holds": "number",
+    "step": false,
+    "hidden": false,
+    "range": "0.001…5 log"
+  },
+  {
+    "owner": "NoiseSynth",
+    "path": "envelope.sustain",
+    "kind": "set",
+    "holds": "number",
+    "step": false,
+    "hidden": false,
+    "range": "0…1"
+  },
+  {
+    "owner": "NoiseSynth",
+    "path": "noise.fadeIn",
+    "kind": "set",
+    "holds": "number",
+    "step": false,
+    "hidden": false,
+    "range": "0…1"
+  },
+  {
+    "owner": "NoiseSynth",
+    "path": "noise.fadeOut",
+    "kind": "set",
+    "holds": "number",
+    "step": false,
+    "hidden": false,
+    "range": "0…1"
+  },
+  {
+    "owner": "NoiseSynth",
+    "path": "noise.playbackRate",
+    "kind": "set",
+    "holds": "number",
+    "step": false,
+    "hidden": false,
+    "range": "0.1…4 log"
+  },
+  {
+    "owner": "PluckSynth",
+    "path": "volume",
+    "kind": "glides",
+    "holds": "Param",
+    "step": false,
+    "hidden": false,
+    "range": "-60…6"
+  },
+  {
+    "owner": "PluckSynth",
+    "path": "attackNoise",
+    "kind": "set",
+    "holds": "number",
+    "step": false,
+    "hidden": false,
+    "range": "0.1…20 log"
+  },
+  {
+    "owner": "PluckSynth",
+    "path": "dampening",
+    "kind": "set",
+    "holds": "number",
+    "step": false,
+    "hidden": false,
+    "range": "100…12000 log"
+  },
+  {
+    "owner": "PluckSynth",
+    "path": "resonance",
+    "kind": "set",
+    "holds": "number",
+    "step": false,
+    "hidden": false,
+    "range": "0…0.99"
+  },
+  {
+    "owner": "PluckSynth",
+    "path": "release",
+    "kind": "set",
+    "holds": "number",
+    "step": false,
+    "hidden": false,
+    "range": "0.001…5 log"
+  },
+  {
+    "owner": "Distortion",
+    "path": "wet",
+    "kind": "glides",
+    "holds": "Signal",
+    "step": false,
+    "hidden": false,
+    "range": "0…1"
+  },
+  {
+    "owner": "Distortion",
+    "path": "distortion",
+    "kind": "set",
+    "holds": "number",
+    "step": false,
+    "hidden": false,
+    "range": "0…1"
+  },
+  {
+    "owner": "BitCrusher",
+    "path": "wet",
+    "kind": "glides",
+    "holds": "Signal",
+    "step": false,
+    "hidden": false,
+    "range": "0…1"
+  },
+  {
+    "owner": "BitCrusher",
+    "path": "bits",
+    "kind": "glides",
+    "holds": "Param",
+    "step": true,
+    "hidden": false,
+    "range": "1…16"
+  },
+  {
+    "owner": "Chebyshev",
+    "path": "wet",
+    "kind": "glides",
+    "holds": "Signal",
+    "step": false,
+    "hidden": false,
+    "range": "0…1"
+  },
+  {
+    "owner": "Chebyshev",
+    "path": "order",
+    "kind": "set",
+    "holds": "number",
+    "step": true,
+    "hidden": false,
+    "range": "1…100"
+  },
+  {
+    "owner": "Chorus",
+    "path": "wet",
+    "kind": "glides",
+    "holds": "Signal",
+    "step": false,
+    "hidden": false,
+    "range": "0…1"
+  },
+  {
+    "owner": "Chorus",
+    "path": "feedback",
+    "kind": "glides",
+    "holds": "Signal",
+    "step": false,
+    "hidden": false,
+    "range": "0…0.95"
+  },
+  {
+    "owner": "Chorus",
+    "path": "frequency",
+    "kind": "glides",
+    "holds": "Signal",
+    "step": false,
+    "hidden": false,
+    "range": "0.05…20 log"
+  },
+  {
+    "owner": "Chorus",
+    "path": "delayTime",
+    "kind": "set",
+    "holds": "number",
+    "step": false,
+    "hidden": false,
+    "range": "1…20"
+  },
+  {
+    "owner": "Chorus",
+    "path": "depth",
+    "kind": "set",
+    "holds": "number",
+    "step": false,
+    "hidden": false,
+    "range": "0…1"
+  },
+  {
+    "owner": "Chorus",
+    "path": "spread",
+    "kind": "set",
+    "holds": "number",
+    "step": false,
+    "hidden": false,
+    "range": "0…180"
+  },
+  {
+    "owner": "Phaser",
+    "path": "wet",
+    "kind": "glides",
+    "holds": "Signal",
+    "step": false,
+    "hidden": false,
+    "range": "0…1"
+  },
+  {
+    "owner": "Phaser",
+    "path": "frequency",
+    "kind": "glides",
+    "holds": "Signal",
+    "step": false,
+    "hidden": false,
+    "range": "0.05…20 log"
+  },
+  {
+    "owner": "Phaser",
+    "path": "octaves",
+    "kind": "set",
+    "holds": "number",
+    "step": false,
+    "hidden": false,
+    "range": "0…10"
+  },
+  {
+    "owner": "Phaser",
+    "path": "stages",
+    "kind": "remade",
+    "holds": "not on the object",
+    "step": true,
+    "hidden": false,
+    "range": "1…24"
+  },
+  {
+    "owner": "Phaser",
+    "path": "Q",
+    "kind": "glides",
+    "holds": "Signal",
+    "step": false,
+    "hidden": false,
+    "range": "0…30"
+  },
+  {
+    "owner": "Phaser",
+    "path": "baseFrequency",
+    "kind": "set",
+    "holds": "number",
+    "step": false,
+    "hidden": false,
+    "range": "20…8000 log"
+  },
+  {
+    "owner": "Tremolo",
+    "path": "wet",
+    "kind": "glides",
+    "holds": "Signal",
+    "step": false,
+    "hidden": false,
+    "range": "0…1"
+  },
+  {
+    "owner": "Tremolo",
+    "path": "frequency",
+    "kind": "glides",
+    "holds": "Signal",
+    "step": false,
+    "hidden": false,
+    "range": "0.05…20 log"
+  },
+  {
+    "owner": "Tremolo",
+    "path": "depth",
+    "kind": "glides",
+    "holds": "Signal",
+    "step": false,
+    "hidden": false,
+    "range": "0…1"
+  },
+  {
+    "owner": "Tremolo",
+    "path": "spread",
+    "kind": "set",
+    "holds": "number",
+    "step": false,
+    "hidden": false,
+    "range": "0…180"
+  },
+  {
+    "owner": "Vibrato",
+    "path": "wet",
+    "kind": "glides",
+    "holds": "Signal",
+    "step": false,
+    "hidden": false,
+    "range": "0…1"
+  },
+  {
+    "owner": "Vibrato",
+    "path": "maxDelay",
+    "kind": "remade",
+    "holds": "not on the object",
+    "step": false,
+    "hidden": true
+  },
+  {
+    "owner": "Vibrato",
+    "path": "frequency",
+    "kind": "glides",
+    "holds": "Signal",
+    "step": false,
+    "hidden": false,
+    "range": "0.05…20 log"
+  },
+  {
+    "owner": "Vibrato",
+    "path": "depth",
+    "kind": "glides",
+    "holds": "Param",
+    "step": false,
+    "hidden": false,
+    "range": "0…1"
+  },
+  {
+    "owner": "AutoFilter",
+    "path": "wet",
+    "kind": "glides",
+    "holds": "Signal",
+    "step": false,
+    "hidden": false,
+    "range": "0…1"
+  },
+  {
+    "owner": "AutoFilter",
+    "path": "frequency",
+    "kind": "glides",
+    "holds": "Signal",
+    "step": false,
+    "hidden": false,
+    "range": "0.05…20 log"
+  },
+  {
+    "owner": "AutoFilter",
+    "path": "depth",
+    "kind": "glides",
+    "holds": "Param",
+    "step": false,
+    "hidden": false,
+    "range": "0…1"
+  },
+  {
+    "owner": "AutoFilter",
+    "path": "baseFrequency",
+    "kind": "set",
+    "holds": "number",
+    "step": false,
+    "hidden": false,
+    "range": "20…8000 log"
+  },
+  {
+    "owner": "AutoFilter",
+    "path": "octaves",
+    "kind": "set",
+    "holds": "number",
+    "step": false,
+    "hidden": false,
+    "range": "0…10"
+  },
+  {
+    "owner": "AutoFilter",
+    "path": "filter.Q",
+    "kind": "glides",
+    "holds": "Signal",
+    "step": false,
+    "hidden": false,
+    "range": "0…30"
+  },
+  {
+    "owner": "AutoFilter",
+    "path": "filter.rolloff",
+    "kind": "set",
+    "holds": "number",
+    "step": false,
+    "hidden": false
+  },
+  {
+    "owner": "AutoPanner",
+    "path": "wet",
+    "kind": "glides",
+    "holds": "Signal",
+    "step": false,
+    "hidden": false,
+    "range": "0…1"
+  },
+  {
+    "owner": "AutoPanner",
+    "path": "frequency",
+    "kind": "glides",
+    "holds": "Signal",
+    "step": false,
+    "hidden": false,
+    "range": "0.05…20 log"
+  },
+  {
+    "owner": "AutoPanner",
+    "path": "depth",
+    "kind": "glides",
+    "holds": "Param",
+    "step": false,
+    "hidden": false,
+    "range": "0…1"
+  },
+  {
+    "owner": "AutoPanner",
+    "path": "channelCount",
+    "kind": "set",
+    "holds": "number",
+    "step": false,
+    "hidden": true
+  },
+  {
+    "owner": "AutoWah",
+    "path": "wet",
+    "kind": "glides",
+    "holds": "Signal",
+    "step": false,
+    "hidden": false,
+    "range": "0…1"
+  },
+  {
+    "owner": "AutoWah",
+    "path": "baseFrequency",
+    "kind": "set",
+    "holds": "number",
+    "step": false,
+    "hidden": false,
+    "range": "20…8000 log"
+  },
+  {
+    "owner": "AutoWah",
+    "path": "octaves",
+    "kind": "set",
+    "holds": "number",
+    "step": false,
+    "hidden": false,
+    "range": "0…10"
+  },
+  {
+    "owner": "AutoWah",
+    "path": "sensitivity",
+    "kind": "set",
+    "holds": "number",
+    "step": false,
+    "hidden": false,
+    "range": "-40…0"
+  },
+  {
+    "owner": "AutoWah",
+    "path": "Q",
+    "kind": "glides",
+    "holds": "Signal",
+    "step": false,
+    "hidden": false,
+    "range": "0…30"
+  },
+  {
+    "owner": "AutoWah",
+    "path": "gain",
+    "kind": "glides",
+    "holds": "Signal",
+    "step": false,
+    "hidden": false,
+    "range": "-40…40"
+  },
+  {
+    "owner": "AutoWah",
+    "path": "follower",
+    "kind": "set",
+    "holds": "number",
+    "step": false,
+    "hidden": false,
+    "range": "0.001…1 log"
+  },
+  {
+    "owner": "FrequencyShifter",
+    "path": "wet",
+    "kind": "glides",
+    "holds": "Signal",
+    "step": false,
+    "hidden": false,
+    "range": "0…1"
+  },
+  {
+    "owner": "FrequencyShifter",
+    "path": "frequency",
+    "kind": "glides",
+    "holds": "Signal",
+    "step": false,
+    "hidden": false,
+    "range": "-2000…2000"
+  },
+  {
+    "owner": "PitchShift",
+    "path": "wet",
+    "kind": "glides",
+    "holds": "Signal",
+    "step": false,
+    "hidden": false,
+    "range": "0…1"
+  },
+  {
+    "owner": "PitchShift",
+    "path": "feedback",
+    "kind": "glides",
+    "holds": "Param",
+    "step": false,
+    "hidden": false,
+    "range": "0…0.95"
+  },
+  {
+    "owner": "PitchShift",
+    "path": "pitch",
+    "kind": "set",
+    "holds": "number",
+    "step": true,
+    "hidden": false,
+    "range": "-24…24"
+  },
+  {
+    "owner": "PitchShift",
+    "path": "windowSize",
+    "kind": "set",
+    "holds": "number",
+    "step": false,
+    "hidden": false,
+    "range": "0.01…0.5 log"
+  },
+  {
+    "owner": "PitchShift",
+    "path": "delayTime",
+    "kind": "glides",
+    "holds": "Param",
+    "step": false,
+    "hidden": false,
+    "range": "0…1"
+  },
+  {
+    "owner": "FeedbackDelay",
+    "path": "wet",
+    "kind": "glides",
+    "holds": "Signal",
+    "step": false,
+    "hidden": false,
+    "range": "0…1"
+  },
+  {
+    "owner": "FeedbackDelay",
+    "path": "feedback",
+    "kind": "glides",
+    "holds": "Param",
+    "step": false,
+    "hidden": false,
+    "range": "0…0.95"
+  },
+  {
+    "owner": "FeedbackDelay",
+    "path": "delayTime",
+    "kind": "glides",
+    "holds": "Param",
+    "step": false,
+    "hidden": false,
+    "range": "0.001…1 log"
+  },
+  {
+    "owner": "FeedbackDelay",
+    "path": "maxDelay",
+    "kind": "remade",
+    "holds": "not on the object",
+    "step": false,
+    "hidden": true
+  },
+  {
+    "owner": "PingPongDelay",
+    "path": "wet",
+    "kind": "glides",
+    "holds": "Signal",
+    "step": false,
+    "hidden": false,
+    "range": "0…1"
+  },
+  {
+    "owner": "PingPongDelay",
+    "path": "feedback",
+    "kind": "glides",
+    "holds": "Signal",
+    "step": false,
+    "hidden": false,
+    "range": "0…0.95"
+  },
+  {
+    "owner": "PingPongDelay",
+    "path": "delayTime",
+    "kind": "glides",
+    "holds": "Signal",
+    "step": false,
+    "hidden": false,
+    "range": "0.001…1 log"
+  },
+  {
+    "owner": "PingPongDelay",
+    "path": "maxDelay",
+    "kind": "remade",
+    "holds": "not on the object",
+    "step": false,
+    "hidden": true
+  },
+  {
+    "owner": "Freeverb",
+    "path": "wet",
+    "kind": "glides",
+    "holds": "Signal",
+    "step": false,
+    "hidden": false,
+    "range": "0…1"
+  },
+  {
+    "owner": "Freeverb",
+    "path": "roomSize",
+    "kind": "glides",
+    "holds": "Signal",
+    "step": false,
+    "hidden": false,
+    "range": "0…0.98"
+  },
+  {
+    "owner": "Freeverb",
+    "path": "dampening",
+    "kind": "set",
+    "holds": "number",
+    "step": false,
+    "hidden": false,
+    "range": "100…12000 log"
+  },
+  {
+    "owner": "JCReverb",
+    "path": "wet",
+    "kind": "glides",
+    "holds": "Signal",
+    "step": false,
+    "hidden": false,
+    "range": "0…1"
+  },
+  {
+    "owner": "JCReverb",
+    "path": "roomSize",
+    "kind": "glides",
+    "holds": "Signal",
+    "step": false,
+    "hidden": false,
+    "range": "0…0.98"
+  },
+  {
+    "owner": "Reverb",
+    "path": "wet",
+    "kind": "glides",
+    "holds": "Signal",
+    "step": false,
+    "hidden": false,
+    "range": "0…1"
+  },
+  {
+    "owner": "Reverb",
+    "path": "decay",
+    "kind": "set",
+    "holds": "number",
+    "step": false,
+    "hidden": false,
+    "range": "0.1…20 log"
+  },
+  {
+    "owner": "Reverb",
+    "path": "preDelay",
+    "kind": "set",
+    "holds": "number",
+    "step": false,
+    "hidden": false,
+    "range": "0…0.5"
+  },
+  {
+    "owner": "StereoWidener",
+    "path": "wet",
+    "kind": "glides",
+    "holds": "Signal",
+    "step": false,
+    "hidden": false,
+    "range": "0…1"
+  },
+  {
+    "owner": "StereoWidener",
+    "path": "width",
+    "kind": "glides",
+    "holds": "Signal",
+    "step": false,
+    "hidden": false,
+    "range": "0…1"
+  },
+  {
+    "owner": "Filter",
+    "path": "Q",
+    "kind": "glides",
+    "holds": "Signal",
+    "step": false,
+    "hidden": false,
+    "range": "0…30"
+  },
+  {
+    "owner": "Filter",
+    "path": "detune",
+    "kind": "glides",
+    "holds": "Signal",
+    "step": false,
+    "hidden": false,
+    "range": "-1200…1200"
+  },
+  {
+    "owner": "Filter",
+    "path": "frequency",
+    "kind": "glides",
+    "holds": "Signal",
+    "step": false,
+    "hidden": false,
+    "range": "20…20000 log"
+  },
+  {
+    "owner": "Filter",
+    "path": "gain",
+    "kind": "glides",
+    "holds": "Signal",
+    "step": false,
+    "hidden": false,
+    "range": "-40…40"
+  },
+  {
+    "owner": "Filter",
+    "path": "rolloff",
+    "kind": "set",
+    "holds": "number",
+    "step": false,
+    "hidden": false
+  },
+  {
+    "owner": "EQ3",
+    "path": "high",
+    "kind": "glides",
+    "holds": "Param",
+    "step": false,
+    "hidden": false,
+    "range": "-24…24"
+  },
+  {
+    "owner": "EQ3",
+    "path": "highFrequency",
+    "kind": "glides",
+    "holds": "Signal",
+    "step": false,
+    "hidden": false,
+    "range": "1000…12000 log"
+  },
+  {
+    "owner": "EQ3",
+    "path": "low",
+    "kind": "glides",
+    "holds": "Param",
+    "step": false,
+    "hidden": false,
+    "range": "-24…24"
+  },
+  {
+    "owner": "EQ3",
+    "path": "lowFrequency",
+    "kind": "glides",
+    "holds": "Signal",
+    "step": false,
+    "hidden": false,
+    "range": "40…1000 log"
+  },
+  {
+    "owner": "EQ3",
+    "path": "mid",
+    "kind": "glides",
+    "holds": "Param",
+    "step": false,
+    "hidden": false,
+    "range": "-24…24"
+  },
+  {
+    "owner": "Compressor",
+    "path": "attack",
+    "kind": "glides",
+    "holds": "Param",
+    "step": false,
+    "hidden": false,
+    "range": "0.001…5 log"
+  },
+  {
+    "owner": "Compressor",
+    "path": "knee",
+    "kind": "glides",
+    "holds": "Param",
+    "step": false,
+    "hidden": false,
+    "range": "0…40"
+  },
+  {
+    "owner": "Compressor",
+    "path": "ratio",
+    "kind": "glides",
+    "holds": "Param",
+    "step": false,
+    "hidden": false,
+    "range": "1…20"
+  },
+  {
+    "owner": "Compressor",
+    "path": "release",
+    "kind": "glides",
+    "holds": "Param",
+    "step": false,
+    "hidden": false,
+    "range": "0.001…5 log"
+  },
+  {
+    "owner": "Compressor",
+    "path": "threshold",
+    "kind": "glides",
+    "holds": "Param",
+    "step": false,
+    "hidden": false,
+    "range": "-60…0"
+  },
+  {
+    "owner": "MultibandCompressor",
+    "path": "lowFrequency",
+    "kind": "glides",
+    "holds": "Signal",
+    "step": false,
+    "hidden": false,
+    "range": "40…1000 log"
+  },
+  {
+    "owner": "MultibandCompressor",
+    "path": "highFrequency",
+    "kind": "glides",
+    "holds": "Signal",
+    "step": false,
+    "hidden": false,
+    "range": "1000…12000 log"
+  },
+  {
+    "owner": "MultibandCompressor",
+    "path": "low.attack",
+    "kind": "glides",
+    "holds": "Param",
+    "step": false,
+    "hidden": false,
+    "range": "0.001…5 log"
+  },
+  {
+    "owner": "MultibandCompressor",
+    "path": "low.knee",
+    "kind": "glides",
+    "holds": "Param",
+    "step": false,
+    "hidden": false,
+    "range": "0…40"
+  },
+  {
+    "owner": "MultibandCompressor",
+    "path": "low.ratio",
+    "kind": "glides",
+    "holds": "Param",
+    "step": false,
+    "hidden": false,
+    "range": "1…20"
+  },
+  {
+    "owner": "MultibandCompressor",
+    "path": "low.release",
+    "kind": "glides",
+    "holds": "Param",
+    "step": false,
+    "hidden": false,
+    "range": "0.001…5 log"
+  },
+  {
+    "owner": "MultibandCompressor",
+    "path": "low.threshold",
+    "kind": "glides",
+    "holds": "Param",
+    "step": false,
+    "hidden": false,
+    "range": "-60…0"
+  },
+  {
+    "owner": "MultibandCompressor",
+    "path": "mid.attack",
+    "kind": "glides",
+    "holds": "Param",
+    "step": false,
+    "hidden": false,
+    "range": "0.001…5 log"
+  },
+  {
+    "owner": "MultibandCompressor",
+    "path": "mid.knee",
+    "kind": "glides",
+    "holds": "Param",
+    "step": false,
+    "hidden": false,
+    "range": "0…40"
+  },
+  {
+    "owner": "MultibandCompressor",
+    "path": "mid.ratio",
+    "kind": "glides",
+    "holds": "Param",
+    "step": false,
+    "hidden": false,
+    "range": "1…20"
+  },
+  {
+    "owner": "MultibandCompressor",
+    "path": "mid.release",
+    "kind": "glides",
+    "holds": "Param",
+    "step": false,
+    "hidden": false,
+    "range": "0.001…5 log"
+  },
+  {
+    "owner": "MultibandCompressor",
+    "path": "mid.threshold",
+    "kind": "glides",
+    "holds": "Param",
+    "step": false,
+    "hidden": false,
+    "range": "-60…0"
+  },
+  {
+    "owner": "MultibandCompressor",
+    "path": "high.attack",
+    "kind": "glides",
+    "holds": "Param",
+    "step": false,
+    "hidden": false,
+    "range": "0.001…5 log"
+  },
+  {
+    "owner": "MultibandCompressor",
+    "path": "high.knee",
+    "kind": "glides",
+    "holds": "Param",
+    "step": false,
+    "hidden": false,
+    "range": "0…40"
+  },
+  {
+    "owner": "MultibandCompressor",
+    "path": "high.ratio",
+    "kind": "glides",
+    "holds": "Param",
+    "step": false,
+    "hidden": false,
+    "range": "1…20"
+  },
+  {
+    "owner": "MultibandCompressor",
+    "path": "high.release",
+    "kind": "glides",
+    "holds": "Param",
+    "step": false,
+    "hidden": false,
+    "range": "0.001…5 log"
+  },
+  {
+    "owner": "MultibandCompressor",
+    "path": "high.threshold",
+    "kind": "glides",
+    "holds": "Param",
+    "step": false,
+    "hidden": false,
+    "range": "-60…0"
+  },
+  {
+    "owner": "Gate",
+    "path": "smoothing",
+    "kind": "set",
+    "holds": "number",
+    "step": false,
+    "hidden": false,
+    "range": "0.001…1 log"
+  },
+  {
+    "owner": "Gate",
+    "path": "threshold",
+    "kind": "set",
+    "holds": "number",
+    "step": false,
+    "hidden": false,
+    "range": "-60…0"
+  },
+  {
+    "owner": "Limiter",
+    "path": "threshold",
+    "kind": "glides",
+    "holds": "Param",
+    "step": false,
+    "hidden": false,
+    "range": "-60…0"
+  },
+  {
+    "owner": "MonoSynth (Monarch)",
+    "path": "oscillator.count",
+    "kind": "set",
+    "holds": "number",
+    "step": true,
+    "hidden": false,
+    "range": "1…3"
+  },
+  {
+    "owner": "MonoSynth (Monarch)",
+    "path": "oscillator.spread",
+    "kind": "set",
+    "holds": "number",
+    "step": false,
+    "hidden": false,
+    "range": "0…100"
+  },
+  {
+    "owner": "Channel",
+    "path": "volume",
+    "kind": "glides",
+    "holds": "Param",
+    "step": false,
+    "hidden": false,
+    "range": "-60…6"
+  },
+  {
+    "owner": "Channel",
+    "path": "pan",
+    "kind": "glides",
+    "holds": "Param",
+    "step": false,
+    "hidden": false,
+    "range": "-1…1"
+  },
+  {
+    "owner": "Send",
+    "path": "gain",
+    "kind": "glides",
+    "holds": "Param",
+    "step": false,
+    "hidden": false,
+    "range": "-60…6"
+  }
+]

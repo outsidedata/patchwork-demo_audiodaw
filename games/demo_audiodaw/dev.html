@@ -1,0 +1,77 @@
+<!doctype html>
+<html>
+  <head>
+    <meta charset="utf-8" />
+    <title>demo_audiodaw dev</title>
+    <style>
+      body { margin: 0; background: #0b0b0e; display: grid; place-items: center; height: 100vh }
+      canvas { grid-area: 1 / 1 }
+    </style>
+  </head>
+  <body>
+    <script type="module">
+      // The testbed: the game as index.html runs it, and a panel setting Tone's timing live.
+      //   LOOKAHEAD  the seconds ahead of the audio Tone's clock hands it each note, set on the
+      //              running context at once.
+      //   BUFFER     the browser's audio buffer in seconds (`latencyHint`). A context's buffer is
+      //              fixed when it is made, so a change stops the song, makes a new context with
+      //              both numbers, and loads the song into it; press PLAY again.
+      //   ACTUAL     the buffer the browser gave (`baseLatency` + `outputLatency`), read every frame.
+      // Both start at the scene's `world.audiodaw`, which the plugin set on its first tick.
+      import { boot } from '#engine/engine.ts'
+      import { accept, load, manager, link, view } from '#addons/scenemanager/scenemanager.addon.ts'
+      import { loopback } from '#addons/loopback/loopback.addon.ts'
+      import * as Tone from 'tone'
+      import GUI from 'lil-gui'
+      import { sim } from './demo_audiodaw.sim.ts'
+      import file from './demo_audiodaw.scene.json'
+
+      const dt = file.prefabs.engine.dt
+      const truth = boot(file, sim)
+      await load(truth, import.meta.url)
+      let plugins
+      const page = view(link(loopback(accept(manager(truth)))), file, import.meta.url, (me, scene) => {
+        plugins = me.plugins
+        for (const surface of [me.plugins.render3d ?? me.plugins.render2d, me.plugins.ui]) {
+          if (!surface) continue
+          const canvas = document.createElement('canvas')
+          canvas.width = scene.prefabs.engine.width
+          canvas.height = scene.prefabs.engine.height
+          document.body.appendChild(canvas)
+          surface.mount(canvas)
+        }
+      })
+
+      const timing = { lookAhead: 0, buffer: 0 }
+      const actual = { ms: '' }
+      const gui = new GUI({ title: 'audio timing', width: 260 })
+      const read = () => {
+        const raw = Tone.getContext().rawContext
+        timing.lookAhead = Tone.getContext().lookAhead
+        timing.buffer = typeof Tone.getContext().latencyHint === 'number' ? Tone.getContext().latencyHint : raw.baseLatency
+        gui.controllersRecursive().forEach(c => c.updateDisplay())
+      }
+      gui.add(timing, 'lookAhead', 0, 5, 0.01).name('LOOKAHEAD s').onFinishChange(v => { Tone.getContext().lookAhead = v })
+      gui.add(timing, 'buffer', 0, 5, 0.01).name('BUFFER s').onFinishChange(v => {
+        Tone.getTransport().stop()
+        Tone.setContext(new Tone.Context({ context: new AudioContext({ latencyHint: v }), lookAhead: timing.lookAhead }))
+        plugins.audiodaw.load(plugins.studio.project)
+      })
+      gui.add(actual, 'ms').name('ACTUAL ms').disable().listen()
+
+      let last = performance.now(), owed = 0, seen
+      const loop = async now => {
+        owed += Math.min((now - last) / 1000, 0.25)
+        last = now
+        page.input()
+        while (owed >= dt) { truth.step(dt); owed -= dt }
+        await page.frame(owed / dt)
+        const raw = Tone.getContext().rawContext
+        if (seen !== raw) { seen = raw; read() }
+        actual.ms = (((raw.baseLatency ?? 0) + (raw.outputLatency ?? 0)) * 1000).toFixed(1)
+        requestAnimationFrame(loop)
+      }
+      requestAnimationFrame(loop)
+    </script>
+  </body>
+</html>

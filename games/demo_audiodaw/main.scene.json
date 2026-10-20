@@ -1,0 +1,83 @@
+{
+  "world": {
+    "defs": "demo_audiodaw",
+    "loader": {
+      "assets": {
+        "demo_audiodaw": { "type": "json", "url": "/games/demo_audiodaw/assets/demo_audiodaw.json", "preload": true },
+        "presets": { "type": "json", "url": "/games/demo_audiodaw/assets/presets.json", "preload": true },
+        "jungles": { "type": "json", "url": "/games/demo_audiodaw/assets/songs/jungles.json", "preload": true }
+      }
+    },
+    "shipped": {
+      "plugins": [
+        "studio"
+      ]
+    },
+    "audiodaw": {
+      "lookAhead": 0.5,
+      "latencyHint": 3
+    },
+    "predict": {
+      "epsilon": 0.000001,
+      "cutoff": 60,
+      "halflife": 100,
+      "snap": 5,
+      "below": 0.001
+    }
+  },
+  "plugins": [
+    "loader",
+    "scenemanager",
+    "store",
+    "player",
+    "audiodaw",
+    "renderdom",
+    "shipped"
+  ],
+  "seats": 1,
+  "prefabs": {
+    "engine": {
+      "dt": 0.016666666666666666,
+      "width": 1600,
+      "height": 1000
+    },
+    "scenemanager": {
+      "out": {}
+    },
+    "loader": {},
+    "store": {
+      "presets": []
+    },
+    "player": {
+      "seat": 0
+    },
+    "transport": {},
+    "roll": {},
+    "arrange": {},
+    "mixer": {},
+    "rack": {}
+  },
+  "actors": [
+    {
+      "is": "scenemanager"
+    },
+    {
+      "is": "loader"
+    },
+    {
+      "is": "transport"
+    },
+    {
+      "is": "roll"
+    },
+    {
+      "is": "arrange"
+    },
+    {
+      "is": "mixer"
+    },
+    {
+      "is": "rack"
+    }
+  ]
+}
