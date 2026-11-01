@@ -6,4 +6,3 @@ tools/dvr/out
 benchmarks/
 __pycache__
 .env
-games/
