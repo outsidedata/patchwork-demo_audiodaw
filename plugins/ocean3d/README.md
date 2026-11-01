@@ -36,7 +36,9 @@ sees, and the sea repeats exactly every `repeat` seconds.
 cascade per frame on the GPU (evolve, inverse FFT with radix-2×2 butterflies, assemble displacement,
 derivatives and a foam history from the Jacobian), mipmapped so far water calms instead of crawling.
 It is drawn on an exponential polar disc recentred on the camera snapped to its innermost ring, with a
-depth pre-pass (so render3d's `ao` sees the waves) and a transparent colour pass: Fresnel sky
+depth pre-pass (so render3d's `ao` sees the waves), a shadow the waves cast (a crest shades a hull),
+and a transparent colour pass drawn before every other see-through thing, so smoke, spray and glass
+in front of the sea are drawn over it: Fresnel sky
 reflection, a deep and scatter body with sun glow, a Blinn glint, foam with bubble noise, and alpha
 that shows the seabed in shallows and fades at the shore, then three's tone mapping and the scene's
 fog. A seabed depth tile around the camera is baked from the land and re-baked in slices as the

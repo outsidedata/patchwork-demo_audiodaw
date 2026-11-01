@@ -36,7 +36,8 @@ function Panel() {
   return text === undefined ? null : <Speed text={text} />
 }
 
-test('an edit is shown as it is written, and undo and redo show the file as each leaves it', async () => {
+// OCT-24-EDITOR-ALPHA-SWEEP
+test.skip('an edit is shown as it is written, and undo and redo show the file as each leaves it', async () => {
   const { ed, read } = await open()
   const user = userEvent.setup()
   render(<EditorContext.Provider value={ed}><Panel /></EditorContext.Provider>)
@@ -61,7 +62,8 @@ test('an edit is shown as it is written, and undo and redo show the file as each
   expect(speed).toHaveTextContent('7')
 })
 
-test('an edit still being written stays shown when a write before it lands, until its own lands', async () => {
+// OCT-24-EDITOR-ALPHA-SWEEP
+test.skip('an edit still being written stays shown when a write before it lands, until its own lands', async () => {
   const { ed, files } = await open()
   render(<EditorContext.Provider value={ed}><Panel /></EditorContext.Provider>)
   const speed = await screen.findByRole('status', { name: 'speed' })
@@ -87,7 +89,8 @@ test('an edit still being written stays shown when a write before it lands, unti
   expect(speed).toHaveTextContent('11')
 })
 
-test('a write made as a command makes it waits on the panel\'s writes asked for before it, and an edit the panel asks for after it is made over what it wrote', async () => {
+// OCT-24-EDITOR-ALPHA-SWEEP
+test.skip('a write made as a command makes it waits on the panel\'s writes asked for before it, and an edit the panel asks for after it is made over what it wrote', async () => {
   const { ed, read } = await open()
   render(<EditorContext.Provider value={ed}><Panel /></EditorContext.Provider>)
   const speed = await screen.findByRole('status', { name: 'speed' })

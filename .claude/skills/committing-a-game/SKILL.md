@@ -34,9 +34,8 @@ into `games/` without one has it written before its first commit here. It says, 
 
 - what the game is, and what a player does in it;
 - its controls;
-- **Playing it**: the commands that play it, `yarn vite` then `/games/<game>/index.html`, and its
-  server, `node --experimental-strip-types games/<game>/<game>.server.ts`, then
-  `/games/<game>/client.html`;
+- **Playing it**: the commands that play it, `yarn dev` then `/games/<game>/index.html`, and its
+  server, `yarn serve <game>`, then `/games/<game>/client.html`;
 - **Remaking the art**: `yarn bake <game>`, or the game's own scripts that draw its art and what
   each writes, and what of the library each reads;
 - **Credit**, when art or sound is someone else's: what it is, who made it, and where it came from.
@@ -61,7 +60,7 @@ Each is a step in `games/<game>/assets/<game>.bake.ts`, which `yarn bake <game>`
 
 | art | made by | committed |
 |---|---|---|
-| a prop, building, vehicle or title from a Blender script of the game's | `blender` runs the script into `scratch`, `pack` writes the glb (`arcaderacer.bake.ts`: paris, title, supercar) | the script and the packed glb |
+| a prop, building, vehicle or title from a Blender script of the game's | `blender` runs the script into `scratch`, `pack` writes the glb | the script and the packed glb |
 | trees | the library's `trees/trees.py` from the game's `<name>.trees.json`, its leaf sets asked of `texture` first | the spec and the packed glb |
 | grass clumps | the library's `foliage/foliage.py` from `<name>.foliage.json` | the spec and the packed glb |
 | a Mixamo character | the library's FBX, named in its rig file's `bodies`, baked by `plugins/anim/anim.export.py`, which packs it itself, and its table written back by `merge-table.mjs` (`using-mixamo-assets`) | the rig file and the packed glb |
@@ -69,7 +68,7 @@ Each is a step in `games/<game>/assets/<game>.bake.ts`, which `yarn bake <game>`
 | a texture a script draws with | `texture(zip)`: the set's maps from the library, downloaded into it first when missing | nothing of the set |
 | ground and surface textures | the game's `cc0-textures.json`, cut by the bake to `.webp` before the bake file runs (`scripts/cc0.ts`) | the json and the `.webp` maps, so the game boots with no bake |
 | a picture cut to size | `webp(src, out, size)` | the `.webp` |
-| a sheet or a song a script draws from nothing | the game's own script, which reads nothing from the library (`arcaderacer`'s `fx/fx.mjs` writes `fx/fx.png`, its `music/jungle.song.ts` the songs) | the script and what it writes |
+| a sheet or a song a script draws from nothing | the game's own script, which reads nothing from the library (an `fx/fx.mjs` that writes `fx/fx.png`, a `.song.ts` that writes a song) | the script and what it writes |
 | art whose licence forbids handing it on | the pack stays in the library's `vendor/<pack>/`, and the script seals what it cuts into a wad (`bringing-in-art`) | the script and the wad |
 
 A built file that no script of the game's writes is raw, however it got there. Every script that

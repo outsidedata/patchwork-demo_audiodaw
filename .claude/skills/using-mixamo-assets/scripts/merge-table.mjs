@@ -1,6 +1,8 @@
 // Writes a measured anim table (anim.export.py's <table.json>) into a rig file, the bodies' measured
-// bones (its <table.ends.json> beside it) into the rig's `ends` and their blades' grips (its
-// <table.grips.json>) into the rig's `grips`, each body's over the one it had, and
+// bones (its <table.ends.json> beside it) into the rig's `ends`, their blades' grips (its
+// <table.grips.json>) into the rig's `grips` and what their clips touch (its <table.touches.json>) into
+// the rig's `touches`, each body's over the one it had, the poses its clips name (its
+// <table.poses.json>) as the rig's `poses`, and
 // any `<body>=<fbx>` given into its `bodies`, in the rig's own layout: one-space indent, every array of
 // plain values on one line.
 //   node merge-table.mjs <rig.json> <table.json> <out rig.json> [<body>=<fbx> ...]
@@ -17,6 +19,15 @@ const endsPath = tablePath.replace(/\.json$/, '') + '.ends.json'
 if (existsSync(endsPath)) rig.ends = { ...rig.ends, ...JSON.parse(readFileSync(endsPath, 'utf8')) }
 const gripsPath = tablePath.replace(/\.json$/, '') + '.grips.json'
 if (existsSync(gripsPath)) rig.grips = { ...rig.grips, ...JSON.parse(readFileSync(gripsPath, 'utf8')) }
+const touchesPath = tablePath.replace(/\.json$/, '') + '.touches.json'
+if (existsSync(touchesPath)) rig.touches = { ...rig.touches, ...JSON.parse(readFileSync(touchesPath, 'utf8')) }
+// The poses its clips name (<table.poses.json>), the whole of them: each is a frame of a clip of this bake.
+const posesPath = tablePath.replace(/\.json$/, '') + '.poses.json'
+if (existsSync(posesPath)) {
+  const poses = JSON.parse(readFileSync(posesPath, 'utf8'))
+  if (Object.keys(poses).length) rig.poses = poses
+  else delete rig.poses
+}
 
 const flat = a => a.every(x => x === null || typeof x !== 'object')
 function fmt(v, ind) {

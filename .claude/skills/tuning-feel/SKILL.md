@@ -1,6 +1,6 @@
 ---
 name: tuning-feel
-description: Use in core, or any clone of it, when making a game feel right - how fast a thing speeds up, stops, turns, jumps or falls, and where those numbers go (a kind's definition in `assets/<game>.json`, `world`, `world.<plugin>`). It covers the physics and movement plugins (box2d, box3d, box3dvehicle, walker, flight3d, ragdoll3d, volley2d, volley3d), a camera that follows (chasecamera3d, pancamera, roomcamera), the step rate (`engine.dt`, `scenemanager.dt`), how a press reaches the seat's thing, its `player` row, and is drawn the frame after the key, tuning a number while the game runs in the editor (inspector, timeline, step, seek, replay) or in `dev.html`, and measuring feel with tests and the simulator instead of guessing. Triggers on "feels floaty", "sluggish", "slippery", "heavy", "too fast", "laggy", "it snaps", "rubber-banding", "acceleration", "friction", "drag", "gravity", "jump height", "top speed", "tune the movement", "game feel".
+description: Use in core, or any clone of it, when making a game feel right - how fast a thing speeds up, stops, turns, jumps or falls, and where those numbers go (a kind's definition in `assets/<game>.json`, `world`, `world.<plugin>`). It covers the physics and movement plugins (box2d, box3d, box3dvehicle, walker, flight3d, ragdoll3d, volley2d, volley3d), a camera that follows (chasecamera3d, pancamera, roomcamera), the step rate (`engine.dt`, `scenemanager.dt`), how a press reaches the seat's thing, its `player` row, and is drawn the frame after the key, tuning a number while the game runs in `dev.html`, and measuring feel with tests and the simulator instead of guessing. Triggers on "feels floaty", "sluggish", "slippery", "heavy", "too fast", "laggy", "it snaps", "rubber-banding", "acceleration", "friction", "drag", "gravity", "jump height", "top speed", "tune the movement", "game feel".
 ---
 
 # Tuning feel
@@ -14,9 +14,8 @@ Other work has its own skill. A new kind and its rules: `designing-a-kind`. Keys
 stick's deadzone, key repeat, seats and ledgers: `input-and-seats`. A bad network, a second seat,
 the server on node: `going-multiplayer`. Tests, bots and the simulator in general: `proving-a-game`.
 Walls, ground and collision with the level: `building-a-level`. A new game and its first `dev.html`:
-`starting-a-game`. How a camera follows: Cameras, below. A
-panel in the editor for a plugin's numbers: `building-an-extension`. This skill points to them and
-does not repeat them.
+`starting-a-game`. How a camera follows: Cameras, below. This skill points to them and does not
+repeat them.
 
 ## Where every knob is
 
@@ -52,7 +51,7 @@ What the movement and camera plugins read, each from its own header:
 | `box3dvehicle` | `world.box3dvehicle.vehicles.<name>`: `body`, `axles` (`wheel.friction`, `spring`, `damper`, `bumpStop`, `antiRoll`), `engine`, `steering` | `throttle`, `brake`, `steer`; it writes `compression`, `load`, `grounded`, and for a petrol or electric engine `rpm` and `torque` |
 | `walker` | `world.walker.kinds.<kind>`: `accel` (the rate a second `vel` eases toward `want` by, the law's `friction` in step 1, not a push), `airAccel` (that rate in the air, `accel` when absent), `turnRate`, `turnMax`, `gravity`, `jumpH`, `step`, `maxSlope`, `slide`, … | `pos`, `yaw`, `vel`, `grounded`; the rule sets `want` (its speed, a number of its kind's definition, times `relative(stick, yaw)`), `face`, `jump` |
 | `flight3d` | `world.flight3d`, every field required: `gravity`, `air`, `materials` (what an airframe's mass is priced from), `planes.<name>` (its `airframe`, the sheet, and `gear`), `overspeed`, `sweep` | the stick `pitch`, `roll`, `yaw`, `throttling`, `airbrake`, `brake`, `gearDown` |
-| `ragdoll3d` | `world.ragdoll3d`: `damp`, `friction`, `iter`, `vmax`, `limits`, … | the dying row's `limp`, `limpFor`, `blow`, `pose` |
+| `ragdoll3d` | `world.ragdoll3d`: `kinds` (the kinds whose limp rows it lays down; a scene with none throws), `damp`, `friction`, `iter`, `vmax`, `limits`, …, and `physics` for a box3d ragdoll on the server | the dying row's `limp`, `limpFor`, `blow`, `pose` |
 | `volley2d` | the patterns file `world.volley2d.patterns` names: each emitter layer of a pattern, its `speed`, `accel`, `min`, `max`, `curve`, `life`, … | the ledger row |
 | `volley3d` | the patterns file `world.volley3d.patterns` names: each pattern's `speed`, `accel`, `max`, `g`, `life`, `seek`, …; a field it does not know throws | the ledger row |
 | `chasecamera3d` | none | the followed row's `pos`, `lift`, `look` `{ yaw, pitch, dist, side }` |
@@ -67,17 +66,16 @@ asks walker to go. box2d and box3d take a field left out as the library's own de
 its table and throws naming a number that is missing or out of its range.
 
 The step rate is one number written three times, and `yarn new-game` writes all three as 1/60: the
-manager's `prefabs.engine.dt` in `<game>.scene.json` (what `index.html`, `<game>.server.ts`, the
-recorder and the editor's clock step the manager by), the manager's `prefabs.scenemanager.dt` beside
+manager's `prefabs.engine.dt` in `<game>.scene.json` (what `index.html`, `<game>.server.ts` and the
+recorder step the manager by), the manager's `prefabs.scenemanager.dt` beside
 it (what each child step is handed), and each child scene's `prefabs.engine.dt` (what the page's
 plugins take as a step's seconds: skydome3d's time is the packet's step times it, and particle3d
 moves its particles by it each frame). Changed, all three change together.
 
-What a frame draws is what the view was handed, step by step. On `index.html` and in the editor the
-view is handed the truth's packet after each step. On `client.html` the view is handed, after each
-step of the page's copy, the seat's own `player` row as the copy has it and every other row as the
-server's packets had it, `world.predict.delay` behind the newest packet (`addons/predict`, What is
-drawn; `going-multiplayer`, step 7). Either way a frame's actors are handed rows of a step, and
+What a frame draws is what the view was handed, step by step. On `index.html` the view is handed the truth's packet after each step. On `client.html` the view is handed, after each
+step of the page's copy, every row the seat may see as the copy has it: the seat's own `player` row
+and every row its press moves answer on the next frame, and every other seat's row runs on from its
+last press (`addons/predict`, What is drawn; `going-multiplayer`). Either way a frame's actors are handed rows of a step, and
 render3d, render2d and ui put each thing they draw between where the last two steps handed put it,
 as far as the frame's `between` says (`engine/browser.ts`, Drawing between steps). So a thing moving
 at a steady speed moves the same distance every frame at any display rate, a step behind the newest
@@ -127,9 +125,8 @@ speed is the `want` the rule asks for. The law holds at every value a person can
 definition, 0 among them: the `gain` above keeps friction 0 from dividing by it.
 
 The rule reads `def` where it uses the number, every step: a number kept in a module variable from
-an earlier read is never the one the editor or `dev.html` changed. An actor that reads its definition
-in `setup` takes a change when the editor sets it up again, which an edit of the data file does, and
-never from a key of `dev.html`.
+an earlier read is never the one `dev.html` changed. An actor that reads its definition in `setup`
+never takes a change from a key of `dev.html`.
 
 When the law changes, the test beside the manager, `<game>.sim.test.ts`, which after the fold checks
 the seat's square runs at `speed`, changes with it.
@@ -168,8 +165,8 @@ Run the files beside what changed, `yarn vitest run games/<game>/player.sim.test
 ### 3. A testbed that turns the numbers while the game plays
 
 `dev.html`, beside `index.html`, is `index.html` with changes made before the boot, over a
-loopback, and the one place a shortcut is allowed. `yarn new-game` does not write it. For tuning it
-holds:
+loopback, and the one place a shortcut is allowed. `yarn new-game` does not write it; how it is built
+is `using-the-dev-page`. For tuning it holds:
 
 - The definition overridden. The tab holds one decoded copy of each data file, which the truth's
   rules and every actor's `def` read alike, and `jsonAt(name, url)` hands it out. A number written
@@ -201,46 +198,11 @@ holds:
   `stats` gets its frames a second shown once `dev.html` mounts it,
   `me.plugins.stats?.mount(document.body)`.
 
-Nothing of it bleeds out: no scene file, rule, actor, plugin, extension or test reads it, and the game
+Nothing of it bleeds out: no scene file, rule, actor, plugin or test reads it, and the game
 plays the same with it deleted. What feels right is written into the definition file by hand; no
 line of `dev.html` is copied into `index.html`.
 
-### 4. Turn it in the editor, against one recorded run
-
-`yarn editor <game>` plays the game under the `recorder` addon (`addons/recorder/recorder.addon.ts`),
-which journals everything that reaches the truth. A step is rebuilt by booting again from the files
-and replaying the journal up to it; that is how time goes back, and how a number is tuned against
-the same input every time. A message the seat sends at a step below the recording's end takes over:
-every entry after that step is dropped and the recording goes on live from there. An edit below the
-end is kept with the rest of the recording.
-
-- The timeline (`extensions/timeline/timeline.extension.tsx`): play, pause, step (`.`), step back
-  (`,`), seek along the ruler, speeds from 0.1 to 4, and the commands `game.run`, `game.seek`,
-  `game.back`, `game.speed`, `game.state`, `game.restart`, `game.cut`.
-- The Inspector (`extensions/inspector/inspector.extension.tsx`): a row's live data edited from this
-  step on, an edit the recording keeps (`inspect.set`); a scene's `world` and prefabs; and a data
-  file, a scene's definitions shown an entry per kind (`inspect.file`, `inspect.edit`). An edit to a
-  file writes that one value, is one undo, and rebuilds the step it is at from step 0 with the new
-  number, so the presses already recorded play again under it. Observed on the square: `move` set at
-  step 65, 30 steps run, `vel` 234.36; `friction` set to 3 in the definition, the same step 95
-  rebuilt, `vel` 466.12, which is 600 × (1 − e^(−1.5)); Undo, and 234.36 again.
-- A plugin that ships a panel for its numbers, each change one value and one undo:
-  - the Vehicle panel (`vehicle.state`, `vehicle.drive`, `vehicle.design`) and the Flight panel
-    (`flight.state`, `flight.stick`, `flight.design`) set a car's or a plane's inputs on the live row
-    and write `world.box3dvehicle` or `world.flight3d`, beside what the numbers make: how often a car
-    bounces on its springs and its dampers' ratios to critical, a plane's top and stall speed;
-  - the Patterns panel (`volley2d.patterns`, `volley2d.pattern`, `volley2d.rename`, `volley2d.plot`,
-    `volley2d.fire`) and the Patterns 3D panel edit the patterns file a field at a time, plot a
-    pattern without firing it, and fire it as a preview through the view's client, again whenever
-    the last is gone, so an edit shows on the next volley; their tools, Fire Pattern (B) and Fire
-    Pattern 3D (N), fire it where the view is pressed.
-- In Play (Escape) the game view has the keys while it has the focus, which a click on it gives
-  (`extensions/game/game.extension.tsx`, `editor/gate.ts`). In a tool a click is the tool's: in
-  Select (V) it selects the row under the pointer and a drag moves it, one edit from this step on. A
-  call has no keys: it sets the intent a press would, `move` on the row through `inspect.set`, or a
-  plugin's own command.
-
-### 5. Measure, never guess
+### 4. Measure, never guess
 
 - What the numbers make is arithmetic: put it in the readout and in the test, and the feel is
   stated, not eyeballed. "Floaty" is a glide too long for its top speed; "sluggish" is too many
@@ -258,19 +220,14 @@ end is kept with the rest of the recording.
   frame to frame, a camera that judders changing it every frame; `standoff` needs a camera that
   exports `eye()`, an actor's, or `chasecamera3d`'s or `cutscene`'s. The JSONL's frame records hold
   the drawn rows and the step of the packet drawn, `n`, its step records the server's rows; laid
-  side by side they show what the page drew of each step.
-- A real browser records the same frames from
-  `client.html?tap=<name>&kinds=<kind,…>&fields=<field,…>&own=`, kept by the simulator's routes
-  (`addons/simulator/simulator.route.ts`) and shown in its Runs panel; `own=` with nothing after it is
-  the seat's `player` row, and `own=<field.field>` walks from it. Without `kinds`, `fields` or `own` in
-  the address no rows are recorded. Bad networks and their shapes are
+  side by side they show what the page drew of each step. Bad networks and their shapes are
   `going-multiplayer`'s, and the simulator's every record and part `proving-a-game`'s.
 
 ## Cameras
 
 A camera is felt as much as the thing it follows. The seat's camera follows its own `player` row,
-which the page draws from its copy, so it moves with the press on the frame after the key; one that
-follows a row the `player` row spawned trails the key by a round trip. `chasecamera3d` is a rigid
+which the page draws from its copy, so it moves with the press on the frame after the key, and so does one that follows a row the
+press moves. `chasecamera3d` is a rigid
 orbit on one row: the
 row's `pos` raised by `lift`, the eye `look.dist` out along `look.yaw` and `look.pitch`, `look.side`
 to the right. It adds no easing, floor or speed of its own: whatever turns or rises gradually is a
@@ -314,5 +271,4 @@ The kind's `<kind>.sim.test.ts` holds the closed form and the three step rates, 
 its fault planted; the game's `<game>.sim.test.ts` follows the new law. Then it is played: `dev.html`
 in Chrome with the override in place, the readout's top speed matching the drawn speed when a key is
 held, a key turning a number and the drawn speed following; `client.html` against the server, the
-thing answering the key on the next frame; and in the editor a recorded run replayed under a changed
-definition, the speed at the same step the law's for the new number, and Undo bringing back the old.
+thing answering the key on the next frame.

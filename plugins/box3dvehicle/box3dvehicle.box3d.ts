@@ -17,7 +17,8 @@
 //                quarter about z, the chassis's on the axis below the corner's mount where the
 //                wheel's face is at full droop (`frameA`); Box3D's spring off and its limits the ends
 //                of the travel, until box3dvehicle's rule sets them each step; the spin motor on at
-//                no torque, and the steering at `steering`'s numbers.
+//                no torque; and on a `steered` axle the steering at `steering`'s numbers, on any
+//                other the steering off, so the wheel is held straight and never toes in.
 // Every body also takes the Vehicle's `bodies`.
 import type { Row, W } from '#engine/engine.ts'
 import type { Body, Joint, Kinds } from '#plugins/box3d/box3d.sim.ts'
@@ -57,7 +58,7 @@ export function wheelJoint(v: Vehicle, c: Corner): Joint {
     localFrameA: frameA(c, 0), localFrameB: { pos: [...c.hub], rot: QUARTER },
     enableSuspensionSpring: false, enableSuspensionLimit: true, lowerSuspensionLimit: 0, upperSuspensionLimit: travel,
     enableSpinMotor: true, maxSpinTorque: 0, spinSpeed: 0,
-    enableSteering: true, steeringHertz: v.steering.hertz, steeringDampingRatio: v.steering.dampingRatio,
+    enableSteering: c.axle.steered, steeringHertz: v.steering.hertz, steeringDampingRatio: v.steering.dampingRatio,
     maxSteeringTorque: v.steering.maxTorque, targetSteeringAngle: 0,
   }
 }

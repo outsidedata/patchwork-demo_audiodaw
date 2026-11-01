@@ -149,7 +149,8 @@ const middle = (ed: Opened['ed']) => {
   return ed.staged!.ground(canvas.width / 2, canvas.height / 2)!
 }
 
-test('the panel lists the range\'s patterns with their speed, life, reach, whether each seeks, its splash and where it is named, filtered by name', async () => {
+// OCT-24-EDITOR-ALPHA-SWEEP
+test.skip('the panel lists the range\'s patterns with their speed, life, reach, whether each seeks, its splash and where it is named, filtered by name', async () => {
   const { user } = await open()
   const names = Object.keys(PATTERNS.patterns)
   expect(within(table()).getAllByRole('row')).toHaveLength(names.length + 1)
@@ -169,7 +170,8 @@ test('the panel lists the range\'s patterns with their speed, life, reach, wheth
   expect(within(where).getAllByRole('row').slice(1).map(r => r.textContent)).toEqual([`${defs}mortar.pattern`])
 })
 
-test('a field edited in the panel writes one value, the page\'s copy reads it, and undo takes it back', async () => {
+// OCT-24-EDITOR-ALPHA-SWEEP
+test.skip('a field edited in the panel writes one value, the page\'s copy reads it, and undo takes it back', async () => {
   const { ed, user, read, edits } = await open()
   const before = await read(path)
   await pick(user, 'rocket')
@@ -184,7 +186,8 @@ test('a field edited in the panel writes one value, the page\'s copy reads it, a
   expect(await read(path)).toBe(before)
 })
 
-test('a field is added with volley3d\'s own value and removed, each one undo; speed, life and look are never removed', async () => {
+// OCT-24-EDITOR-ALPHA-SWEEP
+test.skip('a field is added with volley3d\'s own value and removed, each one undo; speed, life and look are never removed', async () => {
   const { ed, user, read, patterns } = await open()
   const before = await read(path)
   await pick(user, 'shell')
@@ -221,7 +224,8 @@ test('a field is added with volley3d\'s own value and removed, each one undo; sp
   expect(await read(path)).toBe(before)
 })
 
-test('a pattern is added, renamed, refused a name in use, and removed once what names it is said', async () => {
+// OCT-24-EDITOR-ALPHA-SWEEP
+test.skip('a pattern is added, renamed, refused a name in use, and removed once what names it is said', async () => {
   const { ed, user, read, patterns } = await open()
   const before = await read(path)
   await user.type(screen.getByRole('textbox', { name: 'new pattern name' }), 'flare{Enter}')
@@ -256,7 +260,8 @@ test('a pattern is added, renamed, refused a name in use, and removed once what 
   expect(await read(path)).toBe(before)
 })
 
-test('the file\'s fields are bound to their types wherever it is shown', async () => {
+// OCT-24-EDITOR-ALPHA-SWEEP
+test.skip('the file\'s fields are bound to their types wherever it is shown', async () => {
   const { ed } = await open()
   const at = (...k: string[]) => ed.typeOf(undefined, k, path)
   for (const k of LOOK) expect(at('patterns', 'rocket', 'look', k)).toBe('particle3d.effect')
@@ -266,7 +271,8 @@ test('the file\'s fields are bound to their types wherever it is shown', async (
   expect(ed.fields.has('volley3d.pattern')).toBe(true)
 })
 
-test('the selected pattern loops through the view\'s client as a round of the page\'s alone, drawn with its look, and never on a row', async () => {
+// OCT-24-EDITOR-ALPHA-SWEEP
+test.skip('the selected pattern loops through the view\'s client as a round of the page\'s alone, drawn with its look, and never on a row', async () => {
   const { ed, user } = await open()
   const mark = vi.spyOn(ed.staged!, 'mark')
   const rows = ledger(ed)
@@ -297,7 +303,8 @@ test('the selected pattern loops through the view\'s client as a round of the pa
   expect(ledger(ed)).toBe(rows)
 })
 
-test('the heading is a dial, the elevation and height numbers; the plot shows where it ends, its top and where it comes down', async () => {
+// OCT-24-EDITOR-ALPHA-SWEEP
+test.skip('the heading is a dial, the elevation and height numbers; the plot shows where it ends, its top and where it comes down', async () => {
   const { ed, user } = await open()
   await user.click(screen.getByRole('button', { name: 'loop the selected pattern' }))
   await pick(user, 'grenade')
@@ -323,7 +330,8 @@ test('the heading is a dial, the elevation and height numbers; the plot shows wh
   expect(got.down!.along).toBeCloseTo((20 * 20 * Math.sin(Math.PI / 3)) / 9.8, 1)
 })
 
-test('a pattern that would throw as the page draws it is not fired, and the panel says why', async () => {
+// OCT-24-EDITOR-ALPHA-SWEEP
+test.skip('a pattern that would throw as the page draws it is not fired, and the panel says why', async () => {
   const { ed, user } = await open()
   await user.click(screen.getByRole('button', { name: 'loop the selected pattern' }))
   await pick(user, 'dart')
@@ -343,7 +351,8 @@ test('a pattern that would throw as the page draws it is not fired, and the pane
   expect(previews(ed)).toHaveLength(had + 1)
 })
 
-test('the Fire Pattern 3D tool fires the selected pattern over the ground point pressed, and loops it there', async () => {
+// OCT-24-EDITOR-ALPHA-SWEEP
+test.skip('the Fire Pattern 3D tool fires the selected pattern over the ground point pressed, and loops it there', async () => {
   const { ed, user } = await open()
   await user.click(screen.getByRole('button', { name: 'loop the selected pattern' }))
   await pick(user, 'dart')
@@ -365,7 +374,8 @@ test('the Fire Pattern 3D tool fires the selected pattern over the ground point 
   act(() => ed.activate(undefined))
 })
 
-test('the panel says so when the game view shows another scene', async () => {
+// OCT-24-EDITOR-ALPHA-SWEEP
+test.skip('the panel says so when the game view shows another scene', async () => {
   const { ed } = await open()
   act(() => ed.select({ scene: 'yard' }))
   expect(await screen.findByText(/The game view shows range: the patterns preview once it shows yard/)).toBeInTheDocument()

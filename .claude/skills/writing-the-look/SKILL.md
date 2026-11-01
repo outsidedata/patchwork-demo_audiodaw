@@ -44,10 +44,8 @@ Something else applies instead to:
   `plugins/render3d/render3d.plugin.ts`, `plugins.wire.scene.prefabs.environment3d` in
   `plugins/environment3d/environment3d.plugin.ts` and `plugins.wire.scene.prefabs.render3d ?? {}` in
   `plugins/skydome3d/skydome3d.plugin.ts` (found with `grep -nE 'prefabs\.(render3d|environment3d)'`
-  on those files), and the headers beside them; both plugins' extensions, `plugins/render3d/render3d.extension.tsx`
-  and `plugins/environment3d/environment3d.extension.tsx`, which type the prefab's fields, and their
-  tests; every other test that gives either prefab, found with `grep -rlnE
-  '"?(render3d|environment3d)"?: \{' plugins addons editor extensions`; every scene of every game in
+  on those files), and the headers beside them, and their tests; every other test that gives either
+  prefab, found with `grep -rlnE '"?(render3d|environment3d)"?: \{' plugins addons`; every scene of every game in
   `games/` that writes them; and the lines of the skills that name the prefabs. Then the scene gives
   `world.render3d` and `world.environment3d`. A camera written under `world.render3d` before that
   move is read by nothing, and the scene draws nothing, so the move comes first. The store reads
@@ -66,10 +64,7 @@ Something else applies instead to:
 - A look setting the page alone keeps (brightness, a colour-blind palette, weather drawn or not):
   a key of the store (below).
 
-The editor writes these same values. render3d's and environment3d's extensions type their prefab's
-fields, and skydome3d's Sky panel writes `world.skydome3d`'s look, precip and shadow and the weathers
-file, one value at a time (`plugins/skydome3d/skydome3d.extension.tsx`). A look is tuned in the file
-or in the panel, never in code.
+A look is tuned in the file, never in code.
 
 ## render2d or render3d
 
@@ -96,9 +91,6 @@ every game. Which renderer a scene names decides:
 - render3d draws a three.js scene through a perspective camera. A point is [x, y, z] in metres, y
   up. A kind adds to `render3d.scene`.
 
-The editor's placer follows the renderer: [x, y, h] under render2d and a world point [x, y, z]
-under render3d (`plugins/render2d/render2d.extension.tsx`, `plugins/render3d/render3d.extension.tsx`).
-
 Switching a scene of the generated game to 3D, in order:
 
 1. `<scene>.scene.json`: `render3d` in place of `render2d` in `plugins`, and `world.render3d`, its
@@ -112,7 +104,7 @@ Switching a scene of the generated game to 3D, in order:
 3. Every `pos` that meant canvas pixels now means metres. Change the start actors' `pos` to
    [x, y, z], the definitions' speeds and sizes to metres, and the rules that move a thing to the
    new axes. The generated game moves its seat's thing on a `body` row its `player` row spawns; that
-   is the editor's template, on hold, and never the model. The `body` is folded into the `player`
+   is never the model. The `body` is folded into the `player`
    row first, its fields onto the `player` prefab, its rule into `player.sim.ts`, its look into
    `player.client.ts`, and `body` taken out of the sim, the scene and the test
    (`designing-a-seat`), since a page running the scene ahead draws only the seat's own `player` row
@@ -241,7 +233,8 @@ each:
 - `ocean3d` (`plugins/ocean3d/ocean3d.plugin.ts`, `ocean3d.sim.ts`): the sea. It is a row whose
   prefab is `t` and nothing else, `{ "t": 0 }`, the sim lists `ocean3d` from
   `#plugins/ocean3d/ocean3d.sim.ts`, and the rest is `world.ocean3d`. It is lit by a `light` mod or
-  else by the fixed `world.ocean3d.light`, and throws with neither.
+  else by the fixed `world.ocean3d.light`, and throws with neither. Its waves cast a shadow, so a
+  crest shades a hull.
 - `scatter3d` (`plugins/scatter3d/scatter3d.plugin.ts`): trees, grass and boulders around the
   camera. It draws nothing until a `land` mod hands it a ground.
 - `particle3d` and `particle2d`: a ledger row (prefab `{ "next": 1, "live": [] }`, the sim listing
@@ -453,8 +446,8 @@ player plugin listens on the page and node has none. Two more things hold in nod
   `landOf(field).height(x, z)`.
 - `yarn tsc`.
 
-Then the pixels are looked at in Chrome. Run `yarn editor <game>`, or `PORT=<n> yarn editor <game>`
-when 5173 is another's (`editor/server/server.ts` reads `PORT`), and open
+Then the pixels are looked at in Chrome. Run `yarn dev`, or `yarn dev --port <port>` when 5173 is
+another's, and open
 `http://localhost:<port>/games/<game>/index.html`. To stand the camera elsewhere and look again, a
 `dev.html` testbed may put the page on `window`, and the driver moves
 `page.client.plugins.render3d.camera` with good-webviews' `eval`. A scene with a camera plugin

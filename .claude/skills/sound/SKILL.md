@@ -1,6 +1,6 @@
 ---
 name: sound
-description: Use in core, or any clone of it, when a game needs sound or music. That covers a sound effect when something happens (a jump, a hit, a coin, footsteps, a door, a shot), sound files in the loader catalogue, the `audio` plugin's cues, its ledger and the `voiced` list a sound of the seat's own `player` row rides so it is heard the frame after the key (`sound(w, cue, at, from)`, `world.audio`), and ambient loops that follow a field or the camera's height. It also covers music that changes with the game (a named loop, `synthaudio` projects, notes played from keys, Tone.js), volume and mute as store keys, a cutscene's sounds and voice lines (`audio.cutscene.ts`), and sound placed in 3D or 2D (`space`, `screen`). Also use it when a sound plays twice, plays late, plays in the wrong place or does not play at all, and when the editor's Sound panel is used.
+description: Use in core, or any clone of it, when a game needs sound or music. That covers a sound effect when something happens (a jump, a hit, a coin, footsteps, a door, a shot), sound files in the loader catalogue, the `audio` plugin's cues, its ledger and the `voiced` list a sound of the seat's own `player` row rides so it is heard the frame after the key (`sound(w, cue, at, from)`, `world.audio`), and ambient loops that follow a field or the camera's height. It also covers music that changes with the game (a named loop, `synthaudio` projects, notes played from keys, Tone.js), volume and mute as store keys, a cutscene's sounds and voice lines (`audio.cutscene.ts`), and sound placed in 3D or 2D (`space`, `screen`). Also use it when a sound plays twice, plays late, plays in the wrong place or does not play at all.
 ---
 
 # Sound
@@ -104,9 +104,7 @@ apply instead in these cases:
   scene has N` for none or for two.
 - The cue a kind plays is fixed for the kind, so it goes in the kind's definition in
   `assets/<game>.json`, as a `sounds` table of event to cue: `"player": { ..., "sounds": { "bump":
-  "knock" } }`. The rule reads `def(w, me.kind).sounds.bump`. The editor's Sound panel reads every
-  `sounds` table at any depth of a kind's definition. It refuses to take a cue out of the table
-  while a kind names it (`plugins/audio/audio.extension.tsx`).
+  "knock" } }`. The rule reads `def(w, me.kind).sounds.bump`.
 - The volume and the mute are keys of the store. `world.audio.volume: { "level": "volume", "muted":
   "muted" }` names the keys. The scene lists `store` in its `plugins`, and `world.store` gives the
   keys their first values, `"store": { "volume": 0.8, "muted": false }`. The store has no row, and a
@@ -132,9 +130,8 @@ apply instead in these cases:
 ## A sound a rule raises, start to finish
 
 This is the work as done on the game `yarn new-game <game>` writes. That game is one scene, `main`,
-on render2d with no world of its own (`extensions/games/games.route.ts` lists its files). Its
-`player` row spawns a `body` and forwards `move` to it, which is the editor's template and never the
-model: the `body` is folded into the `player` row first, its fields onto the `player` prefab, its rule
+on render2d with no world of its own (`scripts/new-game.ts` lists its files). Its
+`player` row spawns a `body` and forwards `move` to it, which is never the model: the `body` is folded into the `player` row first, its fields onto the `player` prefab, its rule
 into `player.sim.ts`, its look into `player.client.ts`, its definition into the `player` definition,
 and `body` taken out of the sim, the scene and the test (`designing-a-seat`). The example below then
 makes Space hop the seat's `player` row and knock.
@@ -163,8 +160,16 @@ makes Space hop the seat's `player` row and knock.
      way; `range`, the distance this cue fades out over in place of the listener's `max`; and `cut`,
      which stops the last sound from the same row that is still playing.
    - `volume` names the store keys the volume is read from.
+   - A cue may instead be `{ gun, gain, rate?, range? }`: a round of a gun, a blast, anything heard
+     as layers mixed by how far off it is. `gun` is the catalogue's `json` entry of its manifest,
+     which the library's `sounds/sounds.mjs` writes beside its files, `{ mix?, variants: [{ <stem>:
+     <file> }] }`; each file is read beside it through the loader on the first frame. An entry plays
+     every stem of one variant, picked by the same hash, each stem as loud as `mix.stems` `[near,
+     far]` makes the distance to the listener (`mix.near` and `mix.far`, in metres), and the stems
+     `mix.choke` names are faded out by the next round from the same row, so a burst's echo is heard
+     once (the header of `audio.plugin.ts`).
 3. Put `store` and `audio` in the scene's `plugins` (here `["loader", "scenemanager", "store",
-   "player", "render2d", "audio"]`). Add the `audio` prefab, and `world.store` with the volume's
+   "player", "render2d", "stats", "audio"]`). Add the `audio` prefab, and `world.store` with the volume's
    keys, the store's starting values moved there first (Where each piece goes). Put
    `{ "is": "audio" }` in `actors` ahead of every actor that raises a sound in its own `before`.
    Add the kind to the scene's sim in `main.sim.ts`: `import { audio } from
@@ -182,11 +187,16 @@ makes Space hop the seat's `player` row and knock.
      sound(w, d.sounds.bump, undefined, me.id)
    },
    ```
-   `sound(w, cue, at?, from?)` comes from `#plugins/audio/audio.sim.ts` and has three forms:
+   `sound(w, cue, at?, from?, t?)` comes from `#plugins/audio/audio.sim.ts` and has three forms:
    - At a point: `at`.
    - From a row: `from`. The entry keeps where the row stood, and a page follows the row while it
      has it. From a `player` row it goes on that row's `voiced` list; from any other, on the ledger.
    - With neither: the sound has no place, and goes on the ledger.
+
+   `t` is the seconds into its step the sound happens, for a rule that knows: a gun firing several
+   rounds a step gives each its share of the step, and the page starts each that far into the step
+   on its own clock, so the rounds keep their spacing however the packets bunch. Left out, the entry
+   plays the frame it is seen.
 
    A cue raised twice in one step plays twice. `chance(w, id, odds)` says whether something happens
    to a row this step, from a hash, so an idle sound now and then moves no roll of the scene's die.
@@ -262,7 +272,14 @@ three forms:
 `loop: [start, end]` is the region that repeats, as a song with an intro has. A named loop gives
 it per sound.
 
-A cue's or a field loop's sound is asked for on the first frame. A named loop's sound is asked for
+`world.audio.held` maps a name to a loop held going on every row of a kind, placed on its `pos`,
+while its gain is over 0: the hum of a weapon while it fires, a motor while it turns. It is `{ kind,
+field, sound, over, gain, rate?, range? }`: `field` is fields joined by dots read off the row, a
+boolean read as 1 or 0; its gain is the field through `over` to `gain`, its playback rate through
+`over` to `rate`. It starts the first frame the row's gain is over 0 and fades out the frame it is 0
+again or the row is gone.
+
+A cue's, a field loop's or a held loop's sound is asked for on the first frame. A named loop's sound is asked for
 only when the field first names it, so give each song's catalogue entry `"preload": true`. That
 way a song starts when it is named, not one fetch later.
 
@@ -326,7 +343,9 @@ the car's row. box3dvehicle's browser half plays it, and no rule raises anything
   row's throttle by e every `ease` seconds.
 - audio's `hold(plugins, buffer, { rate, gain, at?, range? })` is what plays it: a sound another
   plugin keeps going, placed for the scene's listener, `set(rate, gain)` ramped over a step, `put(at)`,
-  and `stop()` faded out. Another plugin reaches it only through a mod audio writes for it.
+  and `stop()` faded out. Its sibling `once(plugins, buffer, { rate, gain, at?, range? })` plays a
+  sound another plugin hands it a single time, now, placed as `hold` places one, and let go while the
+  context is locked. Another plugin reaches either only through a mod audio writes for it.
 - Tuning after the bake is a game's `dev.html`, the one page that may change the scene in memory: a
   car's `look.sound` replaced there, a new object, makes box3dvehicle make every car again with it,
   and its JSON is what goes back into the scene file or the species' `mix`.
@@ -426,13 +445,12 @@ The tests sit beside the files they test and run with `yarn vitest run <file>`.
   the entry in `voiced`; the other page starts it once that row's packet reaches it, and neither
   starts it twice. A sound raised from any row but the `player` row fails the first check on every
   bad wire.
-- Played: `yarn editor <game>`, or `games/<game>/index.html` on the editor's server. In
+- Played: `games/<game>/index.html` on `yarn dev`. In
   `dev.html`, the testbed, a readout before the boot can wrap `AudioBufferSourceNode.prototype.start`
   to count the sounds started. Keys sent as real input events (Chrome's DevTools `Input` events)
   unlock the context as a person's would. A `resume()` called from a script before any input
   leaves it `suspended`. That is the browser's autoplay rule, not core's, and it stops holding
-  once the page has had a person's gesture. The editor's Sound panel auditions every catalogue sound and every cue through
-  the game view's client while the view shows that scene. Then `<game>.server.ts` on node and
+  once the page has had a person's gesture. Then `<game>.server.ts` on node and
   `client.html` in two tabs: the seat's own jump is heard on the key, and the other tab hears it after.
 
 ## Questions never asked

@@ -1,21 +1,17 @@
 ---
 name: prime-directive
-description: Use in core, or any clone of it, before writing or changing any code, before choosing which folder or file something goes in, before editing anything in engine/, before giving a plugin a new setting, before building anything for the editor or an extension, before working around something that is missing, and before asking how something should be built. It holds the frozen engine, the wire, the one home of every new thing, the words core uses, and which phase skill carries each kind of work, making the game (starting-a-game, designing-a-kind, input-and-seats, building-a-level, bringing-in-art, writing-the-look, scene-flow, building-the-hud, sound, tuning-feel, building-a-plugin, building-an-extension, proving-a-game, porting-a-game, auditing-a-game) and distributing it (going-multiplayer, persisting-players, committing-a-game, publishing-a-game). Trigger: /prime-directive.
+description: Use in core, or any clone of it, when making a game with it, before writing or changing any code, before choosing which folder or file something goes in, before editing anything in engine/, before giving a plugin a new setting, before working around something that is missing, and before asking how something should be built. It holds the frozen engine, the wire, the one home of every new thing, the words core uses, and which skill carries each kind of work: starting a game (starting-a-game), your game's things (designing-a-kind, designing-a-seat, input-and-seats, building-a-level), scenes and flow (scene-flow, session-flow, building-the-hud, building-a-controls-screen, building-a-cutscene-intro), art and assets (bringing-in-art, importing-external-assets, using-mixamo-assets, making-3d-assets-in-blender, asset-workshop), how it looks and feels (writing-the-look, tuning-feel, tuning-particles, guide-to-smooth-gameplay), sound (sound), systems your game shares (building-a-plugin, connecting-plugins-using-mods), checking it (proving-a-game, benchmarking-a-game, experimenting-with-features, using-the-dev-page), whole-game jobs (porting-a-game, auditing-a-game), shipping it (going-multiplayer, persisting-players, committing-a-game, publishing-a-game) and using a plugin (using-terrain3d, using-3d-physics, using-audiodaw). Trigger: /prime-directive.
 ---
 
 # The prime directive
 
+This is for whoever makes a game with core: a clone of core, its games in `games/`. It says where
+every piece of a game goes; the skills it names say how each kind of work is done, start to finish,
+and carry the rules this file only names (The work, by kind).
+
 The base is finished: the engine, rows and kinds, prefabs and scene files, the four folders, and
-the wire between the engine and a game: `scenemanager` and the transports (The wire).
-Everything from here is content. Content goes into the base; it never changes it.
-
-The last piece beside the base is the editor: a web app, a React page and a Node server, that
-opens any game in `games/`, plays it in the page or on node, stops time, steps forward and back,
-shows every row, writes the game's files, and is made of extensions. It is built on the base and
-changes none of it. Where its pieces go is under "The editor" below.
-
-This file says where things go. The phase skills say how each kind of work is done, start to
-finish, and carry the rules this file only names (The work, by phase).
+the wire between the engine and a game: `scenemanager` and the transports (The wire). Everything
+from here is content. Content goes into the base; it never changes it.
 
 Load `know-your-limitations` on every job too. When the person you are working for names a specific
 change, make that change as named. Never argue that it can't work, and never estimate fidelity or cost
@@ -23,16 +19,15 @@ in its place: those judgements are the ones Claude gets wrong.
 
 ## The engine is frozen
 
-Nothing in `engine/` is edited: not for a feature, a game, a test or a tidy-up.
+Nothing in `engine/` is edited: not for a feature, a game, a test or a tidy-up. Every game made with
+core runs on it, and every plugin and addon of core's stands on what it hands out; a change there
+breaks what none of them can see.
 
-The one exception: a feature was fully built outside the engine, as an addon or a plugin, and
-could not work there, because every way left either sends a seat data it must not have or
-replaces engine or game functions from outside. Then stop. Bring that attempt and the one general
-fact the engine would have to hand out to core, as an issue on its GitHub repo. Core decides, and
-the engine changes there or not at all. Security was that case: no addon
-can learn which row's code spawned a row.
-
-The engine names nothing outside itself: no game, kind, field, plugin or addon.
+A feature that was fully built outside the engine, as an addon or a plugin, and could not work
+there, because every way left either sends a seat data it must not have or replaces engine or game
+functions from outside, stops there: the attempt, and the one general fact the engine would have to
+hand out, go to core as an issue on its GitHub repo. Core decides, and the engine changes there or
+not at all. Security was that case: no addon can learn which row's code spawned a row.
 
 ## The wire
 
@@ -56,11 +51,8 @@ does one thing:
 
 Nothing else carries a packet. A piece that needs a page and a truth joined takes a transport, as
 the recorder and every test that makes a page on a game do, and never joins them itself: a copy
-works, passes its own tests and leaves the real transport untested beside it. The engine's own
-test is the one exception: it hands packets to the pipe by hand, which is what shows the engine
-does not care what is behind it. Guarded by `addons/socket/socket.addon.test.ts`,
-`addons/scenemanager/scenemanager.addon.test.ts` and
-`plugins/scenemanager/scenemanager.plugin.test.ts`. Playing over a network is `going-multiplayer`.
+works, passes its own tests and leaves the real transport untested beside it. Playing over a
+network is `going-multiplayer`.
 
 ## Row or local
 
@@ -124,65 +116,41 @@ Ask in this order. The first yes is the home.
 3. Is it one game's rule, or how one of its things looks? → an actor in that game's folder:
    `<kind>.sim.ts` for the rule, `<kind>.client.ts` for the look. One `actors` entry makes it
    global to the scene; many entries, or spawning, make it instanced.
-   Is it used by one game only, shared by several of its kinds, or a system of that game's (its
-   level, its HUD, its file picker), however general it could be described? → a plugin or an
-   addon of the game's own, in `games/<game>/plugins/<name>/` or
-   `games/<game>/addons/<name>/`, by the rules of 4 and 5, except that it may name that game's
+4. Is it a system shared by several of its kinds, or a system of that game's (its level, its HUD,
+   its file picker), and does it live in the world (rows, the step) or in the player's browser
+   (drawing, input, camera, sound, UI)? → a plugin of the game's own, in
+   `games/<game>/plugins/<name>/`: a server half, a browser half, or both. It may name that game's
    kinds and has no prefab of numbers: it reads every number off the definition of the kind whose
    row it is handed, or off a file that definition names. Kinds share code through it, never by
    one actor importing another. (`designing-a-kind`, `building-a-plugin`.)
-4. Is it used by a second game, or by core itself, and does it live in the world (rows, the
-   step) or in the player's browser (drawing, input, camera, sound, UI)? → a top-level plugin: a
-   server half, a browser half, or both, moved up from the game that had it in the change that
-   gives it its second user. (`building-a-plugin`.)
-5. Is it used by a second game, or by core itself, and does it hold a truth: seats,
-   connections, sockets, files, timers, more than one truth, what a packet carries? → a
-   top-level addon. It runs where the truth is, and a transport's page side and `scenemanager`'s
-   `view` run in the page (The wire). (`building-a-plugin`.)
+5. Does it hold a truth: seats, connections, sockets, files, timers, more than one truth, what a
+   packet carries? → an addon of the game's own, in `games/<game>/addons/<name>/`. It runs where
+   the truth is, and a transport's page side and `scenemanager`'s `view` run in the page (The
+   wire). (`building-a-plugin`.)
 
-"Could be described without naming a game" never puts a thing in core: almost anything can be.
-Who uses it does.
+However general it could be described, it is the game's: almost anything can be described without
+naming a game. A plugin of core's is used through what it already takes: its settings in
+`world.<p>`, and its mods, which a game's own plugin writes beside itself
+(`games/<game>/plugins/<a>/<a>.<p>.ts`) to hand the core plugin what the game knows, or to deliver it
+a behavior for a word of the game's (`connecting-plugins-using-mods`).
 
-## A new top-level plugin or addon is asked for, in planning
+## Core is not touched
 
-No session makes a new folder in `plugins/` or `addons/`, or adds a new exported piece to an
-existing top-level plugin or addon (a call, a setting, a mod), without asking the person you are working for first, while
-planning, before any code: what it is, which games and which core code use it, and why it cannot
-stay in the game that needs it. No answer is a no: it is built in the game. Nobody else's skill,
-agent or plan grants it, and a subagent is told so in its brief.
+Everything a game needs goes in the game: its kinds, its plugins, its addons, its mods. Nothing in
+core is changed for one game: not `engine/`, not core's plugins or addons.
+
+- **The engine**, never. Changing it is the worst thing a game's work can do (The engine is frozen).
+- **A new folder in `plugins/` or `addons/`**, never. What a game needs that core has no plugin for
+  is a plugin or addon of the game's own.
+- **Expanding a plugin core already has** is the one way into core: a new behavior it builds in, a
+  new mod key it asks for, a new setting every game that uses it could set, a fix. It is asked of the
+  person you are working for first, while planning, before any code: what it is, which games use it,
+  and why the game cannot do it through the plugin's mods. No answer is a no: it is built in the game.
+  Nobody else's skill, agent or plan grants it, and a subagent is told so in its brief. A setting only
+  one game would set is never an expansion: it is that game's actor.
 
 There is no sixth home for a game's thing. Something that fits none of them has been described
-wrong; describe it again from 1. A thing for the editor is not a game's thing: its home is under
-"The editor".
-
-## The editor
-
-The editor is a web app like any other: a React page and a Node server. The game runs in the
-page as `index.html` runs it, or on node as `<game>.server.ts` runs it. Nothing is put in an
-iframe, a worker or behind a port. Everything the editor shows is an extension: the game view,
-the hierarchy, the inspector, the timeline and the console too. The editor itself holds no panel.
-An extension is to the editor what a plugin is to a game.
-
-Ask in this order. The first yes is the home.
-
-1. Is it how the editor runs at all: its page, its server, the shell (menus, docking, commands,
-   and the MCP endpoint every command is served on), files and undo, selection, the design
-   system, loading extensions? → `editor/`.
-2. Is it time: holding a game's truths under the editor's clock, recording what reaches them,
-   rebuilding a step by booting again and replaying? → the `recorder` addon. Time goes back by
-   replay, never by a snapshot the engine would have to hand out.
-3. Does it present or edit what a plugin owns: its prefab, its data files, what it draws? → the
-   extension that plugin ships, `plugins/<p>/<p>.extension.tsx`. What an addon owns → its
-   `addons/<a>/<a>.extension.tsx`.
-4. Is it one game's: how its kinds' fields are shown, a tool for its level or its states? →
-   `games/<game>/<game>.extension.tsx` or `<kind>.extension.tsx`, the extension beside one of its
-   own plugins, or `games/<game>/extensions/<name>/` for a tool that uses several of them.
-5. None of those, and about rows, kinds, seats, steps or files in general? → an extension of the
-   editor's own, `extensions/<name>/`.
-
-An extension is `<name>.extension.tsx`, with its React components in `<name>.components.tsx` and,
-when it needs the machine, its backend routes in `<name>.route.ts`. There is no other home for a
-thing of the editor's. How one is built, writes files and is proven is `building-an-extension`.
+wrong; describe it again from 1.
 
 ## What each home may do
 
@@ -207,9 +175,10 @@ Each line is the rule; the skill named carries the whole of it.
   built on is handed to it, never imported; what another plugin knows reaches it through a mod.
   It imports from `engine/` and `addons/`, never from `games/`. (`building-a-plugin`.)
 - Mod: how one plugin gives another what it knows without either naming the other: `a` writes
-  `<a>.<p>.ts`, a scene switches it on with `world.<p>.mods`, and `p` asks with `mod`. The whole
-  of it is the Mods header of `addons/scenemanager/scenemanager.addon.ts`. (`building-a-plugin`;
-  a scene author's side in `writing-the-look`.)
+  `<a>.<p>.ts`, a scene switches it on with `world.<p>.mods`, and `p` asks with `mod`. Mods deliver
+  behaviors, and a delivered behavior takes the place of the plugin's own of that name. The whole of
+  it is the Mods header of `addons/scenemanager/scenemanager.addon.ts`. (`building-a-plugin`,
+  `connecting-plugins-using-mods`; a scene author's side in `writing-the-look`.)
 - Input: `plugins/player` binds a seat two ways, `bind` straight to keys and `control` to the
   scene's named actions, which a player may rebind; games on `bind` stay on it, and a game moves
   to `control` when it wants remapping, never as a sweep. (`input-and-seats`.)
@@ -225,14 +194,6 @@ Each line is the rule; the skill named carries the whole of it.
   the one place a shortcut is allowed: it enters any scene, overrides any value, in the page's own
   copy in memory before the boot, and nothing else reads it or knows it exists.
   (`starting-a-game`, `tuning-feel`, `proving-a-game`.)
-- Editor: names no game, kind, plugin or field. It changes a running truth only through the
-  recorder, and a file only through its server, one value at a time, every edit undoable. It adds
-  nothing of its own to a scene or data file. (`building-an-extension`.)
-- Extension: extends the editor and nothing else. Nothing a game runs imports `editor/`, an
-  extension or a route. (`building-an-extension`.)
-- Design system: React components in `editor/ui/` and themes that are CSS. Every extension builds
-  its panels from them; none makes its own button, field or list, and none writes CSS. The game's
-  own `ui` plugin has nothing to do with it. (`building-an-extension`.)
 
 ## Names and tests
 
@@ -241,23 +202,32 @@ Each line is the rule; the skill named carries the whole of it.
   after a plugin is loaded as the actor of that plugin's row. Beside them, `assets/` holds the
   game's data files and art, and beside those what they are made from, which the game never reads:
   the script that draws, writes or cuts them is kept there, so they can be made again
-  (`bringing-in-art`). `plugins/<name>/`, `addons/<name>/` and `extensions/<name>/` hold its own
-  plugins, addons and extensions, laid out and named as the top-level ones are.
-- `editor/` and `extensions/` sit beside the four folders and hold the editor, which is not part
-  of any game.
+  (`bringing-in-art`). `plugins/<name>/` and `addons/<name>/` hold its own plugins and addons, laid
+  out and named as the top-level ones are.
 - A kind is never named after its game, a scene or a plugin.
 - A test sits beside the file it tests and is named after it. A kind's test boots its game's
-  manager, drives seats, and reads what the kind wrote off the rows. An addon's or a plugin's
-  test boots a scene it writes itself. A test outside `games/` never uses a game in `games/`: core
-  ships none. No file, header, test or skill outside `games/` names a game in `games/` as an
-  example or a model either; it cites core's own tests. An extension's test boots a scene it writes
-  under the recorder and reads what changed off the rows and the files. (`proving-a-game`.)
+  manager, drives seats, and reads what the kind wrote off the rows. A plugin's or an addon's test
+  boots its game's manager, or a scene it writes itself. (`proving-a-game`.)
+
+## How fast it runs
+
+How fast a thing runs is measured, never guessed, and `benchmarking-a-game` is the premier way to
+verify the performance of whatever is being built: the scene played whole in a headless Chrome on the
+GPU, timed on the CPU where everything in it is called (`scene-profile.mjs`, and its rules alone on
+node, `rules-profile.ts`), and on the GPU by taking away each thing it draws in turn
+(`gpu-profile.mjs`); always both, and `bench.mjs` runs every scene so. Nothing else is a measure of
+performance: not a page's own frame counter, a screenshot, a timer written into a page, or a probe that
+times one piece alone. A window behind another is given almost no frames, so a page's own counter
+there reads a few a second however light the scene.
+
+`--deep` is run only by the person you are working for. A session never passes it: it runs the basic
+profile.
 
 ## When something is missing
 
-Build it in its home: in the game that needs it, set from the scene file and tested; it moves
-to core when a second game needs it, and only with their yes (above). Then use it. Never
-instead:
+Build it in its home: in the game that needs it, set from the scene file and tested. Where a plugin
+of core's is what lacks it, the game gives it through that plugin's mods, or the plugin is expanded,
+with the yes of the person you are working for (Core is not touched). Then use it. Never instead:
 
 - work around it in the game: an actor importing another, a test faking what a plugin
   should do, a number written into code, a rule redoing what a plugin computes;
@@ -276,8 +246,7 @@ The code says what exists; this directive says where things go. A doc that disag
 code is wrong and is fixed in the same change. A doc brought in line with the code says what the
 code does; it never adds a rule for content to follow to get around what the base lacks. A doc
 that disagrees with this directive about where something goes is wrong. This file is core's: it
-is changed only in core, never in a game's job, and the lists in it are examples, so no content
-change can make it wrong.
+changes only in core, never in a game's job.
 
 ## The words
 
@@ -303,39 +272,84 @@ change can make it wrong.
   is handed; on the page, `plugins.wire` is what the client last took (`rows`, `n`, `scene`) and
   its `send`. transport: the addon that carries the packets and the messages.
 - plugin, addon, mod, ledger, store, catalogue: as in "Every new thing has one home" and "What
-  each home may do".
-- extension: a piece of the editor. recorder: what holds a game's truths under the editor's clock.
+  each home may do". behavior: what a plugin does for things of one word, built in or delivered
+  by a mod (`building-a-plugin`).
+- recorder: the addon that journals what reaches a game's truths and rebuilds any step by booting
+  again and replaying.
 
-## The work, by phase
+## The work, by kind
 
-Making the game:
+Every job:
+
+- `know-your-limitations`: make the change as named; never argue it, never estimate in its place.
+
+Starting:
 
 - `starting-a-game`: a new game, from `yarn new-game` to the first thing of its own playing.
+
+Your game's things:
+
 - `designing-a-kind`: a thing with rules, and things acting on each other.
 - `designing-a-seat`: the `player` row is the thing the seat plays as, never a row it spawns; read
   before any `player.sim.ts` or `player.client.ts`.
 - `input-and-seats`: how a player controls the game; seats, starts, presses, ledgers.
-- `building-a-controls-screen`: the screen where a player sees and rebinds the controls.
 - `building-a-level`: the place a game is played in.
-- `bringing-in-art`: pictures, sheets, models and files into a game and drawn.
-- `writing-the-look`: how a game looks, 2D or 3D.
+
+Scenes and flow:
+
 - `scene-flow`: more than one scene: titles, menus, levels, game over.
 - `session-flow`: the loop around play: a menu, a choice, joining a running scene and taking over a
   thing in it, respawn, a free-for-all, results and back to the menu, a fresh round.
 - `building-the-hud`: what is drawn over the game.
-- `sound`: sound and music.
+- `building-a-controls-screen`: the screen where a player sees and rebinds the controls.
+- `building-a-cutscene-intro`: an intro, an attract mode, a camera flown round the running game
+  onto the title.
+
+Art and assets:
+
+- `bringing-in-art`: pictures, sheets, models and files into a game and drawn.
+- `importing-external-assets`: a pack made outside core brought into the library.
+- `using-mixamo-assets`: a Mixamo character brought into a game and animated.
+- `making-3d-assets-in-blender`: a model built in Blender from a script, for the loader.
+- `asset-workshop`: props and held items fitted, looked at and moved between games.
+
+How it looks and feels:
+
+- `writing-the-look`: how a game looks, 2D or 3D.
 - `tuning-feel`: movement, physics, cameras, and the numbers that make it feel right.
+- `tuning-particles`: effects held on in `dev.html` and tuned while the game runs.
 - `guide-to-smooth-gameplay`: drawing between steps, a teleport (`userData.teleport`), and anything
   that slides, streaks, judders or pops on screen.
-- `building-a-plugin`: a plugin, an addon or a mod, top-level or a game's own.
-- `building-an-extension`: anything added to the editor.
+
+Sound:
+
+- `sound`: sound and music.
+
+Systems your game shares:
+
+- `building-a-plugin`: a plugin, an addon, a mod or a behavior of your game's, and expanding a plugin
+  core already has.
+- `connecting-plugins-using-mods`: one plugin's things acting on another's, and a plugin handling a
+  new kind of thing: the mod that already does it, switched on in the scene.
+
+Checking it:
+
 - `proving-a-game`: tests, bots, the simulator, replay, playing it.
+- `using-the-dev-page`: the game's `dev.html` testbed, every part of it: the basic page, the `stats`
+  frame rate, the profiler hooks, overrides, the panel, live tuning, wrapping plugins, the camera,
+  time, errors, readouts, bots and networks, as the game pages do them.
+- `benchmarking-a-game`: how fast a scene runs, on the CPU and the GPU, the one way performance is
+  verified (How fast it runs, above).
 - `experimenting-with-features`: a feature nobody knows the behaviour of yet, found one visible step at
-  a time in a scene of its own through the game's `dev.html`, Bill checking each step.
+  a time in a scene of its own through the game's `dev.html`, the person you are working for
+  checking each step.
+
+Whole-game jobs:
+
 - `porting-a-game`: a game that exists elsewhere, brought into core.
 - `auditing-a-game`: a game checked against every rule above and moved into its homes.
 
-Distributing the game:
+Shipping it:
 
 - `going-multiplayer`: playing with other people over a network.
 - `persisting-players`: who a player is, and what is kept for them.
@@ -347,14 +361,18 @@ Using a plugin, the whole of one top-level plugin in one place, `using-<plugin>`
 
 - `using-terrain3d`: the 3D ground, its field file, its queries, its rings and its mods.
 - `using-3d-physics`: box3d, box3dvehicle, walker, hitscan3d, volley3d, flight3d, ragdoll3d,
-  interact and cover3d, and which mods make a thing solid, stood on or hit in each.
+  interact, cover3d, shapes3d and nav3d, and which mods make a thing solid, stood on or hit in each.
+- `using-audiodaw`: songs written as data and played behind a game.
 
 ## Questions never asked
 
 - Should this go in the engine? No.
 - Addon or plugin? Question 4 or question 5.
-- Should this go in `plugins/` or `addons/` because it is general? No: one game uses it, so it is
-  that game's. A new top-level one is asked of the person you are working for in planning, every time.
+- Should this go in `plugins/` or `addons/` because it is general? No: it is the game's, in
+  `games/<game>/plugins/` or `games/<game>/addons/`. Core gets no new plugin or addon from a game.
+- Should I change a plugin of core's for this? Only to expand it for every game that uses it, asked of
+  the person you are working for in planning, every time; first see whether its mods already let the
+  game do it.
 - Can this number go in the code? No: the scene file.
 - Should this plugin get a setting so one game can…? No: that game's actor.
 - Can where each seat starts go on `world`, as `pads` or `spawns`? No: a `start` actor per
@@ -372,12 +390,11 @@ Using a plugin, the whole of one top-level plugin in one place, `using-<plugin>`
 - Should I work around this for now? No: build it in its home.
 - Should I rewrite this directive, or add a rule to a doc, so my workaround is allowed? No: the
   directive is core's, and a doc says what the code does.
-- Should the editor get a panel for this plugin? No: the plugin ships it, `<p>.extension.tsx`.
-- Should the editor run the game in an iframe, a worker or behind a port? No: in the page, as
-  `index.html` does, or on node, as `<game>.server.ts` does.
-- Does the engine need to hand out its state so the editor can go back? No: the recorder replays.
+- Does the engine need to hand out its state so a step can be gone back to? No: the recorder replays.
 - Should plugin `p` import plugin `a` to use what `a` knows? No: `a` writes a mod for `p`,
-  `plugins/<a>/<a>.<p>.ts`, and the scene names it in `world.<p>.mods`.
+  `<a>.<p>.ts` beside `a`, and the scene names it in `world.<p>.mods`.
+- Should `p` handle this new kind of thing? No: the plugin that brings it delivers `p` a behavior
+  for its word (`connecting-plugins-using-mods`).
 - Can a plugin take a field naming the plugin it stands on, `ground: 'terrain3d'`, and look it up
   with `plugins[ground]`? No: a `land` mod, `terrain3d.<p>.ts`, named in `world.<p>.mods`.
 - Can `p` read `world.<a>` for one of `a`'s numbers? No: `a` hands it out, a method on `plugins.<a>`
@@ -387,8 +404,8 @@ Using a plugin, the whole of one top-level plugin in one place, `using-<plugin>`
 - Should a mod check that its plugin is listed, or listed first? No: `p` does, with `provided` or
   `ahead`, since `p` knows when it reads.
 - Should this piece carry its own packets, just this once? No: it takes a transport (The wire).
-- Should scenemanager move into the engine? No: it is a layer over truths, which the engine
-  is one of.
+- Is it fast enough? Measured with `benchmarking-a-game`, its basic profile, CPU and GPU; never
+  `--deep`, which is the person's you are working for alone.
 - Do you want the full version? Always.
 
 Ask the person making the game what it should do: what a monster does, how a level plays. That is

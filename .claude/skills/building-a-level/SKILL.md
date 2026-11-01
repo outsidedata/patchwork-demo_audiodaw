@@ -1,6 +1,6 @@
 ---
 name: building-a-level
-description: Use in core, or any clone of it, when laying out the place a game is played in: a level, map, stage, room, arena or dungeon, its ground, walls and collision. Covers a Tiled map (`.tmj`, `.tsj`) as a data file in `assets/` the scene names, the `tilemap` plugin (`world.tilemap`, `blocked`, `slide`, `sweep`, `clear`, `edits`) on render2d's world, the other plugins that hold ground and layout (`grid`, `terrain3d`, `scatter3d`, `solids`, `nav`, `mapgen`, the `interest` addon), placing actors and each seat's `start` on a level (`actors`, `<level>.actors.json`, `actorsFile`), levels generated from a seed, a game of many levels, a game's own level tool, and the editor's Actors, Hierarchy, Inspector and Tiles panels. Also when the seat's `player` row walks through a wall, a start stands in one, part of a level cannot be reached, or the map does not draw.
+description: Use in core, or any clone of it, when laying out the place a game is played in: a level, map, stage, room, arena or dungeon, its ground, walls and collision. Covers a Tiled map (`.tmj`, `.tsj`) as a data file in `assets/` the scene names, the `tilemap` plugin (`world.tilemap`, `blocked`, `slide`, `sweep`, `clear`, `edits`) on render2d's world, the other plugins that hold ground and layout (`grid`, `terrain3d`, `scatter3d`, `solids`, `nav`, `mapgen`, the `interest` addon), placing actors and each seat's `start` on a level (`actors`, `<level>.actors.json`, `actorsFile`), levels generated from a seed, and a game of many levels. Also when the seat's `player` row walks through a wall, a start stands in one, part of a level cannot be reached, or the map does not draw.
 ---
 
 # Building a level
@@ -34,8 +34,6 @@ on it. It does not cover:
 - a seat: its `player` row, its keys, what it plays when it arrives: `input-and-seats`. This skill
   puts its `start` on the level.
 - a new ground plugin, or a plugin of the game's own that holds its level: `building-a-plugin`.
-- how an editor extension is built, tested and drawn: `building-an-extension`. This skill says what
-  a level tool does and where it goes.
 - the tileset's picture, models, sprite sheets: `bringing-in-art`.
 - the game itself, from `yarn new-game` on: `starting-a-game`.
 
@@ -79,10 +77,6 @@ on it. It does not cover:
 - A level's cast, as placed, is `w.world.scenemanager.actors`, which the scenemanager writes for
   every child scene, so a level that starts over spawns its cast again from its entries and no row
   keeps a copy.
-- Actors are placed, dragged and deleted with the editor's own Actors panel, which every game has
-  (The editor on a level, below). The Tiles panel edits the environment and nothing else. A game's
-  own level tool is for what is that game's alone: running its generator with its recipe and seed,
-  or showing its own things its own way (A game's own level tool, below).
 
 ## The plugins that hold ground and layout
 
@@ -90,27 +84,33 @@ Each one's header says what it reads and from where; read it before using the pl
 
 - `tilemap`, a 2D level: a Tiled map, the `tilemap` catalogue entry `world.tilemap.file` names. Its
   one row holds `edits`. The server half answers questions of the map (`plugins/tilemap/tilemap.sim.ts`),
-  the browser half draws it on render2d's layers, the Tiles panel edits it, and box2d stands on it
+  the browser half draws it on render2d's layers, and box2d stands on it
   through `world.box2d.mods: { ground: 'tilemap' }` (`plugins/tilemap/tilemap.box2d.ts`).
 - `grid`, a 2D map every cell of which changes while the game runs, as a city's: its cells are held
   in chunk rows, one `actors` entry `{ "is": "grid" }` with the prefab `{ "k": 0, "cells": {} }`, and
   its numbers are `world.grid` (`size`, `chunk`, `layers`). A rule reads and writes cells through
   `cells(w)`; a starting map is a picture, a `pixels` entry a rule reads and hands to `fill`. The
-  browser half draws with the look the game hands it; the Cells panel and Paint Cells (G) edit it
-  (`plugins/grid/`).
+  browser half draws with the look the game hands it (`plugins/grid/`).
 - `terrain3d`, 3D ground: a field file, the `json` entry `world.terrain3d.field` names, a height
-  program, colour bands and painted layers. It has no row. The Terrain panel and its brush write the
-  field file. Other plugins stand on it through its mods, `terrain3d.<p>.ts` beside it (walker,
+  program, colour bands and painted layers. It has no row. Other plugins stand on it through its mods, `terrain3d.<p>.ts` beside it (walker,
   box3d, scatter3d, solids, hitscan3d, ocean3d among them), named in `world.<p>.mods`. The whole of
   it is `using-terrain3d`.
 - `scatter3d`, trees, grass and boulders, each where a hash of its cell puts it, from the packs of
   `world.scatter3d`, on the ground its mods name; the solid ones are walked round
-  (`scatter3d.walker.ts`). No row; the Scatter panel edits it.
+  (`scatter3d.walker.ts`). No row.
 - `solids`, still models: every row of a kind `world.solids.kinds` names is drawn from its model, a
   `json` entry, at the row's `pos` and `yaw`. A prop is an actor of such a kind, standing on the
   land `world.solids.mods: { land: 'terrain3d' }` names.
-- `walker`, kinematic bodies on any ground, through `world.walker.mods` (`height`, `depth`,
-  `solids`).
+- `shapes3d`, what stands in the way in 3D: every row of a kind `world.shapes3d.kinds` names is a
+  cylinder, a box, a plane (flat, or tilted into a ramp) or another of its words, at the row's
+  `pos` and `yaw`, over the ground its `world.shapes3d.mods.height` names (terrain3d's, or flat at
+  0). It has no row of its own and draws nothing; solids draws a kind that gives a `look`, and
+  walker, box3d and the rest stand on it through its mods (`plugins/shapes3d/shapes3d.sim.ts`).
+- `walker`, kinematic bodies on any ground, through `world.walker.mods` (`height`, `depth`, `cell`,
+  `solids`, `fixed`, `behaviors`).
+- `nav3d`, the way from place to place in 3D over a graph of shapes3d points, lines and splines, a
+  `json` entry made before the game runs, by the level's own generator or by nav3d's bake. It moves
+  nothing (`plugins/nav3d/nav3d.sim.ts`).
 - `nav`, ways through a grid the caller describes: `grid(across, down, blocked, sub, window)` over
   tilemap's `blocked`, `path`, `field` and `down`, `sight`, `pull` (`plugins/nav/nav.sim.ts`).
 - `mapgen`, a level made from a recipe and a seed: a library that hands back a map and a list of
@@ -128,7 +128,7 @@ Each one's header says what it reads and from where; read it before using the pl
 
 The game `yarn new-game <name>` writes is one scene, `main`, on render2d with no world of its own,
 so its points are the canvas's pixels. Its `player` row spawns a `body` and forwards `move` to it;
-that is the editor's template, which is on hold, and never the model. Before a level is laid, the
+that is never the model. Before a level is laid, the
 `body` is folded into the `player` row: its `pos`, `move` and definition onto the `player` prefab and
 definition, its rule into `player.sim.ts`, whose `before` stands the row on its start in place of
 spawning one, its look into `player.client.ts`, drawn for every row and keyed only for the row that is
@@ -142,17 +142,14 @@ is that `player` row. Giving it a level:
    is refused), orthogonal or isometric (a staggered or hexagonal map is refused); its tileset, a
    `.tsj` beside it that the map names by `source`, or one embedded in it; and the tileset's picture,
    which the `.tsj` names by `image` (`bringing-in-art`). Naming the map after its scene is a
-   convention, not a rule: nothing requires it, and the editor's New scene follows it, naming a
-   scene's own copy of a map after the new scene, beside the first. Each tile layer
+   convention, not a rule: nothing requires it. Each tile layer
    is drawn on the render2d layer its Tiled name names. A hidden layer is drawn on nothing and needs
    no render2d layer, so a layer that only says where things may walk costs the page nothing.
    Collision is the tileset's, each tile's Tiled collision objects, rectangles and convex polygons,
-   one whose type is `top` one-way; the Tiles panel's Tile section writes them from presets, full,
-   one-way, and slopes of 45° and 22.5°. A tile with no collision is walked on. To a mover that walks
+   one whose type is `top` one-way. A tile with no collision is walked on. To a mover that walks
    cell by cell (`blocked`, `slide`, `clear`) a cell with no tile on any layer blocks, as a cell off
    the map does, so its floor is painted with a floor tile; a box that sweeps is stopped by collision
-   shapes alone. The Tiles panel edits a map a scene already names and makes no new one: the first
-   map is made in Tiled, or written as Tiled writes one.
+   shapes alone. The map is made in Tiled, or written as Tiled writes one.
 
 3. The scene names it. In `<scene>.scene.json`, for 32-pixel tiles and a map 30 cells by 16:
 
@@ -167,7 +164,7 @@ is that `player` row. Giving it a level:
      "render2d": { "ground": [[32, 0], [0, 32]], "up": [0, -32], "zoom": 1, "look": [15, 8],
                    "layers": ["ground", { "name": "things", "sort": true }] }
    },
-   "plugins": ["loader", "scenemanager", "player", "tilemap", "render2d"],
+   "plugins": ["loader", "scenemanager", "player", "tilemap", "render2d", "stats"],
    "prefabs": { "tilemap": { "edits": {} } },
    "actors": [
      { "is": "scenemanager" },
@@ -187,8 +184,7 @@ is that `player` row. Giving it a level:
    w × h pixel tiles and `[[w/2, h/2], [-w/2, h/2]]` for an isometric one, or the tilemap throws.
    render2d also reads `up`, `zoom`, `look` and `layers`, and, when given, `fit` and `background`,
    and each layer's `sort` and `parallax` (its header). `layers` names every visible tile layer of
-   the map and the layer the things stand on. The Assets panel writes a catalogue entry too
-   (`loader.entry`).
+   the map and the layer the things stand on.
 
 4. The level's units are now the game's. With a world every point is in the level's cells, x along
    a row and y down the rows, so the pixels `yarn new-game` wrote are wrong: the start it put at the
@@ -235,8 +231,7 @@ is that `player` row. Giving it a level:
    monster, with the fields it starts with, its kind in the scene's sim with a prefab. They go in the
    scene file's `actors`, or in a list of entries beside the map, `assets/<scene>.actors.json`, which
    the scene file names at its top level as `"actorsFile": "assets/<scene>.actors.json"`, from the
-   scene file's folder. A file not named `.actors.json`, or not a list, is refused. In the editor,
-   below.
+   scene file's folder. A file not named `.actors.json`, or not a list, is refused.
 
 7. Write the tests beside what changed and run them (How it is proven).
 
@@ -247,20 +242,16 @@ is that `player` row. Giving it a level:
 Each level is a scene: `<level>.scene.json` with its own map and actors, `<level>.sim.ts` handing
 out the sim of a scene it shares its kinds with (`export { sim } from './main.sim.ts'`), and an
 entry in the manager's `scenemanager.scenes`. The sim file also imports its scene file and exports
-it, `export const scene = file as Scene`, or loading throws `<level>.sim.ts exports no scene`. The
-Scenes panel's New scene (`scenes.new`, `plugins/scenemanager/scenemanager.extension.tsx`) makes one
-from another as one change, both sim lines too: a name, the scene it is made from, the kinds whose
-actors it keeps (keep `start`), and the files its world names that it gets its own copy of (the
-map), each copy named after the new scene, beside the first, and catalogued in its place.
+it, `export const scene = file as Scene`, or loading throws `<level>.sim.ts exports no scene`.
 
 A child scene's `world` is the manager's with its own over it key by key, so a key a level gives
 replaces the manager's whole. Numbers every level shares go once in the manager's `world`; a level
 that gives its own `world.loader` gives its whole catalogue, the definitions' entry too, so a map of
-a level whose catalogue is the manager's is catalogued there beside the others, as New scene does.
+a level whose catalogue is the manager's is catalogued there beside the others.
 
 A seat moves on when a level's rule calls `go` on its own `scenemanager` row
 (`plugins/scenemanager/scenemanager.sim.ts`); the thing that sends it, an exit or a door, is a kind
-(`designing-a-kind`) whose field naming the next scene is bound to the `scenemanager.scene` type. To
+(`designing-a-kind`). To
 play one level straight away, `dev.html` enters it, `file.prefabs.scenemanager.entry = '<level>'`,
 and no other page or file does.
 
@@ -293,79 +284,9 @@ it names a level drawn by hand: the map in its catalogue and `world.tilemap.file
 joins every walkable cell to every other, keeps them joined round anything that `blocks`, and puts
 the stairs `apart` steps from each other by path.
 
-The generator is run by the game's level tool, which reads the recipe file, seed and all, and writes
-both files through the editor's files before the game boots on them, so the same recipe makes the
-same files again. Nothing makes a level while the game runs.
-
-## A game's own level tool
-
-Actors are placed with the editor's own Actors panel, which every game has: a game's own level tool
-never re-builds Place and Arrange. It is for what is that game's alone: running its generator with
-its recipe and seed, or showing its own things its own way, a door's link to the scene it leads to,
-a patrol's route, an area drawn as its outline. The header of `plugins/tilemap/tilemap.extension.tsx`
-says whatever a game places on its maps is placed by that game's own level editor; the Actors panel
-does that for every game, so that header disagrees with the code, and is a doc fixed in the change
-that next touches it.
-
-The tool is an editor extension. It goes in `games/<game>/extensions/<name>/<name>.extension.tsx`
-when it uses several plugins, in `games/<game>/<game>.extension.tsx` or `<kind>.extension.tsx`, or
-beside one of the game's own plugins; the editor loads every `.extension.tsx` in the game's folder
-and in each folder of its `extensions/` and `plugins/` (`editor/server/listing.ts`) while the game
-is open.
-
-It shows the map with `MapView` of `plugins/tilemap/tilemap.components.tsx`, drawn as the Tiles
-panel draws one, with marks for the game's things and the pointer handed back in the map's cells;
-`docOf` and `mapIn` of `plugins/tilemap/tilemap.extension.tsx` hand it the map and its tilesets as
-the loader reads them, to ask `clear` and `blocked` whether a thing stands clear of the collision.
-It writes the level's data files through the editor's files and nothing else: a value of a file
-that is there with `Edits.editFile`, `saveFile` or `editFiles`, a file that is not yet there (a
-generated level's two files the first time) through its own route run as one change, `Edits.route`,
-as New scene writes a scene's files; each action one undo, in `together` (`editor/editor.ts`). The
-route is `<name>.route.ts` beside `<name>.extension.tsx`, exporting a function `<name>`. The server
-finds a route by its file's name across `extensions/`, `plugins/`, `addons/` and `games/`, and a
-second file of that name anywhere in them throws (`editor/server/routes.ts`), so the name is one no
-other route uses. The tool adds nothing of its own to a scene or data file, nothing a game runs
-imports it, and what its panel does is a command an LLM can call too. Building it:
-`building-an-extension`.
-
-## The editor on a level
-
-`yarn editor <game>` serves `http://localhost:5173/editor/?game=<game>`, and every command named
-below is a tool of its MCP endpoint (`.mcp.json`), with each `.` a `_`.
-
-- Place (P) writes an entry of the kind picked in the Actors panel where the game view is clicked,
-  snapped to the snap picked, at the end of the scene's actors or of its actors file. A kind is
-  placeable when the scene's sim hands it out, the scene has a prefab of it, and a placer stands that
-  prefab on a point: render2d's reads and writes `pos`, `[x, y]` or `[x, y, h]`; render3d's `pos`,
-  `[x, y, z]`.
-- In 3D, Place writes y = 0: render3d's stage's ground is the plane y = 0, not the terrain. solids
-  draws its model at the land's height, but the row's `pos[1]` stays 0; walker lifts its body onto
-  the land on its first `walk`; anything else, a box3d body or a kind its own look draws, stays at
-  0, in or under the land. Write the land's height into `pos[1]` of its entry, with `actors.move` or
-  the Inspector.
-- Arrange (A) selects the actor drawn under the pointer, drags it, and writes where it is let go
-  into its entry; a spawned row is said to be so and not moved. Select (V) moves a running row from
-  this step on and writes no file. Delete takes the entry out. Each is one undo, and the game is
-  rebuilt from the files. The commands are `actors.kinds`, `actors.place`, `actors.move`,
-  `actors.remove`. A point is as long as the placer's `axes`, which `actors.kinds` answers: three
-  numbers in 2D too, `[x, y, h]`, so a start on cell [2, 2] is moved with `[2.5, 2.5, 0]`, and a
-  point of two numbers is refused.
-- The Hierarchy lists every row of every scene and marks those an entry made; the Inspector shows a
-  row's live data, its actor entry, where an edit writes the entry (`inspect.entry`), and its prefab.
-  `inspect.saveAsActor` saves a spawned row as an entry, so a thing moved while playing can be kept.
-- A `start` is an actor the editor shows, selects and drags where it stands, as it does every other.
-  The game view picks what is drawn (`Stage.pick`, through the tags of `editor/drawn.ts`), and a
-  `start` draws nothing, so picking an actor that draws nothing is built in its home, the editor's
-  own actors extension (`extensions/actors/`), with its test beside it, when a level's starts are
-  to be dragged: a mark in the stage's overlay for each placed actor that draws nothing, which
-  Arrange picks and drags as it does a drawn one. Selecting a start in the Hierarchy and setting
-  its `pos` in the Inspector's actor entry moves it too, as `actors.move` does.
-- The Tiles panel (`tiles.read`, `tiles.paint`, `tiles.tile`, `tiles.layer`, `tiles.object`,
-  `tiles.resize`) edits the map named by the `world.tilemap.file` of a scene with a tilemap row, and
-  its tilesets, each edit written as it is made, one undo each.
-- A map, a tileset or another file of the catalogue that the editor writes is read by the running
-  game at once: the `datafiles` extension refills the loader's copies in place before the step is
-  rebuilt. A scene file or an actors file written rebuilds the step from the files.
+The generator is run by a script of the game's, kept beside the recipe in `assets/`, which reads
+the recipe file, seed and all, and writes both files before the game boots on them, so the same
+recipe makes the same files again. Nothing makes a level while the game runs.
 
 ## Level design as play
 
@@ -406,12 +327,10 @@ What a level should do is the person's. Core gives tools for checking what makes
 - The map, or the name of its file, put on the tilemap row or a prefab. The row holds `edits`.
 - A second `start` entry added for a slot that has one. `w.find` takes the first; the start a level
   moves is the one there.
-- A 2D point of two numbers handed to `actors.move` or `actors.place`. It is `[x, y, h]`.
 - A coin's or a block's rule writing a key of the tilemap row's `edits` straight. It calls the
   tilemap's act, built in `plugins/tilemap` when the first job needs it.
 - A level that must be winnable proven by a list of moves typed into the test. The test finds the
   moves by a search over the map and walks them through the rules (How it is proven).
-- A 3D actor placed and left at y = 0 under the land.
 
 ## How it is proven
 
@@ -486,10 +405,10 @@ yarn vitest run games/<game>/<game>.sim.test.ts
 yarn tsc
 ```
 
-Then play it: `yarn editor <game>`, and `http://localhost:5173/games/<game>/index.html`. The map is
+Then play it: `yarn dev`, and `http://localhost:5173/games/<game>/index.html`. The map is
 drawn, the seat's `player` row stands on its start, and held keys walk it up to every wall and along
 it, never through. Against `<game>.server.ts` on `client.html`, which runs the scene ahead, it moves
-on the frame after the key and stops at a wall on the frame it reaches it. In the editor the Actors panel lists the starts, and `tiles.read` answers the map. A 404
+on the frame after the key and stops at a wall on the frame it reaches it. A 404
 for `<kind>.client.ts` of a kind with no look (`start`, `tilemap`, `loader`, `scenemanager`) is the
 client finding no actor for it, as it should. A blank page whose console shows a 504 for a file
 under `node_modules/.vite/deps` is the dev server optimizing a dependency: reload.
@@ -504,8 +423,6 @@ under `node_modules/.vite/deps` is the dev server optimizing a dependency: reloa
 - Can an enemy or a pickup be a Tiled object the game turns into a row? No: an `actors` entry, in
   the scene file or the level's `.actors.json`.
 - Can the level be generated when the scene boots? No: two files, written before.
-- Should the Tiles panel, or a game's own level tool, place the game's actors? No: the Actors panel,
-  which every game has. A game's own tool does what is that game's alone.
 - Should a ground plugin get a setting so this one level can…? No: this game's kind.
 - Should I work around what is missing? No: build it in its home.
 - Do you want the full version? Always.

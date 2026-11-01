@@ -1,6 +1,6 @@
 ---
 name: proving-a-game
-description: Use in core, or any clone of it, to show that a game or a piece of it works. That covers a test of a kind, a scene, a plugin or an addon (`<kind>.sim.test.ts`, `.test.ts` in node, `.test.tsx` in jsdom, `.view.test.tsx` and `yarn test:view`), a seat that plays itself with a think (the `playtester` plugin, the player addon's `playtest`), the press test `<game>.predict.test.ts` (predicting pages on the game's server, a press every frame, the seat's own `player` row drawn by the frame after it), and pages played against a server over a bad network on the `simulator`, with its JSONL read back (`simulate`, its command line, `?tap=`, the Runs panel). It also covers a gym that plays a game many times with bots to measure it, steps rebuilt by replay under the `recorder`, playing the game in one tab, against its server or in `dev.html`, and looking at it in Chrome. Triggers on "test it", "prove it works", "is it done", "playtest", "bot", "autoplay", "lag", "packet loss", "measure it", "replay", "screenshot it", and on which of `yarn vitest run <file>`, `yarn test:view <file>`, `yarn tsc` and `yarn lint` to run.
+description: Use in core, or any clone of it, to show that a game or a piece of it works. That covers a test of a kind, a scene, a plugin or an addon (`<kind>.sim.test.ts`, `.test.ts` in node, `.test.tsx` in jsdom), a seat that plays itself with a think (the `playtester` plugin, the player addon's `playtest`), the press test `<game>.predict.test.ts` (predicting pages on the game's server, a press every frame, the seat's own `player` row drawn by the frame after it), and pages played against a server over a bad network on the `simulator`, with its JSONL read back (`simulate`, its command line). It also covers a gym that plays a game many times with bots to measure it, steps rebuilt by replay under the `recorder`, playing the game in one tab, against its server or in `dev.html`, and looking at it in Chrome. Triggers on "test it", "prove it works", "is it done", "playtest", "bot", "autoplay", "lag", "packet loss", "measure it", "replay", "screenshot it", and on which of `yarn vitest run <file>` and `yarn tsc` to run.
 ---
 
 # Proving a game
@@ -12,8 +12,7 @@ the first test to the screenshot. Load `prime-directive` first; nothing here ove
 It does not cover building the thing being proven. Making the game and its `dev.html` is
 `starting-a-game`; a kind's rule and look is `designing-a-kind`; the `player` row the seat plays as is
 `designing-a-seat`; keys, seats and slots are `input-and-seats`; the server, more seats over a network, a press against the network and fog of
-war are `going-multiplayer`; a panel or tool for the editor, and its test under the recorder, is
-`building-an-extension`. Each of those ends here.
+war are `going-multiplayer`. Each of those ends here.
 
 ## The rules this work meets
 
@@ -56,8 +55,8 @@ From the prime directive, where proving meets them:
   any scene directly (`file.prefabs.scenemanager.entry = '<scene>'`), override any value of a scene
   file, a prefab, `world` or a definition, start a seat already carrying things, and add readouts and
   keys of its own. It boots, mounts and steps as `index.html` does, over a loopback, and changes only
-  the page's copy in memory, never a file. No scene file, rule, actor, plugin, addon, extension or
-  test imports it, reads what it set or asks whether it is running, and the game plays the same
+  the page's copy in memory, never a file. No scene file, rule, actor, plugin, addon or test imports
+  it, reads what it set or asks whether it is running, and the game plays the same
   with it deleted. What it finds that the game needs is built in its home. How it is written is
   `starting-a-game` (The testbed).
 
@@ -65,27 +64,23 @@ From the prime directive, where proving meets them:
 
 `vitest.workspace.ts` sorts tests by name:
 
-- `<name>.test.ts` runs in node. The engine, addons, plugins, a game's kinds and scenes, and the
-  editor's server are tested here, pages too: a `view` over the loopback runs in node, as
+- `<name>.test.ts` runs in node. The engine, addons, plugins, a game's kinds and scenes are tested
+  here, pages too: a `view` over the loopback runs in node, as
   `plugins/playtester/playtester.plugin.test.ts` and `addons/simulator/simulator.addon.test.ts`
   show.
-- `<name>.test.tsx` runs in jsdom with Testing Library (`editor/test/setup.ts`): React, the
-  editor's panels.
-- `<name>.view.test.tsx` is a test that attaches a game view to the editor's session
-  (`session.attach`, directly or through the Game panel), so the game's client is made and draws in
-  jsdom. It sits beside `<name>.test.tsx`, never inside it. `yarn test` leaves it out, and
-  `yarn test:view <file>` runs it. `plugins/volley3d/volley3d.extension.view.test.tsx` is one. A
-  node test that makes a `view` itself is not a view test: it is a `.test.ts`.
+- `<name>.test.tsx` runs in jsdom with Testing Library.
+- `<name>.game.test.ts`, a test that boots a whole game and steps it, and `<game>.predict.test.ts`
+  run in node too, but only in the `game` project, which exists only when `GAME` is set. Every other
+  run leaves them out, `yarn test` and a bare `yarn vitest run <file>` among them: handed one of
+  these files, it finds no test.
 
 The commands, run from the repo's root:
 
 - `yarn vitest run <file>` for each test file beside what changed, one file at a time.
-- `yarn test:view <file>` for a `.view.test.tsx` beside what changed.
+- `GAME=1 yarn vitest run <file>` for a `.game.test.ts` or a `<game>.predict.test.ts`.
+  `yarn test:game` runs every one of them.
 - `yarn tsc`: the whole repo, every game in `games/` with it, so an error in another game shows
   in the output too. Read it for your files. This is what checks a game's rules and tests.
-- `yarn lint`: eslint on the editor's code, the extensions, every `*.extension.tsx` and
-  every `*.route.ts` (`eslint.config.js`). A game's rules and tests are not linted. Run it when you
-  changed one of those.
 
 ## A kind's test, and a scene's
 
@@ -173,8 +168,7 @@ built in `addons/recorder/` when a job needs it, with its test beside it,
 `addons/recorder/recorder.addon.test.ts`, which does not exist yet, and the header saying it. A
 `player` row spawned by a recorder edit is never a seat: no connection possesses it, and nothing
 presses through it. Tell the person that a rule waiting for every seat, a race that starts when its
-grid is full, never starts in `index.html`, which is one seat, and never in the editor's Game panel
-until the recorder holds seats.
+grid is full, never starts in `index.html`, which is one seat.
 
 ## A page in a test
 
@@ -217,9 +211,9 @@ the seat's own `player` row from the copy, every other row from the packets.
   thing's place inside it is its own `position`. A test never works `world.ui`'s anchor, `at` and the
   canvas's size through again to find them (`building-the-hud`, How it is proven).
 
-A page the template writes (`gameFiles` in `extensions/games/games.route.ts`, which writes every
-page a game has) is proven by a test that makes its views as its lines make them, on a game the
-test writes on a root of its own, as `extensions/games/games.route.test.ts` writes one, and by
+A page the template writes (`gameFiles` in `scripts/new-game.ts`, which writes every page a game
+has) is proven by a test that makes its views as its lines make them, on a game the test writes on
+a root of its own, as `scripts/new-game.test.ts` writes one, and by
 playing the page in Chrome. A test that reads the page's text for a line proves nothing about what
 the page does.
 
@@ -293,21 +287,13 @@ header lists every knob and record; read it before a run.
   scene file's path, in place of `file`, `sim` and `base`. `summary <run.jsonl>` prints the
   summary of any recording, and `real <config.json>` plays the same pages over the real socket on
   the machine's clocks.
-- In the editor, the Runs panel (`simulator.extension.tsx`) plays a config through the simulator's
-  route (`simulator.route.ts`, `POST /api/x/simulator/run`) and keeps it as
-  `addons/simulator/runs/<name>.jsonl`, which git ignores. Its commands, `sim.runs`, `sim.read` and
-  `sim.run`, are tools on the editor's MCP server.
-- A real browser records itself: `client.html` wraps its dial in `tap`, and
-  `client.html?tap=<name>&kinds=<k,k>&fields=<f,f>&own=` sends every frame to
-  `addons/simulator/runs/<name>.jsonl` through the editor's server, a batch a second and the last
-  as the page is left. A tap holds no server, so its recording has no steps.
 
 Reading a run back. The first record is `run`, the knobs. A `frame` holds `t`, `clock` (the page's
 clock as the frame began), `n` (the step of the packet it drew, null before the first packet),
 `took` (each envelope that arrived since the frame before), and the watched rows the page drew,
 `rows`, with `own`, the id of the seat's own row by `watch.own`: the fields walked from the seat's
-`player` row, each naming the next row's id, and the empty list, `own: []` (`own=` in a tap's
-address), the `player` row itself, the thing the seat plays as (`frameOf` in the simulator). A `step` holds `n`, the manager's
+`player` row, each naming the next row's id, and the empty list, `own: []`,
+the `player` row itself, the thing the seat plays as (`frameOf` in the simulator). A `step` holds `n`, the manager's
 step, `scenes`, each scene's, `applied` (each message a scene took that step) and `rows`, the
 server's watched rows keyed by the scene's name (`rows.main`). A `press` says in `taken` whether the
 page had a client to take it.
@@ -348,13 +334,10 @@ until that seat's next press reaches the page.
 
 ## The recorder
 
-`addons/recorder/recorder.addon.ts` holds a game's manager under a clock someone else holds, the
-editor's. It boots and loads it, opens one seat over the loopback, and journals every envelope the
+`addons/recorder/recorder.addon.ts` holds a game's manager under a clock someone else holds. It boots and loads it, opens one seat over the loopback, and journals every envelope the
 seat sends and every edit made to a live row. One seat is all it holds; a scene of several meets
 the piece built in `addons/recorder/` above (A kind's test, and a scene's). Any step is rebuilt by booting again and replaying the
-journal up to it. The editor's session plays every game under it (`editor/session.ts`), and its
-timeline goes back with it. An extension's test boots its scene under it (`building-an-extension`),
-and a game's scene test replays the game under it (A kind's test, and a scene's, above).
+journal up to it. A game's scene test replays the game under it (A kind's test, and a scene's, above).
 
 Replay boots again and runs the same inputs, so by its mechanism a rule that rolls `Math.random`
 instead of `w.die`, or keeps from one step to the next a value outside its row, gives other rows on
@@ -377,11 +360,10 @@ fault, the real source with one fault written in and mocked in its place, shows 
 
 ## Playing it, and looking at it
 
-- In one tab: `yarn editor <game>` serves the editor at `http://localhost:5173/editor/?game=<game>`
-  and every game's pages beside it: `http://localhost:5173/games/<game>/index.html`. `PORT=<n>`
-  before it serves on another port. The editor's Game panel plays the same game under the recorder.
-- Against its server: `node --experimental-strip-types games/<game>/<game>.server.ts` serves on the
-  manager's `port`, and `http://localhost:5173/games/<game>/client.html` dials it. A key is pressed
+- In one tab: `yarn dev` serves every game's pages: `http://localhost:5173/games/<game>/index.html`.
+  `--port <n>` after it serves on another port.
+- Against its server: `yarn serve <game>` runs `games/<game>/<game>.server.ts` on the manager's
+  `port` beside the pages, and `http://localhost:5173/games/<game>/client.html` dials it. A key is pressed
   and the seat's own thing is seen to move on the next frame; one that moves a beat later is drawn
   from the packets (`designing-a-seat`, What goes wrong). The scene `yarn new-game` writes has one
   seat: a second page is refused, its socket closed with 1013 and `no seat free: 1 declared`, and it
@@ -432,7 +414,6 @@ fault, the real source with one fault written in and mocked in its place, shows 
   0 and nothing happens. Step the child, or keep a connection in it.
 - Asserting the numbers a run printed: state what the mechanism makes true, with bounds derived
   from the knobs and the files.
-- A view test in a `.test.tsx`: it is `<name>.view.test.tsx`, run by `yarn test:view`.
 - Asserting how a game looks in node: a look's test checks what the look built from the row and the
   definition, and whether it looks right is seen in Chrome.
 - Driving a recorder with `rec.link.send` instead of a page on `rec.link`, or reading `rec.failure`
@@ -450,8 +431,7 @@ fault, the real source with one fault written in and mocked in its place, shows 
 
 ## How the work is proven
 
-- Every test beside what changed is run with `yarn vitest run <file>`, a view test with
-  `yarn test:view <file>`, and passes. Each was seen to check something: its assertions read
+- Every test beside what changed is run with `yarn vitest run <file>`, and passes. Each was seen to check something: its assertions read
   numbers off the files and pin the result to a step or a stride.
 - The press test, `<game>.predict.test.ts`, passes on every wire it runs: on every frame the seat's
   own `player` row the page draws has taken every press sent up to the frame before, and the page is
@@ -464,7 +444,6 @@ fault, the real source with one fault written in and mocked in its place, shows 
   run, each step holding the rows it held when played, `rec.failure` undefined and `rec.skipped`
   empty after every step and every seek (A kind's test, and a scene's).
 - `yarn tsc` shows no error in the files you wrote.
-- `yarn lint` passes when editor, extension or route code changed.
 - A run over a bad network is read back from its records, not only its summary.
 - The game is played in one tab, and against its server, a key moving the seat's thing on the next
   frame, and looked at in Chrome.

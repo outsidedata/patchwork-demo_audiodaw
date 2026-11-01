@@ -12,15 +12,24 @@ answers a rule's question; nothing is drawn.
 ## How it works
 
 cover3d has a server half only, no row and no numbers of its own: a rule hands every number with
-the question. The solids come from another plugin through a mod, the one `world.cover3d.mods.solids`
-names: `(w, x, z, r) → { x, z, radius, tall? }[]`, every solid whose circle reaches within `r` of
-(x, z), `tall` its height over the ground (without end when it has none).
+the question. The solids come from other plugins through mods, the ones `world.cover3d.mods.solids`
+names (one or a list): `(w, x, z, r) → shape[]`, every solid that may reach within `r` of (x, z).
+
+**Solids and their behaviors.** cover3d never knows what a solid is. A solid names its word by the key
+its numbers sit under, and cover3d asks that word's behavior for the spot behind it. Its own word is
+`cylinder` (`{ pos, radius, height? }`, without end with no `height`): the spot is on the line from
+`threat` through its middle, past it by its radius plus `radius` (the body's), so the body stands
+against its far side. A plugin that hands cover3d solids of another word delivers that word's behavior
+through `world.cover3d.mods.behaviors` (shapes3d's `box`, whose spot is where that line leaves the box
+grown by the body's radius); a delivered word takes the place of cover3d's own of that word, and a
+later plugin's the place of an earlier one's. A solid of a word nothing delivered throws, naming it. A
+solid handed bare, `{ x, z, radius, tall? }`, as older providers hand them, is read as the cylinder it
+always was (`fromBare`, the one fallback).
 
 `spots(w, at, threat, { reach, radius, low })` takes each solid at least `low` metres tall whose
-centre is within `reach` of `at`, and puts a spot on the line from `threat` through the solid's
-centre, past it by the solid's radius plus `radius` (the body's), so the body stands against the
-solid's far side. The line from the threat to the spot passes through the solid's middle, so a shot
-from the threat at any height under `tall` meets the solid first. The ground between is not asked.
+middle is within `reach` of `at`, and its behavior's spot. The line from the threat to the spot passes
+through the solid, so a shot from the threat at any height under its top meets the solid first. The
+ground between is not asked.
 
 Each spot is `{ at: [x, z], tall, far }`: where to stand, how tall the cover is, and the metres from
 `at`. `at` and `threat` are [x, z]. With no `solids` mod named, asking throws.
@@ -37,6 +46,8 @@ Each spot is `{ at: [x, z], tall, far }`: where to stand, how tall the cover is,
 - **scatter3d**: the mod `scatter3d.cover3d.ts` hands scatter3d's solid instances (trunks, boulders),
   standing on the ground `world.scatter3d.mods.ground` names, each as tall as its `tall` times its
   size.
+- **shapes3d**: the mod `shapes3d.cover3d.ts` (`mods: { solids: 'shapes3d', behaviors: 'shapes3d' }`)
+  hands its cylinders and boxes, delivering `box`.
 - **math**: the deterministic maths it measures with.
 
 ## Keywords

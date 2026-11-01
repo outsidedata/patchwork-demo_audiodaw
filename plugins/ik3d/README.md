@@ -76,6 +76,8 @@ can run the same solve on its own.
 - **interact**: the mod `interact.ik3d.ts` (`world.ik3d.mods: { limbs: 'interact' }`) hands the hands
   and feet of a body in an interaction, reaching its machine's points (a car's grips through
   box3dvehicle's points).
+- **motion3d**: bends the limbs of the bodies it draws itself, with `anchor` and `reach` from
+  `ik3d.solve.ts`; it needs no `world.ik3d` and no mod.
 - **render3d**: draws the bent limbs; ik3d is listed before it.
 
 ## Keywords

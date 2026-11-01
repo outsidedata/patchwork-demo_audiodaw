@@ -13,9 +13,10 @@ the prime directive, and each is rebuilt where the directive puts it. This skill
 old game's parts to core's homes and the order of the work. Each piece in depth is another skill,
 named where the work meets it.
 
-The engine is frozen. A port changes no file in `engine/`, and no top-level plugin, addon, extension
-or editor file to suit one game. What the old game does that nothing in core does is built in its
-home, general and tested, and then used (step 10).
+The engine is frozen. A port changes no file in `engine/`, and no top-level plugin or addon to suit
+one game. What the old game does that nothing in core does is built in the game, in its home there,
+and tested, and then used (step 10); a plugin core already has is expanded only for every game that
+uses it, with the yes of the person you are working for (`prime-directive`, Core is not touched).
 
 ## When it applies
 
@@ -165,7 +166,7 @@ Each old constant goes in one place, by the prime directive's first question:
   `BRICK_ROWS`, `BRICK_GAP`, `BRICK_LEFT`): run once, outside the game, and written as `actors`
   entries, in the scene file or in the list its `actorsFile` names, `assets/<scene>.actors.json`
   (`building-a-level`). Nothing makes a level while the game runs. The offsets and gaps are then
-  only in the places they made, and the editor places and drags each entry;
+  only in the places they made;
 - a table the old game indexes per thing (a colour and a worth per row of bricks): kinds. A thing
   whose fixed numbers differ from another's is another kind, two kinds with one rule handed out from
   a game's own plugin (`designing-a-kind`). Then every rule that named the one kind names each of
@@ -475,7 +476,7 @@ state and the bricks left, and prints the first frame they differ. The Breakout 
 through two wins, and 1372 through game over, play again and a second game over, every position
 within 1e-13; the ball moved into `tick` showed at frame 307.
 
-Played. `yarn editor <name>`, or `PORT=<n> yarn editor <name>` when another holds 5173, serves
+Played. `yarn dev`, or `yarn dev --port <n>` when another holds 5173, serves
 `localhost:<port>/games/<name>/index.html`; the old game opens beside it from its file. Both are
 looked at in Chrome through `.claude/skills/good-webviews/webview.mjs` under a `WEBVIEW_TAB` of your
 own, and played with the same keys. A `dev.html` testbed may put the scene's truth on `window`, show a

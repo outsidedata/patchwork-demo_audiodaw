@@ -87,10 +87,20 @@ rules, edits, ray, mix, layers, shown, prepare, prepared, unprepare, task }` ove
 terrain3d hands its ground to almost every 3D plugin through a mod of its own:
 
 - **walker** (`terrain3d.walker.ts`: `height`, `depth`, `cell`): bodies stand and wade on it.
+- **kinematics3d** (`terrain3d.kinematics3d.ts`: `behaviors`): the `triangles` target, the land's
+  lattice as the page draws it, with its water and the solids standing on it
+  (`world.kinematics3d.mods.solids`), which a body walks across, stands on and walks round.
 - **box3d** (`terrain3d.box3d.ts`: `ground`): height-field chunks for physics.
 - **box3dvehicle** (`terrain3d.box3dvehicle.ts`: `land`, `grip`, `drag`): dust, tracks and tyre grip.
 - **hitscan3d** (`terrain3d.hitscan3d.ts`: `ground`): shots stop at the land.
 - **flight3d** (`terrain3d.flight3d.ts`: `ground`): planes land and crash.
+- **nav3d** (`terrain3d.nav3d.ts`: `height`, `link`, `behaviors`): the bake lays its graph on the land,
+  checking the line in pieces no longer than its `sample` metres and refusing one steeper than its
+  `slope` or through water deeper than its `wade`; it delivers the behavior `ground`, a way costing its
+  `data.nav3d.cost` (the metres walked over the land, which the bake writes), or its length along its
+  shape where it gives none.
+- **shapes3d** (`terrain3d.shapes3d.ts`: `height`): shapes stand on the land, and a body walking
+  shapes3d's ground stands on the land wherever no shape is.
 - **scatter3d** (`terrain3d.scatter3d.ts`: `ground`, `land`): trees and grass stand on it; scatter3d's
   `scatter3d.terrain3d.ts` is a `ready` for prepared places.
 - **ocean3d** (`terrain3d.ocean3d.ts`: `land`): the seabed the sea shoals over.

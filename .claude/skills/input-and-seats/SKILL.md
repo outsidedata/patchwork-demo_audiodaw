@@ -77,8 +77,7 @@ list of places in a definition. It is a `start` actor in the scene file, one `ac
   `pos` and whatever else it hands on into its own fields, and marks itself stood (`placed`): never by
   spawning a row. A respawn resets the same row's fields from its start, so the seat keeps its row id
   and its page keeps predicting it (`designing-a-seat`).
-- A start is an actor because it is a place in the level: the editor shows it, selects it and drags
-  it as it does every other actor. A scene has as many as it has slots. A slot with no start throws
+- A start is an actor because it is a place in the level, an `actors` entry like every other. A scene has as many as it has slots. A slot with no start throws
   `no start matches` from the step that seats it, and nothing catches it: on node it ends
   `<game>.server.ts` (`run` steps inside a timer), and in `index.html` the loop never asks for its
   next frame, so the game stops. What the server does with a rule's throw is built in the
@@ -100,7 +99,8 @@ The game's `player.client.ts` hands the player plugin one table in its `setup` a
 listener, queue or tick of its own; its `remove` calls `plugins.player.unbind()`. The plugin listens
 on the page. A key is named by its place on the keyboard (`keyOf`): `a`, `1`, `' '`, `Shift`,
 `ArrowLeft`, `Escape`; a mouse button is `Mouse0` to `Mouse2`; a gamepad button is `Pad0` to `Pad16`
-in the browser's standard mapping, the left stick's sides are `PadStickLeft`, `PadStickRight`,
+in the browser's standard mapping, down while the browser calls it `pressed` and its `value` is past
+`world.player.deadzone` when the scene gives one, so a trigger resting a little in is not down; the left stick's sides are `PadStickLeft`, `PadStickRight`,
 `PadStickUp` and `PadStickDown`, and the right stick's `PadRightStickLeft`, `PadRightStickRight`,
 `PadRightStickUp` and `PadRightStickDown`, each held past `world.player.deadzone` on either avenue.
 There are two avenues, side by side:
@@ -396,8 +396,7 @@ How a game is proven with them is `proving-a-game`.
 ## How it is proven
 
 Each test sits beside the file it tests, is a `.test.ts` (node), and is run alone with
-`yarn vitest run <file>`. A page made in node by the scenemanager's `view` is not the editor's
-`session.attach`, so it is not a `.view.test.tsx`.
+`yarn vitest run <file>`.
 
 - The rule, server side: `games/<game>/<game>.sim.test.ts`, as `yarn new-game` writes it: boot the
   manager, `load`, make a seat with `connection`, send `seat.take({ scene, seat, msg: { seq, n, id,
@@ -503,17 +502,15 @@ the page's copy answers it on the step it is about to run, which the press test 
 every view after its test (`tab.close()`), which unbinds the player and the UI from the page's
 listeners.
 
-What is played: `yarn editor <game>`, then the game in the Game panel or at
-`localhost:5173/games/<game>/index.html`. Move with every key of each action; open the screen with its
+What is played: `yarn dev`, then the game at `localhost:5173/games/<game>/index.html`. Move with every key of each action; open the screen with its
 key; rebind a part; look that every label fits its button and the conflicts line names a shared key;
 play the new key; Restore. With a gamepad at hand, move through the screen with it and rebind a pad
 key. The screen is looked at in Chrome closed, open, listening and showing a conflict, a screenshot of
 each read for every line standing inside its background and every label inside its button; the work
 is not done until what those shots showed is reported.
 
-A second seat is played against the server, `node --experimental-strip-types
-games/<game>/<game>.server.ts`, with `client.html` open twice, at
-`localhost:5173/games/<game>/client.html` while `yarn editor` runs. Chrome pauses
+A second seat is played against the server, `yarn serve <game>`, with `client.html` open twice, at
+`localhost:5173/games/<game>/client.html`. Chrome pauses
 `requestAnimationFrame` in a background tab, so of two such tabs in one window only the one in front
 plays (the scenemanager header): open them in two windows side by side. In each, a key moves that
 seat's own thing on the next frame, and the other seat's thing moves as its keys are pressed.

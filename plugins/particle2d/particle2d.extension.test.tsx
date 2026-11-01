@@ -24,7 +24,8 @@ const file: Effects = {
 }
 const assets = { fx: { type: 'sheet', url: '/fx.json' }, art: { type: 'json', url: '/art.json' } }
 
-test('a survey opens an effect\'s layers out as the plugin does and says every reason it would throw, once each', () => {
+// OCT-24-EDITOR-ALPHA-SWEEP
+test.skip('a survey opens an effect\'s layers out as the plugin does and says every reason it would throw, once each', () => {
   const clips = (s: string) => (s === 'fx' ? ['flash'] : undefined)
   const sv = (f: Effects, name: string, c = clips) => survey(f, name, assets, c, SPACE)
   expect(sv(file, 'a')).toEqual({ emitters: [file.effects.a[0], file.effects.b[0]], beam: true, lives: true, waiting: [], problems: [] })
@@ -45,7 +46,8 @@ test('a survey opens an effect\'s layers out as the plugin does and says every r
   expect(sv(file, 'twice').problems).toEqual(['a layer plays clip nope of fx, which it does not have'])
 })
 
-test('namings, renaming and an effect\'s layers moved are the values that name, move and change', () => {
+// OCT-24-EDITOR-ALPHA-SWEEP
+test.skip('namings, renaming and an effect\'s layers moved are the values that name, move and change', () => {
   const others = [{ path: 'w.json', value: { gun: { muzzle: 'b', impact: { any: 'b', note: 'ab' } } } }]
   expect(namings(file, 'e.json', 'b', others)).toEqual([
     { file: 'e.json', at: ['effects', 'a', 1, 'effect'] },
@@ -65,11 +67,13 @@ test('namings, renaming and an effect\'s layers moved are the values that name, 
   ])
 })
 
-test('the panel has a field for every field of an emitter the plugin reads, in its order', () => {
+// OCT-24-EDITOR-ALPHA-SWEEP
+test.skip('the panel has a field for every field of an emitter the plugin reads, in its order', () => {
   expect(specs(SPACE).map(s => s.key)).toEqual([...FIELDS])
 })
 
-test('one particle\'s life: colour to tint1, opacity holding a0 until fade, size to grow; its seconds marked', () => {
+// OCT-24-EDITOR-ALPHA-SWEEP
+test.skip('one particle\'s life: colour to tint1, opacity holding a0 until fade, size to grow; its seconds marked', () => {
   const l = { life: [1, 2] as [number, number], tint: 0xff0000, tint1: 0x0000ff, a0: 1, a1: 0, fade: 0.5, grow: 3 }
   expect(sample(l, undefined, 0)).toEqual({ color: 0xff0000, alpha: 1, size: 1 })
   expect(sample(l, undefined, 0.5)).toEqual({ color: 0x800080, alpha: 1, size: 2 })

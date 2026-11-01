@@ -5,6 +5,7 @@
 // actors' shows, its afterTick.
 import { afterEach, expect, test, vi } from 'vitest'
 import * as PIXI from 'pixi.js'
+import * as THREE from 'three'
 import { ui } from './ui.plugin.ts'
 import { render3d } from '#plugins/render3d/render3d.plugin.ts'
 import { render2d } from '#plugins/render2d/render2d.plugin.ts'
@@ -279,6 +280,15 @@ test('a button\'s label is a Text, or with `bitmap` a BitmapText drawn in its st
   expect(label(plain)).toBeInstanceOf(PIXI.Text)
   expect(label(gold)).toBeInstanceOf(PIXI.BitmapText)
   expect([label(gold).text, label(gold).x, label(gold).y, gold.interactiveChildren]).toEqual(['go', 40, 15, false])
+})
+
+test('a button\'s `baselineOffset` moves its label down that many pixels, its hit area staying the button\'s box', () => {
+  const { me, frame } = start()
+  frame()
+  const low = me.button({ ...me.style('button'), label: 'go', bitmap: true, baselineOffset: 3 } as any)
+  const high = me.button({ ...me.style('button'), label: 'go', baselineOffset: -2 } as any)
+  expect([low.children[1].x, low.children[1].y, high.children[1].y]).toEqual([40, 18, 13])
+  expect(low.hitArea).toEqual(new PIXI.Rectangle(0, 0, 80, 30))
 })
 
 test('style hands back a copy, so what an actor writes on it is not the next actor\'s', () => {
@@ -657,6 +667,81 @@ test('over a game fitted to the window the UI\'s canvas is the game canvas\'s si
     expect([me.panel('middle').x, me.panel('middle').y]).toEqual([350, 150])
     frame(() => { onMiddle(me) })
     expect(r.resized).toHaveLength(2)
+  } finally {
+    vi.unstubAllGlobals()
+  }
+})
+
+test('a thing nobody showed on the newest step is drawn until the clock reaches that step, so a cover handed to a veil on one step leaves no frame bare; one let go on a frame of no step goes at once', () => {
+  const { me, plugins, frame } = start()
+  const panel = () => me.panel('middle').children.map(c => c.label)
+  const box = () => new PIXI.Graphics().rect(0, 0, 10, 10).fill({ color: 0 })
+  // step 1, the clock at it: the cover
+  Object.assign(plugins.wire, { n: 1, between: 1 })
+  frame(() => { me.show('middle', 'cover', box) })
+  // step 2, the clock halfway to it: the veil takes over, and the cover is still drawn
+  Object.assign(plugins.wire, { n: 2, between: 0.5 })
+  frame(() => { me.show('middle', 'veil', box) })
+  expect(panel()).toEqual(['cover', 'veil'])
+  // the clock at step 2: the cover goes
+  Object.assign(plugins.wire, { between: 1 })
+  frame(() => { me.show('middle', 'veil', box) })
+  expect(panel()).toEqual(['veil'])
+  // let go on a frame that took no step: it goes the same frame, wherever the clock is
+  Object.assign(plugins.wire, { between: 0.5 })
+  frame()
+  expect(panel()).toEqual([])
+})
+
+test('on a page over render3d the world is covered in black in render3d\'s overlay from the first tick until the frame the UI first draws, and with no page it is never covered', async () => {
+  vi.stubGlobal('devicePixelRatio', 1)
+  try {
+    let fonts = false
+    const r3 = { THREE, overlay: { scene: new THREE.Scene() } }
+    const canvas = Object.assign(surface(), { width: W, height: H })
+    const { me, frame } = start({ render3d: r3, loader: { fonts: () => fonts } })
+    me.mount(canvas as any)
+    frame()
+    // the UI's renderer is not made yet
+    expect(r3.overlay.scene.children.map(c => c.name)).toEqual(['ui.cover'])
+    await Promise.resolve()
+    frame()
+    // its fonts are not in yet
+    expect(r3.overlay.scene.children.map(c => c.name)).toEqual(['ui.cover'])
+    expect(renderers.at(-1)!.drawn).toEqual([])
+    fonts = true
+    frame()
+    expect(renderers.at(-1)!.drawn).toEqual([me.stage])
+    expect(r3.overlay.scene.children).toEqual([])
+    frame()
+    expect(r3.overlay.scene.children).toEqual([])
+    const bare = { THREE, overlay: { scene: new THREE.Scene() } }
+    start({ render3d: bare }).frame()
+    expect(bare.overlay.scene.children).toEqual([])
+  } finally {
+    vi.unstubAllGlobals()
+  }
+})
+
+test('while a font of the catalogue is still coming nothing is drawn and the canvas stays hidden, things are shown and hit as ever, and the first frame after it is in is drawn', async () => {
+  vi.stubGlobal('devicePixelRatio', 1)
+  try {
+    const canvas = Object.assign(surface(), { width: W, height: H })
+    let fonts = false
+    const { me, frame } = start({ loader: { fonts: () => fonts } })
+    me.mount(canvas as any)
+    await Promise.resolve()
+    const r = renderers.at(-1)!
+    let b: PIXI.Container | undefined
+    frame(() => { b = onMiddle(me) })
+    frame(() => { onMiddle(me) })
+    expect(canvas.style.display).toBe('none')
+    expect(r.drawn).toEqual([])
+    expect(me.hit(200, 125)).toBe(b)
+    fonts = true
+    frame(() => { onMiddle(me) })
+    expect(canvas.style.display).toBe('')
+    expect(r.drawn).toEqual([me.stage])
   } finally {
     vi.unstubAllGlobals()
   }

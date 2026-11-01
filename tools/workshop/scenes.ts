@@ -27,6 +27,17 @@
 //   place, added last in its object when it has none, or, a bare point, made `{ "at": …, "turn": … }`
 //   where it stood; it throws for a turn of a point the look has not, and for one whose object has no
 //   `at`.
+// `poses(text, machine, name, poses)` sets what a machine does in each step of its interaction `name`
+//   (`plugins/interact`), its definition's `interact.<name>` (`{ <step>: { <field>: value } }`, mech's
+//   jimmy's `kneel`), in a game's definitions file (`world.defs`): undefined when the file has no
+//   definition `machine`. Each field is written in place, or added last in its step, the step last in
+//   the interaction, the interaction last in `interact`, and `interact` last in the definition, each
+//   made where it is missing.
+// `set(text, path, value)` sets the value at `path` (object keys, and an array's index as a number) in
+//   any JSON file, as the UI workshop writes a `world.ui` style or panel and a definition's word or
+//   place: written in place at that value's own layout when it is there, else added last in the
+//   deepest object the path reaches, the keys still missing made around it. It throws for a path that
+//   runs through a value that is not an object, or past the end of an array.
 
 export type Spanned = { from: number; to: number } & (
   | { kind: 'object'; entries: [string, Spanned][] }
@@ -246,6 +257,47 @@ export function points(text: string, vehicle: string, edit: { empties?: Record<s
       const turn = at(was, 'turn')
       text = turn ? replace(text, turn, q, '  ') : append(text, was, 'turn', q)
     } else text = text.slice(0, was.from) + inline({ at: JSON.parse(text.slice(was.from, was.to)), turn: q }) + text.slice(was.to)
+  }
+  return text
+}
+
+export function set(text: string, path: (string | number)[], value: unknown): string {
+  flat = flatNumbers(text)
+  let node = spans(text)
+  for (let i = 0; i < path.length; i++) {
+    const key = path[i]
+    if (node.kind === 'array') {
+      if (typeof key !== 'number' || !node.items[key]) throw new Error(`${path.slice(0, i + 1).join('.')} is past the end of its list`)
+      node = node.items[key]
+      continue
+    }
+    if (node.kind !== 'object') throw new Error(`${path.slice(0, i).join('.')} is not an object, so it has no ${key}`)
+    const next = at(node, String(key))
+    if (!next) {
+      const rest = path.slice(i + 1).reduceRight<unknown>((v, k) => ({ [String(k)]: v }), value)
+      return append(text, node, String(key), rest)
+    }
+    node = next
+  }
+  return replace(text, node, value, '  ')
+}
+
+export function poses(text: string, machine: string, name: string, edit: Record<string, Record<string, unknown>>): string | undefined {
+  flat = flatNumbers(text)
+  if (at(spans(text), machine)?.kind !== 'object') return undefined
+  for (const [stepName, fields] of Object.entries(edit)) {
+    for (const [field, value] of Object.entries(fields)) {
+      // Each value is found again in the text as it stands after the last edit.
+      const def = at(spans(text), machine) as Spanned & { kind: 'object' }
+      const interact = at(def, 'interact')
+      if (interact?.kind !== 'object') { text = append(text, def, 'interact', { [name]: { [stepName]: { [field]: value } } }); continue }
+      const one = at(interact, name)
+      if (one?.kind !== 'object') { text = append(text, interact, name, { [stepName]: { [field]: value } }); continue }
+      const st = at(one, stepName)
+      if (st?.kind !== 'object') { text = append(text, one, stepName, { [field]: value }); continue }
+      const was = at(st, field)
+      text = was ? replace(text, was, value, '  ') : append(text, st, field, value)
+    }
   }
   return text
 }

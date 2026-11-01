@@ -527,6 +527,66 @@ test('a sound that cannot be decoded rejects, and a scene with no audio cannot s
   await expect(bare.load('noise')).rejects.toThrow('loader noise: a sound, and this scene names no audio to decode it')
 })
 
+// ---------------------------------------------------------------- fonts
+
+test('in node a font starts on the first tick unasked, is its name once its file reads, and fonts() says when every font of the catalogue has landed or failed', async () => {
+  const url = file('face.ttf', new Uint8Array([1, 2, 3]))
+  const me = loader()
+  expect(me.fonts()).toBe(false)
+  me.tick({ wire: wireOf({ face: { type: 'font', url }, gone: { type: 'font', url: '/no/gone.ttf' }, data: { type: 'json', url: '/no/data.json' } }) } as any)
+  expect(me.fonts()).toBe(false)
+  await vi.waitFor(() => expect(me.ready('face')).toBe(true))
+  expect(me.get('face')).toEqual({ family: 'face' })
+  await vi.waitFor(() => expect(me.fonts()).toBe(true))
+  expect(me.ready('gone')).toBe(false)
+  expect(errors.map(e => (e as Error).message)).toEqual([expect.stringMatching(/^loader gone: loader could not read \/no\/gone\.ttf/)])
+  const bare = loader()
+  bare.tick({ wire: wireOf({ data: { type: 'json', url: '/no/data.json' } }) } as any)
+  expect(bare.fonts()).toBe(true)
+})
+
+// The page's FontFace and its fonts, each face made written down with the bytes it was made from, and
+// each face added to the page's fonts.
+function pageFonts(fails = false) {
+  const made: { family: string; bytes: number[] }[] = [], added: unknown[] = []
+  vi.stubGlobal('FontFace', class {
+    constructor(public family: string, bytes: ArrayBuffer) { made.push({ family, bytes: [...new Uint8Array(bytes)] }) }
+    async load() { if (fails) throw new Error('A network error occurred.'); return this }
+  })
+  vi.stubGlobal('document', { fonts: { add: (f: unknown) => added.push(f) } })
+  return { made, added }
+}
+
+test('in a page a font is installed in the page\'s fonts as its name from its file\'s bytes, once for the page, and every client is handed the one face', () => asPage(async () => {
+  delete (globalThis as any)[Symbol.for('loader: fonts')]
+  const url = file('a 100% face.ttf', new Uint8Array([4, 5, 6]))
+  const { made, added } = pageFonts()
+  const one = loader(), two = loader()
+  one.tick({ wire: wireOf({ Ithaca: { type: 'font', url, for: 'ui' } }), ui } as any)
+  await vi.waitFor(() => expect(one.fonts()).toBe(true))
+  two.tick({ wire: wireOf({ Ithaca: { type: 'font', url } }) } as any)
+  await vi.waitFor(() => expect(two.fonts()).toBe(true))
+  expect(errors).toEqual([])
+  expect(made).toEqual([{ family: 'Ithaca', bytes: [4, 5, 6] }])
+  expect(added).toEqual([one.get('Ithaca')])
+  expect(two.get('Ithaca')).toBe(one.get('Ithaca'))
+  expect(fetchedUrls).toEqual([encodeURI(url)])
+  delete (globalThis as any)[Symbol.for('loader: fonts')]
+}))
+
+test('in a page a file that does not load as a font fails once, is never added to the page\'s fonts, and counts as in for fonts()', () => asPage(async () => {
+  delete (globalThis as any)[Symbol.for('loader: fonts')]
+  const url = file('broken.ttf', new Uint8Array([0]))
+  const { added } = pageFonts(true)
+  const me = loader()
+  me.tick({ wire: wireOf({ broken: { type: 'font', url } }) } as any)
+  await expect(me.load('broken')).rejects.toThrow('loader broken: A network error occurred.')
+  expect(me.fonts()).toBe(true)
+  expect(added).toEqual([])
+  expect(errors.map(e => (e as Error).message)).toEqual(['loader broken: A network error occurred.'])
+  delete (globalThis as any)[Symbol.for('loader: fonts')]
+}))
+
 // ---------------------------------------------------------------- written
 
 test('a file written while the game runs refills the process\'s copy and a client\'s copy in place', async () => {

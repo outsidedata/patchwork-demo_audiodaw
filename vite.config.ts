@@ -4,7 +4,9 @@ import { defineConfig, type Plugin } from 'vite'
 import react from '@vitejs/plugin-react'
 import { looks } from './engine/browser.ts'
 import { bundler } from './scripts/bundle.ts'
+import { home } from './scripts/home.ts'
 import { instanced } from './scripts/instance.ts'
+import { cutsceneServe } from './plugins/cutscene/cutscene.serve.ts'
 
 // `<folder>/looks.json`, the kinds with a look in that folder of the repo, read off the folder each
 // time it is asked, so it is never behind the files: a page's client reads it before it imports any
@@ -93,8 +95,23 @@ const bundles: Plugin = (() => {
   }
 })()
 
+// `/favicon.ico`, which every page's browser asks for, answered with a small square drawn inline, so
+// no page logs a 404 for it.
+const favicon: Plugin = {
+  name: 'favicon',
+  configureServer(server) {
+    const icon = '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 16 16"><rect width="16" height="16" rx="3" fill="#2961b3"/><rect x="4" y="4" width="8" height="8" rx="1" fill="#fff2db"/></svg>'
+    server.middlewares.use((req, res, next) => {
+      if (new URL(req.url ?? '/', 'http://localhost').pathname !== '/favicon.ico') return next()
+      res.setHeader('content-type', 'image/svg+xml')
+      res.setHeader('cache-control', 'max-age=86400')
+      res.end(icon)
+    })
+  },
+}
+
 export default defineConfig({
-  plugins: [react(), looksJson, instance, bundles],
+  plugins: [react(), looksJson, instance, bundles, favicon, home(), cutsceneServe()],
   server: {
     fs: {
       // Vite's own list but for `*.crt`, which it keeps out as a TLS certificate: a `.crt` here is a

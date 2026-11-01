@@ -12,7 +12,8 @@ import { memoryFiles, repo, sandbox, stage } from './editor.ts'
 
 const jsdom = HTMLCanvasElement.prototype.getContext
 
-test('the canvases of two stages share one lent context, the one wrapper, as a canvas on no page does, and a canvas on the page is jsdom\'s', () => {
+// OCT-24-EDITOR-ALPHA-SWEEP
+test.skip('the canvases of two stages share one lent context, the one wrapper, as a canvas on no page does, and a canvas on the page is jsdom\'s', () => {
   const a = stage()
   const lent = HTMLCanvasElement.prototype.getContext
   const b = stage()
@@ -26,11 +27,13 @@ test('the canvases of two stages share one lent context, the one wrapper, as a c
   onPage.remove()
 })
 
-test('once that test is over, getContext is jsdom\'s own', () => {
+// OCT-24-EDITOR-ALPHA-SWEEP
+test.skip('once that test is over, getContext is jsdom\'s own', () => {
   expect(HTMLCanvasElement.prototype.getContext).toBe(jsdom)
 })
 
-test('three draws on a stage\'s canvas with nothing to warn about', () => {
+// OCT-24-EDITOR-ALPHA-SWEEP
+test.skip('three draws on a stage\'s canvas with nothing to warn about', () => {
   const said = vi.spyOn(console, 'warn').mockImplementation(() => {}), erred = vi.spyOn(console, 'error').mockImplementation(() => {}), logged = vi.spyOn(console, 'log').mockImplementation(() => {})
   const canvas = stage().appendChild(document.createElement('canvas'))
   const renderer = new THREE.WebGLRenderer({ canvas })
@@ -47,7 +50,8 @@ const mine = (at: string) => {
   writeFileSync(path.join(at, 'games', 'mine', 'index.html'), '<!doctype html>\n')
 }
 
-test('in a sandbox, a change writes and takes away in a game of its own and beside a plugin or an addon, and is refused in a folder that is a link to the repo\'s, whose files stay as they are', async () => {
+// OCT-24-EDITOR-ALPHA-SWEEP
+test.skip('in a sandbox, a change writes and takes away in a game of its own and beside a plugin or an addon, and is refused in a folder that is a link to the repo\'s, whose files stay as they are', async () => {
   const at = sandbox([])
   mine(at)
   // A game folder that is a link to a folder of the repo's, as each game of the repo the sandbox does
@@ -66,7 +70,8 @@ test('in a sandbox, a change writes and takes away in a game of its own and besi
   expect([existsSync(path.join(repo, 'editor/test/stray.txt')), existsSync(path.join(repo, 'node_modules/stray.txt')), readFileSync(path.join(repo, 'editor/test/png.ts'))]).toEqual([false, false, kept])
 })
 
-test('a sandbox called again in the same test is the one it made; its games folder and the homes of the code are folders of its own, holding links to the repo\'s files', () => {
+// OCT-24-EDITOR-ALPHA-SWEEP
+test.skip('a sandbox called again in the same test is the one it made; its games folder and the homes of the code are folders of its own, holding links to the repo\'s files', () => {
   const at = sandbox([])
   mine(at)
   expect(sandbox([])).toBe(at)

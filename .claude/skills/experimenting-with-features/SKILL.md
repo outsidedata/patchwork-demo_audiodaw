@@ -11,8 +11,7 @@ dismemberment and its box3d ragdoll were found: every step a question with a yes
 shows, and nothing built on a step he has not seen.
 
 It is not a shortcut around the prime directive. Everything still goes in its home; an experiment's
-home is the game it is run in, and it moves to core once it is proven and Bill has said yes
-(`prime-directive`, A new top-level plugin or addon is asked for).
+home is the game it is run in, and it stays there (`prime-directive`, Core is not touched).
 
 ## 1. Healthy before anything
 
@@ -23,9 +22,8 @@ Check, in this order, and fix what is wrong before the first line of the experim
   names, or the game's branch; never a branch per step.
 - **Nothing half done.** `git status --short` in both. Uncommitted work that is not this experiment's
   is asked about, never stashed and never reset.
-- **The pages are served.** `yarn editor <game> --port <port>` in the background (any free port; the
-  editor is on hold, only its server is used, to serve `games/<game>/*.html`). Read its first lines
-  for the port. Leave it running.
+- **The pages are served.** `yarn dev --port <port>` in the background (any free port), which serves
+  `games/<game>/*.html`. Read its first lines for the port. Leave it running.
 - **The game's own test passes** before anything changes (`yarn vitest run games/<game>/<game>.sim.test.ts`),
   so a failure later is the experiment's.
 - **Never run `open <url>`** on Bill's machine: it brings up macOS's emoji keyboard there. Give him the
@@ -62,7 +60,8 @@ settled design once the experiment answers its questions: no leftover open choic
 
 ## 4. The testbed, `dev.html`
 
-Every experiment is reached through the game's `dev.html` (`starting-a-game`, The testbed): never
+Every experiment is reached through the game's `dev.html` (`using-the-dev-page`, where every part of
+the testbed below is gathered with the rest of what the game pages do): never
 `index.html` or `client.html`. It is `index.html` with these added, each before the boot unless
 said:
 
@@ -86,7 +85,7 @@ const scenes = await load(truth, import.meta.url)
 window.__scenes = scenes   // __scenes.get('<scene>').rows
 ```
 
-**The panel**, exactly as mech's `dev.html` has it. The player plugin listens on the window, so a press
+**The panel**, exactly as below. The player plugin listens on the window, so a press
 on the panel must stop at it, but a release must not, or a button held in the game and let go over the
 panel never lets go; and the focus must come back to the page after a click, or the game's keys go
 dead the moment a slider is touched:

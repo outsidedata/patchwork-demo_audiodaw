@@ -2,8 +2,8 @@
 
 Every file a game uses: the scene's asset catalogue, fetched and decoded once, for the rules on the
 server and for each page. Data files (`json`, `pixels`, `palette`, `binary`), sprite sheets
-(Aseprite, TexturePacker, Tiled tilesets), Tiled maps, textures, glTF models, bitmap fonts and
-sounds; preloading before the first step; sealed wads for art that must not sit on disk as itself;
+(Aseprite, TexturePacker, Tiled tilesets), Tiled maps, textures, glTF models, bitmap fonts, font
+files and sounds; preloading before the first step; sealed wads for art that must not sit on disk as itself;
 and files rewritten while the game runs refilled in place.
 
 ## Why use it
@@ -62,6 +62,12 @@ its first tick and the rest on `load` or `on`. Images are decoded by the scene's
   three.js quad; `nearest` for pixel art.
 - `tilemap`: `{ map, texture(gid), image(url), version }`, drawn by render2d.
 - `bitmapfont`: an AngelCode BMFont installed as a PixiJS bitmap font of the entry's name.
+- `font`: a `.ttf`, `.otf`, `.woff` or `.woff2` installed in the page as the font of the entry's
+  name, so any text whose `fontFamily` is that name draws with it (the ui's, render2d's and the
+  page's alike, whatever its `for`); handed over as the `FontFace`. One font of a name per page, so
+  the next scene's client installs nothing again. Every font is preloaded, whatever its entry says,
+  and `fonts()` says whether every font of the catalogue has landed or failed; the ui waits on it
+  before it draws. In node or jsdom nothing is installed and a font is `{ family }`, its name.
 - `model`: a self-contained `.glb` decoded with three's glTF loader and meshopt decoder (so gltfpack
   output works); `model(name)` is `{ scene, animations }`, cloned with its skeleton per call.
 - `sound`: decoded through `plugins.audio.context`; `sound(name)` is the AudioBuffer.
@@ -69,7 +75,7 @@ its first tick and the rest on `load` or `on`. Images are decoded by the scene's
   project's samples, a sound's stems), or undefined when missing.
 - `load(name)` never throws: a failure rejects, is written to the console once as `loader <name>: …`,
   and is remembered until `retry(name)`. `ready`, `get`, `on(name, f)`, `progress()` (for a loading
-  bar), `catalogued(name)`, `onWritten(name, f)` (rebuild what was built from a file when it is
+  bar), `fonts()`, `catalogued(name)`, `onWritten(name, f)` (rebuild what was built from a file when it is
   rewritten), `close`.
 
 In node there is no page: an image is a 1×1 white texture, and a model decodes with a borrowed
@@ -91,7 +97,7 @@ the rules would disagree. An actor asks the loader, or draws something else unti
 Nearly every plugin reads its files through the loader: **anim** (rigs and models), **audio**
 (sounds and gun manifests), **sprite2d**, **sprite3d**, **particle2d** and **grid** (sheets),
 **tilemap** (maps), **render3d** and **render2d** (which decode its images), **ui** (`for: "ui"`
-images and bitmap fonts), **terrain3d** and **skydome3d** (their field and sky files), **cutscene**
+images and bitmap fonts, and every `font`, which it waits on before it draws), **terrain3d** and **skydome3d** (their field and sky files), **cutscene**
 and **interact** (their files), **box2d** and **box3d** (chains, meshes and height fields as
 `{ asset }`), **flight3d** and **box3dvehicle** (models), **audiodaw**'s pages (song samples by
 `beside`).
@@ -102,5 +108,5 @@ assets, asset loading, asset catalogue, preload, loading screen, progress, fetch
 JSON, definitions, defs, sprite sheet, atlas, Aseprite, TexturePacker, frame tags, slices, nine-slice,
 Tiled, tmj, tsj, tileset, tilemap, PNG, pixels, height map, GIMP palette, gpl, binary, ROM, texture,
 sRGB, linear, normal map, anisotropy, glTF, glb, gltfpack, meshopt, model, bitmap font, BMFont,
-sound, AudioBuffer, wad, encrypted assets, licensed art, hot reload, live reload, `json`, `def`,
+font, TTF, OTF, WOFF, FontFace, custom font, sound, AudioBuffer, wad, encrypted assets, licensed art, hot reload, live reload, `json`, `def`,
 `sheet`, `tiled`, `pixels`, `load`, `on`, `model`, `beside`, `world.loader`

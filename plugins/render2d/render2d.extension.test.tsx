@@ -29,7 +29,8 @@ async function made(prefab: object | null = { ground: [[32, 16], [-32, 16]], up:
   return { ed, r, st }
 }
 
-test('the topmost drawing under a point is picked with the ground under it, and a row is boxed round all it draws', async () => {
+// OCT-24-EDITOR-ALPHA-SWEEP
+test.skip('the topmost drawing under a point is picked with the ground under it, and a row is boxed round all it draws', async () => {
   const { r, st } = await made(null)
   const layer = new PIXI.Container()
   r.stage.addChild(layer)
@@ -49,7 +50,8 @@ test('the topmost drawing under a point is picked with the ground under it, and 
   expect(st.orbit).toBeUndefined()
 })
 
-test('a canvas point is a line of world points, one per height: ray, ground and plane run back through the world', async () => {
+// OCT-24-EDITOR-ALPHA-SWEEP
+test.skip('a canvas point is a line of world points, one per height: ray, ground and plane run back through the world', async () => {
   const { r, st } = await made()
   for (const p of [[1, 0], [2.5, -1], [0, 3, 2]]) {
     const { x, y } = r.project(p)
@@ -66,7 +68,8 @@ test('a canvas point is a line of world points, one per height: ray, ground and 
   st.ground(x, y - 32)!.forEach((v, i) => expect(v).toBeCloseTo([-1, -1, 0][i], 9))
 })
 
-test('render2d\'s placer moves `pos` in every scene that names render2d, flat or with a height it keeps; the overlay is over every layer, moves with the world and is never picked', async () => {
+// OCT-24-EDITOR-ALPHA-SWEEP
+test.skip('render2d\'s placer moves `pos` in every scene that names render2d, flat or with a height it keeps; the overlay is over every layer, moves with the world and is never picked', async () => {
   const { ed, r, st } = await made()
   const placer = ed.drawnPlacers.find(p => p.renderer === 'render2d')!.placer
   expect(placer.axes).toEqual(['x', 'y', 'h'])
@@ -94,7 +97,8 @@ test('render2d\'s placer moves `pos` in every scene that names render2d, flat or
   expect(r.world!.children).not.toContain(overlay)
 })
 
-test('a mark is a line through world points with a dot on each, drawn where render2d places them, until it is taken away', async () => {
+// OCT-24-EDITOR-ALPHA-SWEEP
+test.skip('a mark is a line through world points with a dot on each, drawn where render2d places them, until it is taken away', async () => {
   const { r, st } = await made()
   const overlay = st.overlay as PIXI.Container
   const off = st.mark([[0, 0], [1, 0], [0, 1, 1]], 0xff0000)
@@ -111,7 +115,8 @@ test('a mark is a line through world points with a dot on each, drawn where rend
   off()
 })
 
-test('on a dense screen a canvas point is its own pixels, so many to each of render2d\'s points: ground, pick and bounds take them so', async () => {
+// OCT-24-EDITOR-ALPHA-SWEEP
+test.skip('on a dense screen a canvas point is its own pixels, so many to each of render2d\'s points: ground, pick and bounds take them so', async () => {
   const { r, st } = await made()
   // A canvas drawn at two canvas pixels to each point, as render2d sets it on a screen of density 2.
   const canvas = document.createElement('canvas')

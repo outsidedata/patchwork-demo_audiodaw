@@ -2,7 +2,8 @@
 // systems. It opens one game (`?game=<game>`) from its own files, as the server reads them
 // (`/api/game/<game>`), and draws with the game's own plugins, loader, anim, ik3d and render3d, ticked
 // each frame on a stand-in scene made from the game's numbers: its catalogue, anim's numbers and
-// kinds, ik3d's kinds, render3d's prefab (so the tone, the shadows and the AO are the game's). The
+// kinds, ik3d's kinds, render3d's prefab (so the tone, the shadows and the AO are the game's; its
+// bloom is left out, `unbloomed` in `drawn.ts`, so the workshop never blooms). The
 // page puts a studio stage in that scene (lights, a grid, a 1.8 m figure) and nothing else of its own:
 // what a body plays, how it holds a prop and how its arms reach are anim's and ik3d's, from the same
 // numbers the game reads, so what is fitted here is what the game draws.
@@ -53,11 +54,13 @@
 // and the body beside it, drawn by anim, placed by interact's own `advance` at the step's point, its
 // limbs bent by ik3d through interact's `limbs` mod: the scene the game runs, its plugins ticked in its
 // order. Each step is tuned alone: its clip (any of the body's rig, or a pack clip tried through a
-// stand-in rig, as a body's clips are), its `turn`, each IK limb's pole, and its points alone as the
-// targets (`at` and each limb's `target`), each an empty of the model of a module the machine is
+// stand-in rig, as a body's clips are), its `turn`, each IK limb's pole, what the machine does in it
+// (each field of its `poses`, mech's jimmy's `kneel`, set on its row each frame), and its points alone
+// as the targets (`at` and each limb's `target`), each an empty of the model of a module the machine is
 // fitted with, else of the machine's own, as interact's point mod looks for it. Save writes the points
 // into their models (`/api/frames`), bakes each pack clip a step plays into the body's rig
-// (`/api/bake`, the clip named after its file), and writes the interaction (`/api/interaction`).
+// (`/api/bake`, the clip named after its file), writes the interaction (`/api/interaction`), and writes
+// the poses into the machine's definition (`/api/machine`).
 //
 // A machine is of two kinds, and the interaction is tuned the same on either; they differ where the
 // machine is drawn and where its points are kept:
@@ -77,6 +80,52 @@
 //     place and turn (the chassis's, or for a point riding `steer` the turned wheel's), each edit put in
 //     the stand-in's fleet so box3dvehicle draws it moved that frame. The steer field sets the car row's
 //     `steer`, so the wheel turns and the hands on it follow; it is not saved. A vehicle has no notes.
+//
+// A game's moves (`games/<game>/<game>.workshop.ts`, the server's `workshop`) are its body against the
+// things of its level, made by the game's own code. The page boots the scene the file names as the game
+// loads it (scenemanager's `child`, the engine's `boot`, scenemanager's `prepare`), spawns one row of the
+// file's `body` from its prefab, and hands the file that scene as a rule's `w` reads it and the row
+// (`moves(w, me)`). The file exports `scene`, `body`, `looks` (the kinds whose rows are drawn round the
+// body) and `moves`: each move `{ name, against, floor, steps }`, each step `{ name, clip, dur, loop,
+// pose(t), marks() }`, `pose` writing the body's row as the game has it `t` seconds into the step and
+// `marks` what its clip touches then, `{ name, on, at, gap?, off? }`, `gap` metres off what it is on.
+// They are listed under Moves. A move chosen is drawn on a stand-in scene of the loader, anim and
+// render3d with the booted scene's world and render3d prefab: each row of `looks` drawn by a copy of
+// its own look (the engine's `drawing`), and the body by anim, on a solid floor at the move's `floor`.
+// Each frame the step shown is posed at the playhead and its marks drawn as dots, green on what they are
+// on, red `off`, grey with no gap, each named with its gap in millimetres, and listed in the panel. The
+// step is chosen above the playhead, and a frame of the game's step either way of it with the buttons or
+// `,` and `.`. The views are turned by the way the body faces as the step begins (Front from ahead of
+// it, Side from its left) and frame the body over the whole step; Close-up frames the marks. Key frames
+// draws the step at its start, at every step of the game's where its marks begin or end, and at its end,
+// side by side, each with its marks; one clicked puts the playhead there. A move saves nothing. Any file
+// of the game written on disk loads the page again on the same move and step, the camera kept, since the
+// game's code is imported once.
+//
+// The models a game marks (the same file's `annotate`) are glbs written again from elsewhere (canyonracer's
+// podracers, written by Blender), so what is marked on them is kept in a points file beside each glb
+// (`<stem>.points.json`, the server's `/api/beside`), never in the glb. The file exports `scene` (a scene
+// the manager names, booted as the game loads it), `plugins` (the game's plugins that draw a model, in
+// the order the scene lists them, a top-level plugin's name or one of the game's own `plugins/<name>/`)
+// and `models(w, prefabs)`, each `{ name, model, points, needs, sizes, measured, controls, guess(name,
+// rest), start(rest), measure(rest), guides(sizes), rows(id, values), frame(plugins, id) }`: its glb's and
+// its points file's catalogue keys; the points it needs and the sizes set here, each with what it is
+// for (`says`), a point with a `mirror` being that point mirrored across the model's middle (x to −x),
+// never marked on its own: it is no target, it is drawn where the mirror puts it, and it is written as
+// the mirror whenever its point is marked; `adds`, points it may have more of, each `{ name, mirror?,
+// says }`, its more `<name>.2` and on (each with `<mirror>.<n>` mirroring it), added and taken out in
+// the panel; the sizes measured off the model on every save; the controls (sliders) that set its
+// rows; where an unmarked point starts and each size before it is set, off the model at rest; the
+// guides, a box or cylinders drawn as wire from the sizes, each set by dragging its corner; the still
+// rows the game's plugins draw it from, the first row `id`; and the object the points are in as it is
+// drawn. They are listed under Marks. One chosen is drawn on a stand-in scene of the loader, its
+// plugins and render3d, with the booted scene's world and render3d prefab, its rows made each frame from
+// the controls. The points file the plugins read is the loader's copy, written with every mark made
+// here (each point marked here, else as the file has it, else where it starts; each size likewise; the
+// measured ones measured) and the rows made again under a new id, so the game's own plugin draws the
+// model again from the marks that frame. The targets are its points, a missing one (not in its file)
+// in red, and its guides; Save writes the points marked here, every size and the measured ones into the
+// points file. A click on the model leaves a note on its glb.
 
 import * as THREE from 'three'
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js'
@@ -93,12 +142,17 @@ import { solids } from '../../plugins/solids/solids.plugin.ts'
 import { interact } from '../../plugins/interact/interact.plugin.ts'
 import { box3dvehicle } from '../../plugins/box3dvehicle/box3dvehicle.plugin.ts'
 import { particle3d } from '../../plugins/particle3d/particle3d.plugin.ts'
+import { lights3d } from '../../plugins/lights3d/lights3d.plugin.ts'
+import { audio } from '../../plugins/audio/audio.plugin.ts'
+import { store } from '../../plugins/store/store.plugin.ts'
 import { corners, standing, wheelAt, type Vehicle } from '../../plugins/box3dvehicle/box3dvehicle.sim.ts'
 import { advance, placeOf, type Interaction, type Step } from '../../plugins/interact/interact.sim.ts'
-import { mod, prepare } from '../../addons/scenemanager/scenemanager.addon.ts'
-import type { Row, W } from '../../engine/engine.ts'
+import { child, mod, prepare } from '../../addons/scenemanager/scenemanager.addon.ts'
+import { boot, type Row, type W } from '../../engine/engine.ts'
+import { drawing, type Actor } from '../../engine/browser.ts'
 import type { Prop, Rig } from '../../plugins/anim/anim.sim.ts'
-import { assemble, labels, movedTo, nodeGroups, pointOf, rootOf, standScene, stillRow, type Model as Solid, type Named, type Stand } from './drawn.ts'
+import { restOf, retarget, type Rest } from './retarget.ts'
+import { assemble, labels, movedTo, nodeGroups, pointOf, rootOf, standScene, stillRow, unbloomed, type Model as Solid, type Named, type Stand } from './drawn.ts'
 
 type Model = { key: string; url: string; file: string; type: 'glb' | 'solids'; scenes: string[]; open: number; named?: Named[]; stand?: Stand }
 type Frames = { nodes: Record<string, { parent?: string; at: number[]; turn: number[]; mirror?: boolean }>; empties: Record<string, number[]>; turns: Record<string, number[]> }
@@ -107,18 +161,46 @@ type Body = { kind: string; model: string; rig: string; scenes: string[]; props:
 // An interaction of a machine (the server's `interactions`, `plugins/interact`): its machine's kind and
 // its name, its file, the body that plays it, how its scene fits the machine, what the machine does in
 // each step, and the plugin that hands interact the machine's points.
-type Act = { scene: string; machine: string; name: string; key: string; url: string; file: string; body: string; fit: Record<string, string | null>; poses: Record<string, Record<string, unknown>>; mods: { point: string; object: string; body?: string } }
+type Act = { scene: string; machine: string; name: string; key: string; url: string; file: string; body: string; fit: Record<string, string | null>; poses: Record<string, Record<string, unknown>>; defs: string | null; mods: { point: string; object: string; body?: string } }
 // A vehicle of box3dvehicle's fleet a scene has interactions for (the server's `vehicles`): its name,
 // the scene it is read from, the files that give its look, its look's model's key (null when drawn in
 // code), the look plugins that draw it and their numbers.
 type Car = { name: string; scene: string; files: string[]; model: string | null; plugins: string[]; world: Record<string, any> }
-type Game = { game: string; scenes: string[]; world: any; render3d: any; engine: { dt?: number }; models: Model[]; bodies: Body[]; interactions: Act[]; vehicles: Car[] }
+type Game = { game: string; scenes: string[]; world: any; render3d: any; engine: { dt?: number }; models: Model[]; bodies: Body[]; interactions: Act[]; vehicles: Car[]; workshop?: string }
+// A game's moves (`<game>.workshop.ts`): each the body against a thing of its level, a list of steps,
+// each posed by the game's own code at a playhead (`pose`) and read for what its clip touches then
+// (`marks`): each mark's place, what it is on, its gap off it in metres, and whether that is `off`.
+type Mark = { name: string; on: string; at: number[]; gap?: number; off?: boolean }
+type MoveStep = { name: string; clip: string; dur: number; loop: boolean; pose(t: number): void; marks(): Mark[] }
+type Move = { name: string; against: string; floor: number; steps: MoveStep[] }
+// The scene a game's moves are made on, booted: the moves' file, the scene's name and prefabs, the kinds
+// whose looks are drawn, the truth, the body's row, the scene as a rule's `w` reads it, the game's
+// folder, and the moves.
+type Stations = { file: string; scene: string; prefabs: any; looks: string[]; truth: ReturnType<typeof boot>; me: Row; w: W; home: string; moves: Move[] }
+// A scene a game's own workshop file names, booted: the scene's name and prefabs, the truth, the scene as
+// a rule's `w` reads it, and the game's folder.
+type Booted = { scene: string; prefabs: any; truth: ReturnType<typeof boot>; w: W; home: string }
+// A model a game marks (`annotate`): its glb's and its points file's catalogue keys, what it needs marked
+// and set, the sizes measured off it, its controls, and the game's own code for where things start, the
+// guides, its rows and the frame its points are in as it is drawn.
+type Guide = { name: string; says: string; label?: string; group?: string; box?: { at: number[]; size: string[] }; cylinder?: { at: number[][]; radius: string; length: string } }
+type Control = { name: string; label?: string; says: string; min: number; max: number; step: number; value: number }
+type Marks = { points: Record<string, Point>; sizes: Record<string, number>; drop?: string[] }
+type Marked = {
+  name: string; model: string; points: string
+  needs: { name: string; says: string; label?: string; group?: string; mirror?: string }[]; sizes: { name: string; says: string; label?: string }[]; measured: string[]; controls: Control[]
+  adds?: { name: string; mirror?: string; says: string; label?: string; group?: string }[]
+  guess(name: string, rest: THREE.Object3D): number[]; start(rest: THREE.Object3D): Record<string, number>; measure(rest: THREE.Object3D): Record<string, number>
+  guides(sizes: Record<string, number>): Guide[]; rows(id: number, values: Record<string, number>): Row[]; frame(plugins: any, id: number): THREE.Object3D | undefined
+}
+// The scene a game's marked models are drawn from, booted, the plugins that draw them, and the models.
+type Marking = Booted & { file: string; plugins: string[]; models: Marked[] }
 const BODY = 2 // the body's row in an interaction's stand-in scene, beside its machine's (1)
 type Camera = { position: number[]; target: number[]; fov: number }
 type Note = { id: number; text: string; at: number[]; mesh: string; material: string; camera: Camera; status: 'open' | 'fixed'; reply: string; made: string }
 type Point = { at: number[]; turn: number[] } // a quaternion turn, as the glb holds it
 type Fit = { hold: Prop; ik: Ik; ikOn: boolean; base: string }
-type View = 'free' | 'front' | 'side' | 'top' | 'close'
+type View = 'free' | 'front' | 'back' | 'side' | 'top' | 'close'
 
 const DEG = Math.PI / 180
 const ROW = 1 // the one row of the stand-in scene: the body
@@ -145,7 +227,13 @@ const clearFail = () => { $('#error').style.display = 'none' }
 // ---------------------------------------------------------------- state
 
 let game: Game
-const sel: { model?: string; body?: string; vehicle?: string } = {}
+const sel: { model?: string; body?: string; vehicle?: string; move?: string; mark?: string } = {}
+let own: Promise<any> | undefined // the game's own workshop file, imported once a game
+let stations: Promise<Stations> | undefined // the game's moves, booted once a game
+let marking: Promise<Marking> | undefined // the game's marked models, booted once a game
+const savedMarks = new Map<string, Marks>() // each marked glb's points file as it holds it, by the glb
+const markEdits = new Map<string, Marks>() // each marked glb's points and sizes as set here, not yet saved
+const controlValues = new Map<string, Record<string, number>>() // each marked model's controls as set here
 const fits = new Map<string, Fit>() // `${body}|${model}`: how the body holds the model, as tuned here
 const savedPoints = new Map<string, Record<string, Point>>() // each glb's empties as it holds them
 const pointEdits = new Map<string, Record<string, Point>>() // each glb's empties as moved here, not yet saved
@@ -160,9 +248,10 @@ let act: string | undefined // the interaction shown on a machine, `<machine>.<n
 let step = 0 // the step of it shown
 const actSaved = new Map<string, Interaction>() // each interaction's file as it holds it, by file
 const actEdits = new Map<string, Interaction>() // each interaction as changed here, not yet saved, by file
+const poseEdits = new Map<string, Record<string, Record<string, unknown>>>() // each interaction's poses as changed here, by `<machine>.<name>`
 let steer = 0 // a vehicle's car row's `steer`, -1 to 1, as the steer field sets it
 let mode: View = 'free'
-let wire = false, showBounds = true, showEmpties = true
+let wire = false, showBounds = true, showEmpties = true, ortho = false
 
 const fitKey = () => `${sel.body}|${sel.model}`
 const modelOf = (key = sel.model) => game.models.find(m => m.key === key)
@@ -206,8 +295,21 @@ async function actLoaded(a: Act): Promise<Interaction> {
 }
 // A step's points: where it stands, where it goes, and what each limb reaches, each once.
 const stepPoints = (s: Step): string[] => [...new Set([s.at, ...(s.ik ?? []).map(l => l.target)])]
+// What the machine does in each step, as changed here, else as its definition holds it.
+const posesNow = (a: Act) => poseEdits.get(`${a.machine}.${a.name}`) ?? a.poses
 // What the machine does in the step shown, as its game poses it: fields set on its row.
-const poseOf = (a: Act, s: Step): Record<string, unknown> => a.poses[s.name] ?? {}
+const poseOf = (a: Act, s: Step): Record<string, unknown> => posesNow(a)[s.name] ?? {}
+// The poses changed here and not in the definitions file: each step whose fields differ.
+const posesMoved = (a: Act) => Object.keys(posesNow(a)).filter(n => JSON.stringify(posesNow(a)[n]) !== JSON.stringify(a.poses[n]))
+// A field of what the machine does in the step shown set here; the row takes it this frame (`place`).
+function setPose(field: string, value: number) {
+  const a = labAct(), st = stepNow()
+  if (!a || !st) return
+  const all = structuredClone(posesNow(a))
+  all[st.name] = { ...all[st.name], [field]: value }
+  poseEdits.set(`${a.machine}.${a.name}`, all)
+  fill(false)
+}
 // The step shown changed: the interaction's edits, written into the loader's copy of its file, so
 // interact reads it changed this frame. A new clip builds the lab again (a pack clip plays through a
 // stand-in rig).
@@ -282,7 +384,24 @@ type Lab = {
   ready: boolean // built: the rig and the model have landed, so a frame can tick
   solid?: SolidLab // a solids model, drawn as the game draws it
   car?: CarLab // a vehicle of box3dvehicle's fleet, drawn by box3dvehicle
+  move?: MoveLab // a move of the game's, the body against a thing of its level
+  mark?: MarkLab // a model the game marks, drawn by its own plugins
 }
+// A marked model on its stand-in scene: the booted scene and the model; its glb by repo path (its points
+// file is beside it); its points file's catalogue url, which the loader's copy is written to as it is
+// marked; the stand-in scene's plugins in order; its first row's id, a new one each time the marks change
+// so the plugins draw it again from them; the model at rest as the loader holds it and its bounds; where
+// each point starts, each size before it is set, and the sizes measured off it; what the gizmo moves.
+type MarkLab = {
+  s: Marking; m: Marked; file: string; url: string; order: string[]; id: number
+  rest: THREE.Object3D; box: THREE.Box3; guessed: Record<string, number[]>; start: Record<string, number>; measured: Record<string, number>
+  proxy: THREE.Object3D
+}
+// A move on its stand-in scene: the booted scene and the move, each row of a look and the copy of its
+// look drawing it, a dot for each mark (made as more are needed), the marks drawn now, and the body over
+// the whole step shown: each place it stands at a step of the game's apart and the way it faces as the
+// step begins, which the views are framed and turned by.
+type MoveLab = { s: Stations; move: Move; actors: [Row, Actor][]; dots: THREE.Mesh[]; marks: Mark[]; places: THREE.Vector3[]; yaw: number }
 // A vehicle on its stand-in scene: its rows are the car (1), the body in an interaction (2), the chassis
 // (3) and the wheels (4 on), and its plugins are ticked in the order the scene lists them.
 type CarLab = {
@@ -320,6 +439,7 @@ function shown(): THREE.Object3D | undefined {
   if (!lab) return undefined
   if (lab.solid) return lab.solid.root
   if (lab.car) return carRoot()
+  if (lab.mark) return lab.mark.m.frame(lab.P, lab.mark.id)
   if (lab.stage) return lab.stage
   if (!sel.body || !sel.model) return undefined
   const k = lab.world.anim.kinds[sel.body]
@@ -369,11 +489,20 @@ function standInRig(world: any, kind: any, body: string, rig: Rig, clip: THREE.A
 // The lab made again: for a new game, a new choice, a new size, a game file written.
 function build() {
   building = (async () => {
-    const was = lab && !reframe ? { position: lab.P.render3d.camera.position.clone(), target: lab.controls.target.clone() } : undefined
+    // kept by the camera as it is: its zoom too where the next is orthographic as well; an orthographic
+    // camera's zoom, where the next is perspective, as nearness to the target, so the view is as wide
+    const cam = lab?.P.render3d.camera, to = lab?.controls.target
+    const was = lab && !reframe ? {
+      position: cam.isOrthographicCamera && !ortho ? cam.position.clone().sub(to).divideScalar(cam.zoom).add(to) : cam.position.clone(),
+      target: to!.clone(),
+      zoom: cam.isOrthographicCamera && ortho ? cam.zoom : 1,
+    } : undefined
     reframe = false
     close()
     clearFail()
     const width = Math.max(1, view.clientWidth), height = Math.max(1, view.clientHeight)
+    if (sel.move !== undefined) return buildMove(width, height, was ?? kept())
+    if (sel.mark !== undefined) return buildMark(width, height, was ?? kept())
     if (sel.vehicle) return buildCar(width, height, was)
     if (isSolid()) return buildSolid(width, height, was)
     const world = structuredClone(game.world)
@@ -395,7 +524,7 @@ function build() {
       world,
       prefabs: {
         engine: { width, height, dt: game.engine.dt ?? 1 / 60 },
-        render3d: { ...(game.render3d ?? {}), camera: { fov: 40, near: 0.01, far: 500, at: [1.6, 1.4, 2.4], look: [0, 1, 0] } },
+        render3d: { ...unbloomed(game.render3d), camera: { fov: 40, near: 0.01, far: 500, at: [1.6, 1.4, 2.4], look: [0, 1, 0] } },
       },
     }
     await prepare({} as any, [], world) // the mods the scene names: anim's body for ik3d
@@ -410,6 +539,7 @@ function build() {
     P.render3d.mount(canvas)
     real.tick(P)
     P.render3d.tick(P)
+    lensIn(P)
     P.render3d.ratio(devicePixelRatio)
     const three = P.render3d.scene as THREE.Scene
     stageIn(three, P.render3d.renderer)
@@ -443,7 +573,7 @@ function build() {
     gizmo.attachTo(three)
     if (was) {
       P.render3d.camera.position.copy(was.position)
-      controls.target.copy(was.target)
+      controls.target.copy(was.target); fit(P.render3d.camera, was.position.distanceTo(was.target), was.zoom)
     } else framed = false
     lab.ready = true
     lab.last = performance.now()
@@ -459,7 +589,7 @@ function build() {
 // when nothing of the game's draws a lone row of it, hung here from the solids plugin's meshes. The
 // loader's copy of the model is the file with the edits made here, so a moved node is drawn by the
 // game's own code.
-async function buildSolid(width: number, height: number, was: { position: THREE.Vector3; target: THREE.Vector3 } | undefined) {
+async function buildSolid(width: number, height: number, was: Kept | undefined) {
   const m = modelOf()!
   const home = new URL(`/games/${game.game}/`, location.href).href
   const { scene, drawers: names } = standScene(game, m.key, m.stand, home, { width, height })
@@ -487,6 +617,16 @@ async function buildSolid(width: number, height: number, was: { position: THREE.
     rows.push({ id: BODY, kind: a.body, data: { ...rowData(kind.reads), interact: null } })
   }
   const P: any = { wire: { n: 1, rows, scene, home }, loader: a ? withPack(real, () => pack) : real, solids: handed, render3d: render3d(), ...(a ? { anim: anim(), interact: interact(), ik3d: ik3d() } : {}) }
+  // The plugins the stand-in carries for its drawers (the server's CARRIED): the store, on a link of the
+  // page's own as a page's scenemanager hands one, ticked before the drawers each frame; and audio, made
+  // so a drawer hears through it, never ticked, so nothing of the game's cues or loops plays.
+  const carried = scene.plugins.filter(p => p === 'store' || p === 'audio')
+  if (carried.includes('store')) {
+    P.scenemanager = { link: { store: {} } }
+    P.store = store()
+    P.store.tick(P)
+  }
+  if (carried.includes('audio')) P.audio = audio()
   const drawers: [string, any][] = []
   for (const n of names) {
     const mod = await import(/* @vite-ignore */ new URL(`plugins/${n}/${n}.plugin.ts`, home).href)
@@ -516,6 +656,7 @@ async function buildSolid(width: number, height: number, was: { position: THREE.
   // model they name. The loader starts a file once it has ticked.
   await Promise.all(Object.entries(scene.world.loader.assets as Record<string, any>).filter(([, a]) => a.type === 'json').map(([k]) => real.load(k)))
   P.render3d.tick(P)
+  lensIn(P)
   P.render3d.ratio(devicePixelRatio)
   const three = P.render3d.scene as THREE.Scene
   // The key's shadow over the model and round it: its corners' reach from the middle, and a metre.
@@ -571,7 +712,7 @@ async function buildSolid(width: number, height: number, was: { position: THREE.
   gizmo.attachTo(three)
   if (was) {
     P.render3d.camera.position.copy(was.position)
-    controls.target.copy(was.target)
+    controls.target.copy(was.target); fit(P.render3d.camera, was.position.distanceTo(was.target), was.zoom)
   } else framed = false
   lab.ready = true
   lab.last = performance.now()
@@ -614,7 +755,7 @@ async function actRig(world: any, real: ReturnType<typeof loader>, kind: any, a:
 // holds it at rest, `wheelAt` its axle's `sag` (as box3dvehicle makes a car's parts), still. In an
 // interaction the body is row 2, and the scene lists anim, interact and ik3d after the look plugins,
 // as the game's does. The look's points are the game's with the edits made here.
-async function buildCar(width: number, height: number, was: { position: THREE.Vector3; target: THREE.Vector3 } | undefined) {
+async function buildCar(width: number, height: number, was: Kept | undefined) {
   const c = carOf()!
   const home = new URL(`/games/${game.game}/`, location.href).href
   const key = carKey(c.name)
@@ -633,7 +774,7 @@ async function buildCar(width: number, height: number, was: { position: THREE.Ve
     world,
     prefabs: {
       engine: { width, height, dt: game.engine.dt ?? 1 / 60 },
-      render3d: { ...(game.render3d ?? {}), camera: { fov: 40, near: 0.01, far: 500, at: [4, 3, 6], look: [0, 1, 0] } },
+      render3d: { ...unbloomed(game.render3d), camera: { fov: 40, near: 0.01, far: 500, at: [4, 3, 6], look: [0, 1, 0] } },
     },
   }
   await prepare({} as any, [], world) // the mods the scene names: interact's point, object and body, ik3d's
@@ -657,6 +798,7 @@ async function buildCar(width: number, height: number, was: { position: THREE.Ve
   P.render3d.mount(canvas)
   real.tick(P)
   P.render3d.tick(P)
+  lensIn(P)
   P.render3d.ratio(devicePixelRatio)
   const three = P.render3d.scene as THREE.Scene
   stageIn(three, P.render3d.renderer, Math.max(1.5, v.body.length / 2 + 1))
@@ -678,7 +820,7 @@ async function buildCar(width: number, height: number, was: { position: THREE.Ve
   gizmo.attachTo(three)
   if (was) {
     P.render3d.camera.position.copy(was.position)
-    controls.target.copy(was.target)
+    controls.target.copy(was.target); fit(P.render3d.camera, was.position.distanceTo(was.target), was.zoom)
   } else framed = false
   lab.ready = true
   lab.last = performance.now()
@@ -710,6 +852,521 @@ function carRoot(): THREE.Object3D | undefined {
     if (o) return rootOf(o as any, lab!.P.render3d.scene) as THREE.Object3D | undefined
   }
   return undefined
+}
+
+// ---------------------------------------------------------------- a game's moves
+
+// The game's moves, booted once a game: its `<game>.workshop.ts` imported, the scene it names loaded as
+// the game loads it (scenemanager's `child`: the manager's world and prefabs under it, the game's
+// folder as its home) and booted by the engine, every mod its world names and every preload a rule reads
+// in (`prepare`), one row of its `body` spawned from its prefab, and its `moves` taken of them.
+function stationsOf(): Promise<Stations> {
+  const file = game.workshop
+  if (!file) return Promise.reject(new Error(`${game.game} has no ${game.game}.workshop.ts`))
+  stations ??= (async () => {
+    const o = await ownOf()
+    if (!o.moves) throw new Error(`${file} makes no moves`)
+    const b = await booted(o.scene)
+    const me = b.truth.spawn(o.body)
+    return { ...b, file, looks: o.looks, me, moves: o.moves(b.w, me) }
+  })()
+  return stations
+}
+// The game's own workshop file, imported once a game.
+function ownOf(): Promise<any> {
+  const file = game.workshop
+  if (!file) return Promise.reject(new Error(`${game.game} has no ${game.game}.workshop.ts`))
+  own ??= import(/* @vite-ignore */ new URL(file, location.href).href)
+  return own
+}
+// A scene the manager names, loaded as the game loads it (scenemanager's `child`: the manager's world and
+// prefabs under it, the game's folder as its home), booted by the engine, every mod its world names and
+// every preload a rule reads in (`prepare`), and the scene as a rule's `w` reads it.
+async function booted(name: string): Promise<Booted> {
+  const home = new URL(`/games/${game.game}/`, location.href).href
+  const managerUrl = new URL(`${game.game}.scene.json`, home).href
+  const top = await (await fetch(managerUrl, { cache: 'no-store' })).json()
+  const entry = top.prefabs?.scenemanager?.scenes?.[name]
+  if (!entry) throw new Error(`${game.workshop}: ${game.game}'s manager names no scene ${name}`)
+  const { scene, sim } = await child(top, name, entry, managerUrl)
+  const truth = boot(scene, sim)
+  await prepare(sim, truth.rows, truth.world)
+  const none = (what: string) => () => { throw new Error(`the workshop's scene ${what} nothing`) }
+  const w: W = {
+    world: truth.world,
+    all: kind => truth.rows.filter(r => r.kind === kind),
+    get: id => { const r = truth.rows.find(r => r.id === id); if (!r) throw new Error(`no row ${id}`); return r },
+    find: (kind, pred = () => true) => { const r = truth.rows.find(r => r.kind === kind && pred(r)); if (!r) throw new Error(`no ${kind} matches`); return r },
+    spawn: (kind, data) => truth.spawn(kind, data),
+    end: row => truth.end(row),
+    die: none('rolls'),
+    call: none('calls'),
+  }
+  return { scene: name, prefabs: scene.prefabs, truth, w, home }
+}
+
+// ---------------------------------------------------------------- a game's marked models
+
+// The game's marked models, booted once a game: the scene its workshop file's `annotate` names booted,
+// and its `models` taken of it.
+function markingOf(): Promise<Marking> {
+  const file = game.workshop
+  if (!file) return Promise.reject(new Error(`${game.game} has no ${game.game}.workshop.ts`))
+  marking ??= (async () => {
+    const o = (await ownOf()).annotate
+    if (!o) throw new Error(`${file} marks no models`)
+    const b = await booted(o.scene)
+    return { ...b, file, plugins: o.plugins, models: o.models(b.w, b.prefabs) }
+  })()
+  return marking
+}
+// A marked model's points file as it holds it, by its glb.
+async function marksOf(file: string) {
+  if (!savedMarks.has(file)) savedMarks.set(file, await api<Marks>(`/api/beside?file=${encodeURIComponent(file)}`))
+  return savedMarks.get(file)!
+}
+// The marks as they stand: each point marked here, else as the file holds it, else where it starts; each
+// size set here, else as the file holds it, else as it starts; and the measured sizes as measured.
+// A point that mirrors another, wherever it is marked, is that point mirrored. A point taken out here is
+// gone.
+function marksNow(k: MarkLab = lab!.mark!): Marks {
+  const saved = savedMarks.get(k.file)!, e = markEdits.get(k.file)
+  const points: Record<string, Point> = { ...saved.points, ...e?.points }
+  for (const n of e?.drop ?? []) delete points[n]
+  const needs = needsOf(k, points)
+  for (const n of needs) points[n.name] ??= { at: k.guessed[n.name], turn: [0, 0, 0, 1] }
+  for (const n of needs) if (n.mirror) points[n.name] = mirrored(points[n.mirror])
+  return { points, sizes: { ...k.start, ...saved.sizes, ...e?.sizes, ...k.measured } }
+}
+// What the model needs marked: the game's own list, and each more of a point it may have more of that
+// the marks hold (`<name>.<n>`), with its mirror.
+function needsOf(k: MarkLab, points?: Record<string, Point>): Marked['needs'] {
+  if (!points) {
+    const saved = savedMarks.get(k.file)!, e = markEdits.get(k.file)
+    points = { ...saved.points, ...e?.points }
+    for (const n of e?.drop ?? []) delete points[n]
+  }
+  const more: Marked['needs'] = []
+  for (const a of k.m.adds ?? []) {
+    const ns = Object.keys(points).map(n => n.startsWith(`${a.name}.`) ? Number(n.slice(a.name.length + 1)) : NaN).filter(Number.isInteger).sort((x, y) => x - y)
+    for (const i of ns) more.push({ name: `${a.name}.${i}`, says: a.says, label: `${a.label ?? a.name} ${i}`, group: a.group }, ...(a.mirror ? [{ name: `${a.mirror}.${i}`, says: a.says, mirror: `${a.name}.${i}` }] : []))
+  }
+  return [...k.m.needs, ...more]
+}
+// One more of a point the model may have more of, `<name>.<next>`, a little under its first, marked.
+function addMark(name: string) {
+  const k = lab!.mark!, now = marksNow(k)
+  let i = 2
+  while (now.points[`${name}.${i}`]) i++
+  const first = now.points[name], mirror = k.m.adds?.find(a => a.name === name)?.mirror
+  const e = markEdits.get(k.file) ?? { points: {}, sizes: {} }
+  e.drop = (e.drop ?? []).filter(n => n !== `${name}.${i}` && n !== `${mirror}.${i}`)
+  markEdits.set(k.file, e)
+  setMark(`${name}.${i}`, { at: [first.at[0], first.at[1] - 0.5, first.at[2]], turn: first.turn })
+  return `${name}.${i}`
+}
+// One more of a point taken out, and its mirror.
+function dropMark(name: string) {
+  const k = lab!.mark!, e = markEdits.get(k.file) ?? { points: {}, sizes: {} }
+  const gone = [name, ...needsOf(k).filter(n => n.mirror === name).map(n => n.name)]
+  for (const n of gone) delete e.points[n]
+  e.drop = [...new Set([...(e.drop ?? []), ...gone.filter(n => savedMarks.get(k.file)!.points[n])])]
+  markEdits.set(k.file, e)
+  remark()
+}
+// A point mirrored across the model's middle: x to −x, its turn reflected the same way.
+const mirrored = (p: Point): Point => ({ at: [-p.at[0] || 0, p.at[1], p.at[2]], turn: [p.turn[0], -p.turn[1] || 0, -p.turn[2] || 0, p.turn[3]] })
+// Whether a point is marked: set here, or in its file; a mirror, whether its point is.
+const isMarked = (k: MarkLab, name: string): boolean => {
+  const mirror = needsOf(k).find(n => n.name === name)?.mirror
+  if (mirror) return isMarked(k, mirror)
+  return !!(markEdits.get(k.file)?.points[name] ?? savedMarks.get(k.file)?.points[name])
+}
+// The points a save writes: each marked here, and each mirror of a marked point, where it is not as the
+// file has it.
+function marksToSave(k: MarkLab): Record<string, Point> {
+  const saved = savedMarks.get(k.file)!.points, now = marksNow(k)
+  const out: Record<string, Point> = { ...markEdits.get(k.file)?.points }
+  for (const n of needsOf(k)) if (n.mirror && isMarked(k, n.mirror)) out[n.name] = now.points[n.name]
+  return Object.fromEntries(Object.entries(out).filter(([n, p]) => JSON.stringify(p) !== JSON.stringify(saved[n])))
+}
+// A marked model's controls as they stand: set here, else as the game's file starts them.
+function valuesOf(m: Marked) {
+  if (!controlValues.has(m.name)) controlValues.set(m.name, Object.fromEntries(m.controls.map(c => [c.name, c.value])))
+  return controlValues.get(m.name)!
+}
+// The marks changed: the loader's copy of the points file written with them, and the rows made again
+// under a new id, so the game's plugins draw the model again from them this frame.
+function remark() {
+  const k = lab!.mark!
+  written(k.url, JSON.stringify(marksNow(k)))
+  k.id += 10
+}
+function setMark(name: string, p: Point) {
+  const k = lab!.mark!, e = markEdits.get(k.file) ?? { points: {}, sizes: {} }
+  e.points[name] = { at: p.at.map(v => +v.toFixed(4) || 0), turn: p.turn.map(v => +v.toFixed(6) || 0) }
+  markEdits.set(k.file, e)
+  remark()
+}
+function setSize(name: string, v: number) {
+  const k = lab!.mark!, e = markEdits.get(k.file) ?? { points: {}, sizes: {} }
+  e.sizes[name] = +v.toFixed(4)
+  markEdits.set(k.file, e)
+  remark()
+}
+// A guide of the model shown, by its name, from the sizes as they stand.
+const guideOf = (name: string): Guide | undefined => { const k = lab?.mark; return k && k.m.guides(marksNow(k).sizes).find(g => g.name === name) }
+// The corner of a guide the gizmo drags: a box's, its sizes' halves out from its middle; the first
+// cylinder's rim at its end, its radius across and half its length along.
+function cornerOf(g: Guide, sizes: Record<string, number>): number[] {
+  if (g.box) return g.box.at.map((v, i) => v + sizes[g.box!.size[i]] / 2)
+  const c = g.cylinder!, at = c.at[0]
+  return [at[0] + sizes[c.radius], at[1], at[2] + sizes[c.length] / 2]
+}
+// A guide's corner dragged to `to`: the sizes it sets.
+function dragGuide(g: Guide, to: number[]) {
+  if (g.box) { g.box.size.forEach((n, i) => setSize(n, 2 * Math.abs(to[i] - g.box!.at[i]))); return }
+  const c = g.cylinder!, at = c.at[0]
+  setSize(c.radius, Math.hypot(to[0] - at[0], to[1] - at[1]))
+  setSize(c.length, 2 * Math.abs(to[2] - at[2]))
+}
+// The names of the sizes, set here or measured, whose value is not the file's.
+function sizesMoved(k: MarkLab): string[] {
+  const saved = savedMarks.get(k.file)!.sizes, now = marksNow(k).sizes
+  return [...k.m.sizes.map(s => s.name), ...k.m.measured].filter(n => saved[n] !== now[n])
+}
+// The points a save writes or takes out, by name.
+const marksMoved = (k: MarkLab): string[] => [...Object.keys(marksToSave(k)), ...(markEdits.get(k.file)?.drop ?? []).map(n => `${n} taken out`)]
+
+// A marked model drawn as the game draws it: on a stand-in scene of the loader, the game's plugins its
+// workshop file names (a top-level plugin's own, or the game's from its `plugins/<name>/`) and render3d,
+// with the booted scene's world and render3d prefab, and the rows the game's file makes each frame from
+// the controls. The loader's copy of the points file is written with the marks as they stand before the
+// first frame, so the plugins draw it from them.
+const CORE: Record<string, () => any> = { particle3d, lights3d, box3dvehicle, anim, ik3d, interact, solids }
+async function buildMark(width: number, height: number, was: Kept | undefined) {
+  const s = await markingOf()
+  const m = s.models.find(x => x.name === sel.mark)
+  if (!m) throw new Error(`${s.file} marks no model ${sel.mark}`)
+  const assets = s.truth.world.loader.assets as Record<string, { url: string }>
+  if (!assets[m.model] || !assets[m.points]) throw new Error(`${s.file}: ${m.name}'s ${assets[m.model] ? m.points : m.model} is not in ${s.scene}'s loader catalogue`)
+  const file = assets[m.model].url.replace(/^\//, '')
+  await marksOf(file)
+  const order = ['loader', ...s.plugins, 'render3d']
+  const scene = {
+    plugins: order,
+    world: s.truth.world,
+    prefabs: {
+      engine: { width, height, dt: game.engine.dt ?? 1 / 60 },
+      render3d: { ...unbloomed(s.prefabs.render3d), camera: { fov: 40, near: 0.05, far: 2000, at: [12, 6, 16], look: [0, 1, 0] } },
+    },
+  }
+  const real = loader()
+  const P: any = { wire: { n: 1, rows: [], scene, home: s.home, between: 1 }, loader: real, render3d: render3d() }
+  for (const n of s.plugins) {
+    if (CORE[n]) { P[n] = CORE[n](); continue }
+    const mod = await import(/* @vite-ignore */ new URL(`plugins/${n}/${n}.plugin.ts`, s.home).href)
+    if (typeof mod[n] !== 'function') throw new Error(`${s.file} names the plugin ${n}, and ${game.game}'s plugins/${n}/${n}.plugin.ts exports no ${n}`)
+    P[n] = mod[n]()
+  }
+  const canvas = document.createElement('canvas')
+  view.prepend(canvas)
+  P.render3d.mount(canvas)
+  real.tick(P)
+  P.render3d.tick(P)
+  lensIn(P)
+  P.render3d.ratio(devicePixelRatio)
+  const three = P.render3d.scene as THREE.Scene
+  // The model at rest, as the loader holds it: where each point starts, the sizes before they are set and
+  // the sizes measured, all off it, and its bounds.
+  await real.load(m.model)
+  const rest = real.model(m.model).scene as THREE.Object3D
+  rest.updateMatrixWorld(true)
+  const box = new THREE.Box3().setFromObject(rest)
+  const guessed = Object.fromEntries(m.needs.map(n => [n.name, m.guess(n.name, rest)]))
+  const labelsR = new CSS2DRenderer()
+  labelsR.setSize(width, height)
+  labelsR.domElement.style.cssText = 'position:absolute;inset:0;pointer-events:none'
+  view.append(labelsR.domElement)
+  const controls = new OrbitControls(P.render3d.camera, canvas)
+  controls.enableDamping = true
+  P.render3d.claim('workshop')
+  const proxy = new THREE.Object3D()
+  proxy.userData.workshop = true
+  const k: MarkLab = { s, m, file, url: assets[m.points].url, order, id: 1, rest, box, guessed, start: m.start(rest), measured: m.measure(rest), proxy }
+  lab = { P, world: scene.world, canvas, controls, labels: labelsR, last: performance.now(), ready: false, mark: k }
+  remark()
+  const size = box.getSize(new THREE.Vector3())
+  stageIn(three, P.render3d.renderer, Math.max(1.5, size.x, size.z) / 2 + 2)
+  gizmo.attachTo(three)
+  if (was) {
+    P.render3d.camera.position.copy(was.position)
+    controls.target.copy(was.target); fit(P.render3d.camera, was.position.distanceTo(was.target), was.zoom)
+  } else framed = false
+  lab.ready = true
+  lab.last = performance.now()
+  fill()
+  side()
+}
+
+// A move drawn as the game has it: on a stand-in scene of the loader, anim and render3d with the booted
+// scene's own world and render3d prefab, the rows of the kinds the moves' file names among its looks,
+// each drawn by a copy of its own look (the engine's `drawing`), and the body, drawn by anim, posed by
+// the step each frame (`drawMove`). The studio stands round the step on a floor at the move's `floor`.
+async function buildMove(width: number, height: number, was: Kept | undefined) {
+  const s = await stationsOf()
+  const move = s.moves.find(m => m.name === sel.move)
+  if (!move) throw new Error(`${s.file} makes no move ${sel.move}`)
+  step = Math.max(0, Math.min(step, move.steps.length - 1))
+  const looked = s.truth.rows.filter(r => s.looks.includes(r.kind))
+  const scene = {
+    plugins: ['loader', 'anim', 'render3d'],
+    world: s.truth.world,
+    prefabs: {
+      engine: { width, height, dt: game.engine.dt ?? 1 / 60 },
+      render3d: { ...unbloomed(s.prefabs.render3d), camera: { fov: 40, near: 0.02, far: 1000, at: [0, 2, -4], look: [0, 1, 0] } },
+    },
+  }
+  const real = loader()
+  const P: any = { wire: { n: 1, ack: 0, rows: [...looked, s.me], scene, home: s.home, send: () => 0 }, loader: real, anim: anim(), render3d: render3d() }
+  const canvas = document.createElement('canvas')
+  view.prepend(canvas)
+  P.render3d.mount(canvas)
+  real.tick(P)
+  P.render3d.tick(P)
+  lensIn(P)
+  P.render3d.ratio(devicePixelRatio)
+  const three = P.render3d.scene as THREE.Scene
+  const labelsR = new CSS2DRenderer()
+  labelsR.setSize(width, height)
+  labelsR.domElement.style.cssText = 'position:absolute;inset:0;pointer-events:none'
+  view.append(labelsR.domElement)
+  const controls = new OrbitControls(P.render3d.camera, canvas)
+  controls.enableDamping = true
+  P.render3d.claim('workshop')
+  const m: MoveLab = { s, move, actors: [], dots: [], marks: [], places: [], yaw: 0 }
+  lab = { P, world: scene.world, canvas, controls, labels: labelsR, last: performance.now(), ready: false, move: m }
+  for (const r of looked) {
+    const file = await drawing(r.kind, s.home)
+    if (!file) throw new Error(`${s.file} names ${r.kind} among its looks, and ${game.game} has no ${r.kind}.client.ts that loads`)
+    const actor = await file.instance()
+    actor.setup(r, P)
+    m.actors.push([r, actor])
+  }
+  measure()
+  // The studio round every place the step stands the body, its floor out to the camera's far plane.
+  const box = new THREE.Box3().setFromPoints(m.places), centre = box.getCenter(new THREE.Vector3()), size = box.getSize(new THREE.Vector3())
+  stageIn(three, P.render3d.renderer, Math.max(3, Math.hypot(size.x, size.z)), [centre.x, move.floor, centre.z], 2 * scene.prefabs.render3d.camera.far)
+  figure.visible = false
+  if (was) {
+    P.render3d.camera.position.copy(was.position)
+    controls.target.copy(was.target); fit(P.render3d.camera, was.position.distanceTo(was.target), was.zoom)
+  } else framed = false
+  lab.ready = true
+  lab.last = performance.now()
+  fill()
+  side()
+}
+
+// The step shown, as the views frame it: where it stands the body at each of the game's steps through
+// it, and the way the body faces as it begins; the body posed back at the playhead after.
+function measure() {
+  const m = lab!.move!, st = m.move.steps[step], d = m.s.me.data
+  const dt = game.engine.dt ?? 1 / 60
+  m.places = []
+  for (let t = 0; ; t = Math.min(st.dur, t + dt)) {
+    st.pose(Math.min(t, st.dur - 1e-6))
+    if (t === 0) m.yaw = d.yaw
+    m.places.push(new THREE.Vector3(d.pos[0], d.pos[1], d.pos[2]))
+    if (t >= st.dur) break
+  }
+  st.pose(Math.min(clipT, st.dur - 1e-6))
+}
+
+// One frame of the move: the step posed at the playhead, then the plugins ticked as the game's page ticks
+// them (each plugin's tick, each look's, each plugin's afterTick, render3d's last, which draws), the marks
+// drawn on what the step's `marks` says, and the hud.
+function drawMove() {
+  const { P } = lab!, m = lab!.move!, st = m.move.steps[step]
+  st.pose(Math.min(clipT, st.dur - 1e-6))
+  P.wire.n++
+  for (const n of ['loader', 'anim', 'render3d']) P[n].tick?.(P)
+  for (const [r, a] of m.actors) a.tick(r, P)
+  P.loader.afterTick?.(P)
+  P.anim.afterTick()
+  m.marks = st.marks()
+  showMarks()
+  showTime()
+  const d = m.s.me.data
+  $('#hud').textContent = `${m.move.name}  ·  ${st.name}\n${m.move.against}\nclip ${d.clip} at ${(+d.clipT).toFixed(3)} s · ${m.marks.filter(k => k.off).length} of ${m.marks.length} marks off\nposed by ${m.s.file}, on ${game.game}'s ${m.s.scene}`
+  if (!framed && P.anim.model(m.s.me.id)) { framed = true; frameView(mode) }
+  lab!.controls.update()
+  P.render3d.afterTick()
+  lab!.labels.render(P.render3d.scene, P.render3d.camera)
+}
+
+// A gap as the panel and the dots say it: millimetres over (+) or under (−) what the mark is on.
+const mm = (gap: number) => `${gap >= 0 ? '+' : '−'}${Math.abs(gap * 1000).toFixed(0)} mm`
+
+// Each mark a dot where the step has it, red where it is off, green where it is on, grey where it has no
+// gap, named with its gap; and the list of them in the panel.
+function showMarks() {
+  const m = lab!.move!, three = lab!.P.render3d.scene as THREE.Scene
+  while (m.dots.length < m.marks.length) {
+    const dot = new THREE.Mesh(new THREE.SphereGeometry(0.015, 12, 8), new THREE.MeshBasicMaterial({ depthTest: false }))
+    dot.renderOrder = 10
+    dot.userData.workshop = true
+    dot.add(new CSS2DObject(Object.assign(document.createElement('div'), { className: 'label' })))
+    three.add(dot)
+    m.dots.push(dot)
+  }
+  m.dots.forEach((dot, i) => {
+    const k = m.marks[i]
+    dot.visible = !!k && showEmpties
+    const label = dot.children[0] as CSS2DObject
+    label.visible = dot.visible
+    if (!k) return
+    dot.position.fromArray(k.at)
+    ;(dot.material as THREE.MeshBasicMaterial).color.set(k.off ? 0xe0573a : k.gap === undefined ? 0x8a8f98 : 0x5bbf7a)
+    label.element.textContent = k.gap === undefined ? k.name : `${k.name} ${mm(k.gap)}`
+    label.element.style.color = k.off ? '#e0573a' : ''
+  })
+  const list = $('#contacts')
+  if (!m.marks.length) { list.textContent = 'nothing touched now'; return }
+  list.replaceChildren(...m.marks.map(k => {
+    const row = document.createElement('div')
+    row.className = 'mark' + (k.off ? ' off' : '')
+    row.innerHTML = '<span></span><span class="on"></span>'
+    row.children[0].textContent = `${k.name} on ${k.on}`
+    row.children[1].textContent = k.gap === undefined ? '—' : mm(k.gap)
+    return row
+  }))
+}
+
+// The views of a move, turned by the way the body faces as the step begins: Free from behind its left,
+// Front from ahead of it, Side from its left, Top from over it, each framing the body over the whole
+// step; Close-up the marks, from behind its left.
+function frameMove(v: View) {
+  const m = lab!.move!, P = lab!.P, camera = P.render3d.camera as THREE.PerspectiveCamera
+  const st = m.move.steps[step], d = m.s.me.data, id = m.s.me.id
+  const body = P.anim.model(id) as THREE.Object3D | undefined
+  let box = new THREE.Box3().setFromPoints(m.places)
+  if (body) {
+    // The body over the whole step: its bones posed by anim at each step of the game's through it,
+    // laid out by as far as its skin reaches past its bones as it is drawn now.
+    const bones = () => {
+      const b = new THREE.Box3(), at = new THREE.Vector3()
+      body.traverse(o => { if ((o as THREE.Bone).isBone) b.expandByPoint(o.getWorldPosition(at)) })
+      return b
+    }
+    const skin = new THREE.Box3().setFromObject(body), now = bones()
+    const under = skin.min.clone().sub(now.min), over = skin.max.clone().sub(now.max)
+    box = new THREE.Box3()
+    const dt = game.engine.dt ?? 1 / 60
+    for (let t = 0; ; t = Math.min(st.dur, t + dt)) {
+      st.pose(Math.min(t, st.dur - 1e-6))
+      P.anim.pose(id, d.clip, d.clipT)
+      box.union(bones())
+      if (t >= st.dur) break
+    }
+    box.min.add(under)
+    box.max.add(over)
+    st.pose(Math.min(clipT, st.dur - 1e-6))
+    P.anim.pose(id, d.clip, d.clipT)
+  }
+  const near = v === 'close' && m.marks.length ? new THREE.Box3().setFromPoints(m.marks.map(k => new THREE.Vector3().fromArray(k.at))) : box
+  const centre = near.getCenter(new THREE.Vector3()), size = near.getSize(new THREE.Vector3())
+  const reach = (Math.max(size.x, size.y, size.z, 0.2) / (2 * Math.tan(FOV * DEG / 2))) * 1.3
+  const ahead = new THREE.Vector3(Math.sin(m.yaw), 0, Math.cos(m.yaw)), left = new THREE.Vector3(Math.cos(m.yaw), 0, -Math.sin(m.yaw)), up = new THREE.Vector3(0, 1, 0)
+  // Free and Close-up look from behind the body's left: a move faces what it is made against (the
+  // ladder, the wall, the chair's back), so a camera ahead of it stands inside that.
+  const dirs: Record<View, THREE.Vector3> = {
+    free: left.clone().sub(ahead.clone().multiplyScalar(0.6)).add(up.clone().multiplyScalar(0.45)),
+    front: ahead.clone(),
+    back: ahead.clone().negate(),
+    side: left.clone(),
+    top: up.clone().add(ahead.clone().multiplyScalar(0.001)),
+    close: left.clone().sub(ahead.clone().multiplyScalar(0.3)).add(up.clone().multiplyScalar(0.35)),
+  }
+  lab!.controls.target.copy(centre)
+  camera.position.copy(centre).add(dirs[v].normalize().multiplyScalar(reach))
+  fit(camera, reach)
+}
+
+// Key frames: the step drawn at its start, at every step of the game's through it where the marks
+// begin or end, and at its end, each drawn as the view is now and laid side by side with its time, its
+// clip and its marks; one clicked puts the playhead there.
+function keyFrames() {
+  const m = lab?.move
+  if (!m || !lab?.ready) return
+  const st = m.move.steps[step], dt = game.engine.dt ?? 1 / 60
+  paused = true
+  const keys: number[] = []
+  let was: string | undefined
+  for (let t = 0; t < st.dur; t += dt) {
+    st.pose(t)
+    const now = st.marks().map(k => `${k.name} ${k.on}`).sort().join('\n')
+    if (now !== was) keys.push(t)
+    was = now
+  }
+  const end = Math.max(0, st.dur - 1e-6)
+  if (keys[keys.length - 1] !== end) keys.push(end)
+  const sheet = $('#sheet'), grid = sheet.querySelector('.grid')!
+  sheet.querySelector('.who')!.textContent = `${m.move.name} · ${st.name} · ${keys.length} frames`
+  grid.replaceChildren()
+  const back = clipT
+  for (const t of keys) {
+    clipT = t
+    drawMove()
+    const shot = document.createElement('canvas')
+    shot.width = 480
+    shot.height = Math.round((480 * lab.canvas.height) / Math.max(1, lab.canvas.width))
+    shot.getContext('2d')!.drawImage(lab.canvas, 0, 0, shot.width, shot.height)
+    const frame = document.createElement('div')
+    frame.className = 'frame'
+    const cap = document.createElement('div')
+    cap.className = 'cap'
+    const d = m.s.me.data
+    cap.append(`${t.toFixed(3)} s · ${d.clip} at ${(+d.clipT).toFixed(3)} s`)
+    for (const k of m.marks) {
+      const line = document.createElement('div')
+      line.textContent = `${k.name} on ${k.on}${k.gap === undefined ? '' : ` ${mm(k.gap)}`}`
+      if (k.off) line.className = 'off'
+      cap.append(line)
+    }
+    frame.append(shot, cap)
+    frame.onclick = () => { clipT = t; sheet.style.display = 'none'; fill() }
+    grid.append(frame)
+  }
+  clipT = back
+  sheet.style.display = 'block'
+  fill()
+}
+$('#sheet').querySelector<HTMLButtonElement>('[data-act=close]')!.onclick = () => { $('#sheet').style.display = 'none' }
+
+// The camera kept over a load of the page, for the address it was kept at.
+const KEPT = 'workshop.camera'
+function keep() {
+  if (!lab) return
+  try { sessionStorage.setItem(KEPT, JSON.stringify({ at: location.search, position: lab.P.render3d.camera.position.toArray(), target: lab.controls.target.toArray() })) } catch { /* kept only where the browser keeps it */ }
+}
+function kept(): Kept | undefined {
+  try {
+    const k = JSON.parse(sessionStorage.getItem(KEPT) ?? 'null')
+    sessionStorage.removeItem(KEPT)
+    return k?.at === location.search ? { position: new THREE.Vector3().fromArray(k.position), target: new THREE.Vector3().fromArray(k.target) } : undefined
+  } catch { return undefined }
+}
+
+// The address as the choice stands: the game, and what is open in it, a move with its step.
+function remember() {
+  const q = new URLSearchParams({ game: game.game })
+  if (sel.model) q.set('model', sel.model)
+  if (sel.body) q.set('body', sel.body)
+  if (sel.vehicle) q.set('vehicle', sel.vehicle)
+  if (sel.move !== undefined) { q.set('move', sel.move); q.set('step', String(step)) }
+  if (sel.mark !== undefined) q.set('mark', sel.mark)
+  history.replaceState(null, '', `?${q}`)
 }
 
 // The model's file as the loader holds it now.
@@ -764,6 +1421,7 @@ function close() {
   marks.clear()
   if (lab.solid) {
     for (const [, d] of [...lab.solid.drawers].reverse()) d.close?.(lab.P)
+    lab.P.audio?.close()
     lab.P.solids.close()
     if (lab.solid.made) { lab.solid.made.root.removeFromParent(); for (const o of lab.solid.made.owned) o.dispose() }
     lab.P.loader.close?.()
@@ -774,9 +1432,22 @@ function close() {
     lab = undefined
     return
   }
-  if (lab.car) {
+  if (lab.move) {
+    // Each look's copy let go of, then each plugin in the reverse of the order it is listed.
+    $('#sheet').style.display = 'none'
+    for (const [, a] of lab.move.actors) a.remove(lab.P)
+    lab.P.anim.close()
+    lab.P.loader.close?.()
+    lab.P.render3d.close()
+    lab.controls.dispose()
+    lab.labels.domElement.remove()
+    lab.canvas.remove()
+    lab = undefined
+    return
+  }
+  if (lab.car || lab.mark) {
     // Each plugin let go of in the reverse of the order it is listed, render3d last.
-    for (const n of [...lab.car.order].reverse()) if (n !== 'render3d') lab.P[n].close?.(lab.P)
+    for (const n of [...(lab.car ?? lab.mark)!.order].reverse()) if (n !== 'render3d') lab.P[n].close?.(lab.P)
     lab.P.render3d.close()
     lab.controls.dispose()
     lab.labels.domElement.remove()
@@ -796,14 +1467,18 @@ function close() {
 // and a floor that takes shadows, and a 1.8 m figure beside a model shown alone.
 const figure = new THREE.Group()
 // `reach` is how far each way of the middle the key's shadow falls: a prop's 1.5 m, a machine's more.
-function stageIn(three: THREE.Scene, renderer: THREE.WebGLRenderer | undefined, reach = 1.5) {
+// `at` is the middle, on the floor; `ground`, metres across, makes the floor solid, the ground a move
+// stands on, where a model's floor shows only the shadows on it.
+function stageIn(three: THREE.Scene, renderer: THREE.WebGLRenderer | undefined, reach = 1.5, at: number[] = [0, 0, 0], ground = 0) {
   if (renderer) {
     three.environment = new THREE.PMREMGenerator(renderer).fromScene(new RoomEnvironment(), 0.04).texture
     three.environmentIntensity = 0.6
   }
   if (three.background === null) three.background = new THREE.Color(0x202226)
+  const middle = new THREE.Vector3().fromArray(at)
   const key = new THREE.DirectionalLight(0xfff1e0, 2.2)
-  key.position.set(2, 3, 2).multiplyScalar(Math.max(1, reach / 1.5))
+  key.position.set(2, 3, 2).multiplyScalar(Math.max(1, reach / 1.5)).add(middle)
+  key.target.position.copy(middle)
   key.castShadow = true
   key.shadow.mapSize.set(2048, 2048)
   key.shadow.camera.left = key.shadow.camera.bottom = -reach
@@ -811,14 +1486,22 @@ function stageIn(three: THREE.Scene, renderer: THREE.WebGLRenderer | undefined, 
   key.shadow.camera.far = Math.max(500, reach * 8)
   key.shadow.bias = -0.0005
   const fill = new THREE.DirectionalLight(0xdbe6ff, 0.7)
-  fill.position.set(-2.5, 1.5, 1)
+  fill.position.set(-2.5, 1.5, 1).add(middle)
+  fill.target.position.copy(middle)
   const rim = new THREE.DirectionalLight(0xffffff, 1.4)
-  rim.position.set(0, 2, -3)
+  rim.position.set(0, 2, -3).add(middle)
+  rim.target.position.copy(middle)
   const across = Math.max(10, Math.ceil(reach * 4))
   const grid = new THREE.GridHelper(across, across * 10, 0x4a4d55, 0x2c2e33)
-  const floor = new THREE.Mesh(new THREE.PlaneGeometry(across, across), new THREE.ShadowMaterial({ opacity: 0.35 }))
+  grid.position.copy(middle)
+  const wide = ground || across
+  const floor = new THREE.Mesh(new THREE.PlaneGeometry(wide, wide), ground ?new THREE.MeshStandardMaterial({ color: 0x3a3d44, roughness: 0.95 }) : new THREE.ShadowMaterial({ opacity: 0.35 }))
   floor.rotation.x = -Math.PI / 2
+  floor.position.copy(middle)
+  // A solid floor lies a hair under the grid, so the lines are drawn over it.
+  if (ground) floor.position.y -= 0.001
   floor.receiveShadow = true
+  three.add(key.target, fill.target, rim.target)
   figure.clear()
   const grey = new THREE.MeshStandardMaterial({ color: 0x6a6e76, roughness: 0.8, transparent: true, opacity: 0.5 })
   const torso = new THREE.Mesh(new THREE.CapsuleGeometry(0.17, 1.2, 6, 16), grey)
@@ -833,37 +1516,7 @@ function stageIn(three: THREE.Scene, renderer: THREE.WebGLRenderer | undefined, 
 
 // ---------------------------------------------------------------- pack clips, tried before they are baked
 
-// A Mixamo bone's name without its `mixamorig…` prefix, which differs between packs and bodies.
-const boneName = (name: string) => name.replace(/^mixamorig\d*:?/, '')
-type Rest = Map<string, { name: string; quaternion: THREE.Quaternion; position: THREE.Vector3 }>
-const restOf = (root: THREE.Object3D): Rest => {
-  const r: Rest = new Map()
-  root.traverse(o => { if ((o as THREE.Bone).isBone && !r.has(boneName(o.name))) r.set(boneName(o.name), { name: o.name, quaternion: o.quaternion.clone(), position: o.position.clone() }) })
-  return r
-}
-// A pack clip laid on a body as the bake lays it: each bone's turn on each key taken as a turn from
-// its rest in the FBX and laid on its rest in the body; the hips keep their travel, scaled by the two
-// hip heights; every other bone keeps the body's own length.
-function retarget(c: THREE.AnimationClip, from: Rest, onto: Rest, name: string) {
-  const tracks: THREE.KeyframeTrack[] = []
-  for (const track of c.tracks) {
-    const dot = track.name.lastIndexOf('.')
-    const bone = boneName(track.name.slice(0, dot)), what = track.name.slice(dot + 1)
-    const a = from.get(bone), b = onto.get(bone)
-    if (!a || !b) continue
-    if (what === 'quaternion') {
-      const v = track.values.slice(), q = new THREE.Quaternion(), inv = a.quaternion.clone().invert()
-      for (let i = 0; i < v.length; i += 4) q.fromArray(v, i).premultiply(inv).premultiply(b.quaternion).toArray(v, i)
-      tracks.push(new THREE.QuaternionKeyframeTrack(`${b.name}.quaternion`, track.times, v))
-    } else if (what === 'position' && bone === 'Hips') {
-      const k = Math.abs(a.position.y) > 1e-6 ? b.position.y / a.position.y : 1
-      const v = track.values.slice(), p = new THREE.Vector3()
-      for (let i = 0; i < v.length; i += 3) p.fromArray(v, i).sub(a.position).multiplyScalar(k).add(b.position).toArray(v, i)
-      tracks.push(new THREE.VectorKeyframeTrack(`${b.name}.position`, track.times, v))
-    }
-  }
-  return new THREE.AnimationClip(name, c.duration, tracks)
-}
+// A pack clip laid on a body as the bake lays it (`retarget.ts`).
 const fbx = new FBXLoader()
 const fbxClips = new Map<string, Promise<{ rest: Rest; clip: THREE.AnimationClip }>>()
 async function tryPack(choice: string, body: THREE.Object3D, model: string) {
@@ -929,6 +1582,37 @@ function loop(now: number) {
   const { P } = lab
   const dt = Math.min(0.1, (now - lab.last) / 1000)
   lab.last = now
+  if (lab.move) {
+    try {
+      const d = durOf()
+      if (!paused) clipT = d > 0 ? (clipT + dt) % d : 0
+      drawMove()
+    } catch (e) {
+      fail(e)
+    }
+    return
+  }
+  if (lab.mark) {
+    try {
+      // As the game's scene ticks them, in the order it lists them: the rows made from the controls, each
+      // plugin's tick, then each one's afterTick but render3d's, the page's own, and render3d's afterTick,
+      // which draws.
+      const k = lab.mark
+      P.wire.rows = k.m.rows(k.id, valuesOf(k.m))
+      P.wire.n++
+      for (const n of k.order) P[n].tick?.(P)
+      for (const n of k.order) if (n !== 'render3d') P[n].afterTick?.(P)
+      gizmo.tick()
+      marks.tick()
+      if (!framed && shown()) { framed = true; frameView(mode) }
+      lab.controls.update()
+      P.render3d.afterTick()
+      lab.labels.render(P.render3d.scene, P.render3d.camera)
+    } catch (e) {
+      fail(e)
+    }
+    return
+  }
   if (lab.car) {
     try {
       // As the game's scene ticks them, in the order it lists them: each plugin's tick, then each one's
@@ -972,6 +1656,7 @@ function loop(now: number) {
       P.wire.n++
       P.loader.tick(P)
       if (acting) P.anim.tick(P)
+      P.store?.tick(P)
       for (const [, d] of lab.solid.drawers) d.tick?.(P)
       if (acting) {
         P.interact.tick(P)
@@ -1031,7 +1716,43 @@ function loop(now: number) {
 }
 requestAnimationFrame(loop)
 
-const durOf = () => (lab?.rig?.table[clip]?.dur ?? 0)
+// Ortho: render3d's camera, once it has made it, swapped for an orthographic camera standing where it
+// stands, which render3d draws through (its passes handed it) and the orbit controls and the gizmo are
+// made on.
+function lensIn(P: any) {
+  if (!ortho) return
+  const was = P.render3d.camera as THREE.PerspectiveCamera
+  const cam = new THREE.OrthographicCamera(-1, 1, 1, -1, was.near, was.far)
+  cam.position.copy(was.position)
+  cam.quaternion.copy(was.quaternion)
+  P.render3d.camera = cam
+  for (const pass of P.render3d.composer?.passes ?? []) if (pass.camera === was) pass.camera = cam
+}
+// A camera made to frame what lies `reach` metres off it, zoomed by `zoom`: a perspective one as it is;
+// an orthographic one as wide there as the perspective view would be. Its far plane reaches at least
+// four times past what it frames, so a model a kilometre across (a town from map data) is drawn whole
+// and stays drawn as it is orbited and zoomed out; its near plane follows, a hundred-thousandth of the
+// far, so the depth buffer keeps its precision.
+function fit(camera: THREE.Camera, reach: number, zoom = 1) {
+  const c = camera as THREE.OrthographicCamera
+  if (c.isOrthographicCamera) {
+    const view = lab!.P.wire.scene.prefabs.engine
+    const h = reach * Math.tan((FOV * DEG) / 2), w = (h * view.width) / view.height
+    Object.assign(c, { top: h, bottom: -h, left: -w, right: w })
+  }
+  if (c.far < reach * 4) {
+    c.far = reach * 4
+    c.near = Math.max(c.near, c.far / 100000)
+  }
+  c.zoom = zoom
+  c.updateProjectionMatrix()
+}
+const FOV = 40 // the workshop's camera's, every lab's
+// The camera as a lab kept it, to make the next one where it was.
+type Kept = { position: THREE.Vector3; target: THREE.Vector3; zoom?: number }
+
+// The playhead's length: a move's step's, else the clip's.
+const durOf = () => (lab?.move ? lab.move.move.steps[step].dur : lab?.rig?.table[clip]?.dur ?? 0)
 
 // The body placed as the game places it in the step shown, at the playhead: the machine posed as its
 // game poses it in the step, the body's row in the step `clipT` seconds in, and interact's own `advance`
@@ -1182,6 +1903,71 @@ const marks = (() => {
     bounds(m, box, size)
     if (showEmpties) dots(stepNow(), names)
   }
+  // A marked model's: who draws it and from what, its tris, meshes and bounds at rest, how many of its
+  // points are marked; each point a dot by its name, green where it is marked and red where it only
+  // starts there; each guide as wire, in amber; the pins. All hung on the frame its points are in, so
+  // they turn as the model is drawn.
+  function drawMark(m: THREE.Object3D) {
+    const k = lab!.mark!, now = marksNow(k)
+    let tris = 0, meshes = 0
+    k.rest.traverse(o => {
+      const mesh = o as THREE.Mesh
+      if (!mesh.isMesh) return
+      meshes++
+      const g = mesh.geometry
+      tris += (g.index ? g.index.count : g.attributes.position.count) / 3
+    })
+    m.traverse(o => { const mesh = o as THREE.Mesh; if (mesh.isMesh && !o.userData.workshop) for (const mat of [mesh.material].flat()) if ('wireframe' in mat) (mat as THREE.MeshStandardMaterial).wireframe = wire })
+    const size = k.box.getSize(new THREE.Vector3())
+    const own = needsOf(k).filter(n => !n.mirror), done = own.filter(n => isMarked(k, n.name)).length
+    $('#hud').textContent = `${k.m.name}  ·  ${k.file}\n${Math.round(tris).toLocaleString()} tris · ${meshes} meshes · ${done} of ${own.length} points marked\n` +
+      `bounds ${size.x.toFixed(3)} × ${size.y.toFixed(3)} × ${size.z.toFixed(3)} m\n` +
+      `drawn by ${k.s.plugins.join(', ')} on still rows (${k.s.scene}), its marks in ${k.file.replace(/\.glb$/, '.points.json')}`
+    bounds(m, k.box, size)
+    const reach = Math.max(size.x, size.y, size.z), needs = needsOf(k)
+    if (showEmpties) for (const [name, p] of Object.entries(now.points)) {
+      const on = isMarked(k, name)
+      const dot = new THREE.Mesh(new THREE.SphereGeometry(reach * 0.006, 12, 8), new THREE.MeshBasicMaterial({ color: on ? 0x5bbf7a : 0xe0573a, depthTest: false }))
+      dot.renderOrder = 10
+      dot.userData.workshop = true
+      dot.position.fromArray(p.at)
+      const n = needs.find(x => x.name === name)
+      const l = new CSS2DObject(Object.assign(document.createElement('div'), { className: 'label', textContent: n?.label ?? (n?.mirror ? `${needs.find(x => x.name === n.mirror)?.label ?? n.mirror} (right)` : name) }))
+      if (!on) l.element.style.color = '#e0573a'
+      dot.add(l)
+      m.add(dot)
+      made.push(dot)
+    }
+    // the guides, as wire from the sizes as they stand
+    const amber = new THREE.LineBasicMaterial({ color: 0xe0a33a, depthTest: false, transparent: true, opacity: 0.8 })
+    for (const g of k.m.guides(now.sizes)) {
+      const shapes: THREE.Object3D[] = []
+      if (g.box) {
+        const [x, y, z] = g.box.size.map(n => now.sizes[n])
+        const line = new THREE.LineSegments(new THREE.EdgesGeometry(new THREE.BoxGeometry(x, y, z)), amber)
+        line.position.fromArray(g.box.at)
+        shapes.push(line)
+      }
+      if (g.cylinder) for (const at of g.cylinder.at) {
+        const line = new THREE.LineSegments(new THREE.EdgesGeometry(new THREE.CylinderGeometry(now.sizes[g.cylinder.radius], now.sizes[g.cylinder.radius], now.sizes[g.cylinder.length], 24, 1, true).rotateX(Math.PI / 2), 1), amber)
+        line.position.fromArray(at)
+        shapes.push(line)
+      }
+      shapes.forEach((o, i) => {
+        o.userData.workshop = true
+        o.renderOrder = 9
+        if (i === 0) {
+          const l = new CSS2DObject(Object.assign(document.createElement('div'), { className: 'label', textContent: g.label ?? g.name }))
+          l.element.style.color = '#e0a33a'
+          l.position.fromArray(cornerOf(g, now.sizes)).sub(o.position)
+          o.add(l)
+        }
+        m.add(o)
+        made.push(o)
+      })
+    }
+    pinsOn(m)
+  }
   function pinsOn(m: THREE.Object3D) {
     const pins = new THREE.Group()
     pins.userData.workshop = true
@@ -1204,6 +1990,7 @@ const marks = (() => {
     whole = !!lab?.car && carWhole(m)
     if (lab?.solid) return drawSolid(m)
     if (lab?.car) return drawCar(m)
+    if (lab?.mark) return drawMark(m)
     let tris = 0, meshes = 0
     const materials = new Set<string>()
     m.traverse(o => {
@@ -1256,7 +2043,7 @@ const marks = (() => {
         }
       }
       // A point made after the marks were drawn gets its mark.
-      if (m && showEmpties && !lab?.solid && !lab?.car) for (const name of POINTS) { const o = pointIn(m, name); if (o && !o.children.some(c => c.userData.workshop)) { draw(m); break } }
+      if (m && showEmpties && !lab?.solid && !lab?.car && !lab?.mark) for (const name of POINTS) { const o = pointIn(m, name); if (o && !o.children.some(c => c.userData.workshop)) { draw(m); break } }
     },
   }
 })()
@@ -1282,7 +2069,7 @@ function localBox(root: THREE.Object3D) {
 
 // ---------------------------------------------------------------- views
 
-const VIEWS: [View, string][] = [['free', 'Free'], ['front', 'Front'], ['side', 'Side'], ['top', 'Top'], ['close', 'Close-up']]
+const VIEWS: [View, string][] = [['free', 'Free'], ['front', 'Front'], ['back', 'Back'], ['side', 'Side'], ['top', 'Top'], ['close', 'Close-up']]
 $('#views').replaceChildren(...VIEWS.map(([v, text]) => {
   const b = document.createElement('button')
   b.textContent = text
@@ -1293,17 +2080,19 @@ $('#views').replaceChildren(...VIEWS.map(([v, text]) => {
 function frameView(v: View) {
   document.querySelectorAll<HTMLButtonElement>('#views button').forEach(b => b.classList.toggle('on', b.dataset.view === v))
   if (!lab) return
+  if (lab.move) return frameMove(v)
   const camera = lab.P.render3d.camera as THREE.PerspectiveCamera
   const m = shown()
   const body = lab.car ? undefined : lab.P.anim?.model(ROW) as THREE.Object3D | undefined
-  // A model alone, or on a body, is framed on the model; a body alone on the body.
-  const box = m ? localBox(m).applyMatrix4(m.matrixWorld) : body ? new THREE.Box3().setFromObject(body) : new THREE.Box3(new THREE.Vector3(-0.5, 0, -0.5), new THREE.Vector3(0.5, 1, 0.5))
+  // A model alone, or on a body, is framed on the model; a body alone on the body; a marked model on its
+  // bounds at rest, so what its plugins throw off it does not widen the view.
+  const box = m && lab.mark ? lab.mark.box.clone().applyMatrix4(m.matrixWorld) : m ? localBox(m).applyMatrix4(m.matrixWorld) : body ? new THREE.Box3().setFromObject(body) : new THREE.Box3(new THREE.Vector3(-0.5, 0, -0.5), new THREE.Vector3(0.5, 1, 0.5))
   // A machine in an interaction is framed with the body where the step puts it.
   const acting = labAct() && lab.P.anim.model(BODY) as THREE.Object3D | undefined
   if (acting) box.union(new THREE.Box3().setFromObject(acting))
   if (!m && lab.stage) figure.position.set(-0.6, 0, 0)
-  figure.visible = !!lab.stage || !!lab.solid || !!lab.car
-  if ((lab.solid || lab.car) && m) figure.position.set(box.min.x - 0.6, 0, (box.min.z + box.max.z) / 2)
+  figure.visible = !!lab.stage || !!lab.solid || !!lab.car || !!lab.mark
+  if ((lab.solid || lab.car || lab.mark) && m) figure.position.set(box.min.x - 0.6, 0, (box.min.z + box.max.z) / 2)
   if (lab.stage) {
     const own = localBox(lab.stage)
     lab.stage.position.set(-(own.min.x + own.max.x) / 2, -own.min.y, -(own.min.z + own.max.z) / 2)
@@ -1312,13 +2101,13 @@ function frameView(v: View) {
     figure.position.set(box.min.x - 0.5, 0, (box.min.z + box.max.z) / 2)
   }
   const centre = box.getCenter(new THREE.Vector3()), size = box.getSize(new THREE.Vector3())
-  let reach = Math.max(size.x, size.y, size.z, 0.2) / (2 * Math.tan(camera.fov * DEG / 2)) * 1.3
+  let reach = Math.max(size.x, size.y, size.z, 0.2) / (2 * Math.tan(FOV * DEG / 2)) * 1.3
   if (body && m) reach = Math.max(reach, 1.6) // a fit is seen with the body round it
-  const dirs: Record<View, number[]> = { free: [0.7, 0.45, 1], front: [0, 0, 1], side: [1, 0, 0], top: [0, 1, 0.001], close: [0.6, 0.35, 1] }
+  const dirs: Record<View, number[]> = { free: [0.7, 0.45, 1], front: [0, 0, 1], back: [0, 0, -1], side: [1, 0, 0], top: [0, 1, 0.001], close: [0.6, 0.35, 1] }
   const d = new THREE.Vector3().fromArray(dirs[v]).normalize().multiplyScalar(v === 'close' ? reach * 0.4 : reach)
   lab.controls.target.copy(centre)
   camera.position.copy(centre).add(d)
-  camera.updateProjectionMatrix()
+  fit(camera, d.length())
 }
 
 // ---------------------------------------------------------------- the left column
@@ -1379,24 +2168,89 @@ function side() {
     row.onclick = () => choose({ body: b.kind })
     return row
   }))
+  // The game's moves and its marked models, from its `<game>.workshop.ts`, once its scene is booted; or
+  // why it does not boot. Each heading shows where the file makes moves or marks models.
+  const head = $('#moves-head'), list = $('#moves'), markHead = $('#marks-head'), markList = $('#marks')
+  head.style.display = list.style.display = markHead.style.display = markList.style.display = 'none'
+  if (game.workshop) ownOf().then(o => {
+    head.style.display = list.style.display = o.moves ? 'block' : 'none'
+    markHead.style.display = markList.style.display = o.annotate ? 'block' : 'none'
+    if (o.moves) moves(list)
+    if (o.annotate) marked(markList)
+  }, e => {
+    head.style.display = list.style.display = 'block'
+    const why = document.createElement('div')
+    why.className = 'empty'
+    why.textContent = `${game.workshop}: ${(e as Error).message}`
+    list.replaceChildren(why)
+  })
+}
+// The marked models: each its name and how many of its points its file marks.
+function marked(list: HTMLElement) {
+  markingOf().then(async s => {
+    const rows = await Promise.all(s.models.map(async m => {
+      const url = (s.truth.world.loader.assets as Record<string, { url: string }>)[m.model]?.url
+      const file = url?.replace(/^\//, '')
+      const saved = file ? await marksOf(file) : undefined
+      const row = document.createElement('div')
+      row.className = 'item' + (m.name === sel.mark ? ' sel' : '')
+      row.innerHTML = '<div class="top"><span></span><span class="count"></span></div><div class="kind"></div>'
+      row.querySelector('.top span')!.textContent = m.name
+      const done = saved ? m.needs.filter(n => saved.points[n.name]).length : 0
+      const count = row.querySelector('.count')!
+      count.textContent = `${done} / ${m.needs.length}`
+      count.classList.toggle('zero', done === m.needs.length)
+      row.querySelector('.kind')!.textContent = `${m.model} · ${file ?? 'not in the catalogue'}`
+      row.title = done === m.needs.length ? 'every point marked' : `${m.needs.length - done} points not marked: ${m.needs.filter(n => !saved?.points[n.name]).map(n => n.name).join(', ')}`
+      row.onclick = () => choose({ mark: m.name })
+      return row
+    }))
+    list.replaceChildren(...rows)
+  }, e => {
+    const why = document.createElement('div')
+    why.className = 'empty'
+    why.textContent = `${game.workshop}: ${(e as Error).message}`
+    list.replaceChildren(why)
+  })
+}
+// The game's moves.
+function moves(list: HTMLElement) {
+  stationsOf().then(s => {
+    list.replaceChildren(...s.moves.map(m => {
+      const row = document.createElement('div')
+      row.className = 'item' + (m.name === sel.move ? ' sel' : '')
+      row.innerHTML = '<div class="top"><span></span></div><div class="kind"></div>'
+      row.querySelector('.top span')!.textContent = m.name
+      row.querySelector('.kind')!.textContent = `${m.steps.length} step${m.steps.length === 1 ? '' : 's'} · ${m.steps.map(st => st.name).join(', ')}`
+      row.title = m.against
+      row.onclick = () => choose({ move: m.name })
+      return row
+    }))
+  }, e => {
+    const why = document.createElement('div')
+    why.className = 'empty'
+    why.textContent = `${game.workshop}: ${(e as Error).message}`
+    list.replaceChildren(why)
+  })
 }
 
-function choose(c: { model?: string; body?: string; vehicle?: string }) {
+// What is open: a model, a body, a model on a body, a vehicle, a move from its step `first`, or a marked
+// model.
+function choose(c: { model?: string; body?: string; vehicle?: string; move?: string; mark?: string }, first = 0) {
   sel.model = c.model
   sel.body = c.body
   sel.vehicle = c.vehicle
+  sel.move = c.move
+  sel.mark = c.mark
   if (c.vehicle) steer = 0
-  const q = new URLSearchParams({ game: game.game })
-  if (sel.model) q.set('model', sel.model)
-  if (sel.body) q.set('body', sel.body)
-  if (sel.vehicle) q.set('vehicle', sel.vehicle)
-  history.replaceState(null, '', `?${q}`)
   const f = fitOf()
   target = f ? (f.ikOn ? 'anchor' : 'hold') : POINTS[0]
   act = undefined
-  step = 0
+  step = first
+  if (c.move !== undefined) clipT = 0
+  remember()
   framed = false
-  refreshNotes()
+  refreshNotes().catch(fail)
   build()
 }
 
@@ -1545,6 +2399,15 @@ const gizmo = (() => {
 
   // The value set now: place and turn (degrees, XYZ) of the hold, the anchor or a point.
   function get(): { at: number[]; turn: number[] } | undefined {
+    if (lab?.mark) {
+      // A marked model's point, its turn in degrees, XYZ, as a glb's point is; a guide's corner, unturned.
+      const now = marksNow(lab.mark), g = guideOf(target)
+      if (g) return { at: cornerOf(g, now.sizes), turn: [0, 0, 0] }
+      const p = now.points[target]
+      if (!p) return undefined
+      const e = new THREE.Euler().setFromQuaternion(new THREE.Quaternion().fromArray(p.turn), 'XYZ')
+      return { at: p.at, turn: [e.x, e.y, e.z].map(v => v / DEG) }
+    }
     if (lab?.solid || lab?.car) {
       // A node's turn [rx, ry] in radians, shown in degrees with no z; an empty's quaternion in degrees,
       // XYZ, as a glb's point is.
@@ -1565,6 +2428,12 @@ const gizmo = (() => {
   function set(at: number[], turnDeg: number[]) {
     const f = fitOf()
     const r = (v: number[], n: number) => v.map(x => +x.toFixed(n))
+    if (lab?.mark) {
+      const g = guideOf(target)
+      if (g) return dragGuide(g, at)
+      setMark(target, { at, turn: new THREE.Quaternion().setFromEuler(new THREE.Euler(turnDeg[0] * DEG, turnDeg[1] * DEG, turnDeg[2] * DEG, 'XYZ')).toArray() as number[] })
+      return
+    }
     if (lab?.solid || lab?.car) {
       const n = frameNow(target)
       if (n?.node) moveFrame(target, at, [turnDeg[0] * DEG, turnDeg[1] * DEG])
@@ -1604,6 +2473,14 @@ const gizmo = (() => {
   }
   // The object the gizmo moves for what is set now.
   function object(): THREE.Object3D | undefined {
+    if (lab?.mark) {
+      // A marked model's point or a guide's corner: the proxy, hung in the frame its points are in as the
+      // model is drawn, found again each time the plugins draw it again.
+      const frame = lab.mark.m.frame(lab.P, lab.mark.id)
+      if (!frame || !get()) return undefined
+      if (lab.mark.proxy.parent !== frame) frame.add(lab.mark.proxy)
+      return lab.mark.proxy
+    }
     if (lab?.car) {
       // A vehicle's point: the proxy hung in the frame of the empty box3dvehicle draws for it.
       const n = frameNow(target)
@@ -1638,6 +2515,13 @@ const gizmo = (() => {
   function sync() {
     const v = get()
     if (!v || tc?.dragging) return
+    if (lab?.mark) {
+      const p = lab.mark.proxy
+      p.position.fromArray(v.at)
+      p.rotation.set(v.turn[0] * DEG, v.turn[1] * DEG, v.turn[2] * DEG, 'XYZ')
+      p.updateMatrixWorld(true)
+      return
+    }
     if (lab?.solid || lab?.car) {
       const p = (lab.solid ?? lab.car)!.proxy, node = !!frameNow(target)?.node
       p.position.fromArray(v.at)
@@ -1694,10 +2578,11 @@ const gizmo = (() => {
     attach()
   }
   panel.querySelector<HTMLButtonElement>('[data-act=revert]')!.onclick = () => {
+    if (lab?.mark) markEdits.delete(lab.mark.file)
     if (sel.model) pointEdits.delete(modelOf()!.file)
     for (const file of frameFiles()) frameEdits.delete(file)
     const a = labAct()
-    if (a) actEdits.delete(a.file)
+    if (a) { actEdits.delete(a.file); poseEdits.delete(`${a.machine}.${a.name}`) }
     if (fitting()) fits.delete(fitKey())
     build()
   }
@@ -1782,15 +2667,29 @@ const gizmo = (() => {
     },
     get busy() { return !!tc && (tc.dragging || tc.axis !== null) },
     get,
+    set,
+    // Move or Rotate, as the Move and Rotate buttons set it, from anywhere on the page.
+    mode(m: 'translate' | 'rotate') {
+      tc?.setMode(m)
+      panel.querySelectorAll('[data-mode]').forEach(o => o.classList.toggle('on', (o as HTMLElement).dataset.mode === m))
+    },
+    get moving() { return (panel.querySelector<HTMLElement>('[data-mode].on')?.dataset.mode ?? 'translate') as 'translate' | 'rotate' },
   }
 })()
 
 // The panel, as the choice stands: shown for a model (its points) and a body (its clips), the
 // targets for what is chosen, the fields for the target, and whether anything is not saved.
 function fill(rebuildTargets = true) {
+  $('.app').classList.toggle('marking', sel.mark !== undefined)
+  if (sel.move !== undefined) return fillMove()
+  if (sel.mark !== undefined) return fillMark(rebuildTargets)
+  $('#marks-panel').style.display = 'none'
   const panel = $('#fit')
   const f = fitOf()
   panel.style.display = sel.model || sel.body || sel.vehicle ? 'block' : 'none'
+  $('#frames-row').style.display = 'none'
+  $('#targets-row').style.display = ''
+  $('#contacts-head').style.display = $('#contacts').style.display = 'none'
   panel.querySelector('.who')!.textContent = f
     ? `${sel.model} on ${sel.body} · ${f.ikOn ? `IK, anchored at ${f.ik.anchor!.bone}` : `in ${f.hold.bone}`}`
     : sel.vehicle ? `vehicle · ${sel.vehicle} · its points` : sel.body ? `${sel.body} · its clips` : isSolid() ? `${sel.model} · its nodes and empties` : `${sel.model} · its mount points`
@@ -1834,7 +2733,7 @@ function fill(rebuildTargets = true) {
     const turn = $<HTMLInputElement>('#turn')
     if (document.activeElement !== turn) turn.value = String(st.turn ?? 0)
     $('#held').textContent = st.hold ? 'holds until the game ends it' : `lasts ${durOf().toFixed(2)} s`
-    if (rebuildTargets) poles(st)
+    if (rebuildTargets) { poles(st); pose(a!, st) }
   }
   // A vehicle's steer, the car row's: the wheel turned by it times the look's lock.
   $('#steer-row').style.display = sel.vehicle ? '' : 'none'
@@ -1876,6 +2775,161 @@ function fill(rebuildTargets = true) {
   if (!state.dataset.held) state.textContent = shownAny ? (dirty.length ? `not saved: ${dirty.join(', ')}` : 'saved') : ''
 }
 
+// The panel for a move: its steps, the playhead and a frame either way of it, Key frames, and the marks
+// (drawn each frame, `showMarks`). Nothing of a move is saved: what it is made against is the game's
+// level and numbers, and its clips the rig's.
+function fillMove() {
+  $('#marks-panel').style.display = 'none'
+  const panel = $('#fit'), m = lab?.move
+  panel.style.display = 'block'
+  panel.querySelector('.top b')!.textContent = 'Move'
+  panel.querySelector('.who')!.textContent = m ? m.move.against : sel.move!
+  for (const s of ['[data-act=ik]', '[data-act=take]', '#acts-row', '#clip-row', '.step', '#steer-row', '#targets-row', '.add', '#modes', '.nums', '[data-act=save]', '[data-act=revert]']) panel.querySelector<HTMLElement>(s)!.style.display = 'none'
+  panel.querySelector<HTMLElement>('.state')!.textContent = ''
+  panel.querySelector('.reach')!.replaceChildren()
+  for (const s of ['#steps-row', '#time-row', '#frames-row']) panel.querySelector<HTMLElement>(s)!.style.display = ''
+  $('#contacts-head').style.display = $('#contacts').style.display = 'block'
+  panel.querySelector('[data-act=pause]')!.classList.toggle('on', paused)
+  $('#steps').replaceChildren(...(m?.move.steps ?? []).map((st, i) => {
+    const b = document.createElement('button')
+    b.textContent = st.name
+    b.title = `${st.clip}, ${st.dur.toFixed(2)} s${st.loop ? ', looping' : ''}`
+    b.classList.toggle('on', i === step)
+    b.onclick = () => { step = i; clipT = 0; framed = false; measure(); remember(); fill() }
+    return b
+  }))
+}
+// A marked model is worked from the right column, widened for it, and nothing stands over the scene: at
+// its head the model, how many of its own points are marked, whether anything is not saved, Revert and
+// Save; then a table, a line a point or guide, its plain name with a dot (red until it is marked, green
+// after, amber for a guide) and where it goes, one clicked chosen; the `+` for one more of a point it may
+// have more of; under the table, what moves the one chosen: Move and Rotate and its place and turn for a
+// point (a Remove for one more of a point it may have more of), its own sizes for a guide, whose corner
+// is dragged; last, the controls. It is made again when what it shows changes (the line chosen, a point
+// marked, added or taken out); otherwise only its numbers are, so a field being typed in is left alone.
+function fillMark(rebuildTargets = true) {
+  $('#fit').style.display = 'none'
+  $('#contacts-head').style.display = $('#contacts').style.display = 'none'
+  const list = $('#marks-panel'), k = lab?.mark
+  list.style.display = 'block'
+  if (!k) { list.replaceChildren(Object.assign(document.createElement('div'), { className: 'empty', textContent: `${sel.mark}…` })); return }
+  const now = marksNow(k), guides = k.m.guides(now.sizes), needs = needsOf(k), own = needs.filter(n => !n.mirror)
+  // a mirror is no row: it follows its point
+  const rows: { name: string; label: string; group: string; says: string; need: boolean }[] = [
+    ...own.map(n => ({ name: n.name, label: n.label ?? n.name, group: n.group ?? '', says: n.says, need: true })),
+    ...guides.map(g => ({ name: g.name, label: g.label ?? g.name, group: g.group ?? '', says: g.says, need: false })),
+  ]
+  if (!rows.some(r => r.name === target)) target = rows[0].name
+  const guide = guides.find(g => g.name === target)
+  const dirty = changes()
+  const shape = JSON.stringify([k.m.name, target, rows.map(r => [r.name, r.need && isMarked(k, r.name)]), gizmo.moving])
+  if (rebuildTargets || list.dataset.shape !== shape) {
+    list.dataset.shape = shape
+    const el = (tag: string, cls: string, text = '') => Object.assign(document.createElement(tag), { className: cls, textContent: text })
+    const button = (text: string, act: () => void, cls = '') => Object.assign(document.createElement('button'), { textContent: text, className: cls, onclick: (e: Event) => { e.stopPropagation(); act() } })
+    const head = el('div', 'mk-head')
+    head.append(el('b', '', k.m.name), el('span', 'mk-count', `${own.filter(n => isMarked(k, n.name)).length} of ${own.length} marked`), el('span', 'sp'),
+      button('Revert', () => { markEdits.delete(k.file); build() }), button('Save', () => save().catch(fail), 'mk-save'))
+    const out: HTMLElement[] = [head, el('div', 'mk-state')]
+    // a number field of the row chosen, `get` its value now and `put` what is typed
+    const field = (key: string, get: () => number, put: (v: number) => void, step: string) => {
+      const input = Object.assign(document.createElement('input'), { type: 'number', step })
+      input.dataset.mk = key
+      input.addEventListener('input', () => { const v = Number(input.value); if (Number.isFinite(v)) put(v) })
+      input.addEventListener('click', e => e.stopPropagation())
+      ;(input as any).now = get
+      return input
+    }
+    // the table: a line a mark, its name with its dot and where it goes; one clicked is chosen
+    const table = el('table', 'mk-table')
+    const top = el('tr', '')
+    top.append(el('th', '', 'Mark'), el('th', '', 'Where it goes'))
+    table.append(top)
+    for (const r of rows) {
+      const tr = el('tr', r.name === target ? 'on' : '')
+      const name = el('td', 'mk-name')
+      name.append(el('span', `mk-dot ${!r.need ? 'size' : isMarked(k, r.name) ? 'done' : 'todo'}`), r.label)
+      tr.append(name, el('td', 'mk-where', r.says))
+      tr.onclick = () => { target = r.name; gizmo.attach(); fill() }
+      table.append(tr)
+    }
+    out.push(table)
+    for (const a of k.m.adds ?? []) out.push(button(`+ Add ${(a.label ?? a.name).toLowerCase()}`, () => { target = addMark(a.name); gizmo.attach(); fill() }, 'mk-add'))
+    // under the table, what moves the mark chosen
+    const chosen = rows.find(r => r.name === target)!
+    const edit = el('div', 'mk-edit')
+    edit.append(el('div', 'mk-chosen', chosen.label))
+    if (guide) {
+      // a guide's own sizes; its corner is moved, never turned
+      if (gizmo.moving !== 'translate') gizmo.mode('translate')
+      for (const n of guide.box ? guide.box.size : [guide.cylinder!.radius, guide.cylinder!.length]) {
+        const line = el('div', 'mk-line')
+        line.append(el('span', 'mk-lab', k.m.sizes.find(s => s.name === n)?.label ?? n),
+          field(n, () => marksNow(k).sizes[n], v => { if (v > 0) { setSize(n, v); fill(false) } }, '0.01'), el('span', 'mk-unit', 'm'))
+        edit.append(line)
+      }
+    } else {
+      const modes = el('div', 'mk-line')
+      modes.append(button('Move', () => { gizmo.mode('translate'); fill() }, gizmo.moving === 'translate' ? 'on' : ''), button('Rotate', () => { gizmo.mode('rotate'); fill() }, gizmo.moving === 'rotate' ? 'on' : ''))
+      if ((k.m.adds ?? []).some(a => target.startsWith(`${a.name}.`))) modes.append(el('span', 'sp'), button(`Remove ${chosen.label}`, () => { dropMark(target); target = rows[0].name; gizmo.attach(); fill() }))
+      edit.append(modes)
+      for (const [key, unit, step] of [['at', 'm', '0.001'], ['turn', '°', '0.5']] as const) {
+        const line = el('div', 'mk-line')
+        line.append(el('span', 'mk-lab', key === 'at' ? 'place' : 'turn'), ...[0, 1, 2].map(i => field(`${key}.${i}`, () => gizmo.get()![key][i], v => {
+          const now = gizmo.get()!, at = [...now.at], turn = [...now.turn]
+          ;(key === 'at' ? at : turn)[i] = v
+          gizmo.set(at, turn)
+          fill(false)
+        }, step)), el('span', 'mk-unit', unit))
+        edit.append(line)
+      }
+    }
+    out.push(edit)
+    // the controls, sliders over the rows the model is drawn from
+    out.push(el('h4', 'mk-group', 'Effects'))
+    const values = valuesOf(k.m)
+    for (const c of k.m.controls) {
+      const line = el('div', 'mk-line mk-control')
+      const input = Object.assign(document.createElement('input'), { type: 'range', min: String(c.min), max: String(c.max), step: String(c.step) })
+      input.dataset.control = c.name
+      input.addEventListener('input', () => { values[c.name] = Number(input.value); fill(false) })
+      line.append(el('span', 'mk-lab', c.label ?? c.name), input, el('span', 'mk-at'))
+      out.push(line)
+    }
+    list.replaceChildren(...out)
+  }
+  // the numbers, kept up
+  for (const input of list.querySelectorAll<HTMLInputElement>('input[data-mk]')) if (document.activeElement !== input) {
+    const v = (input as any).now() as number
+    input.value = String(+v.toFixed(input.step === '0.5' ? 2 : 4))
+  }
+  const values = valuesOf(k.m)
+  for (const input of list.querySelectorAll<HTMLInputElement>('input[data-control]')) {
+    const v = values[input.dataset.control!]
+    if (document.activeElement !== input) input.value = String(v)
+    input.parentElement!.querySelector('.mk-at')!.textContent = v.toFixed(2)
+  }
+  list.querySelector('.mk-save')!.classList.toggle('on', dirty.length > 0)
+  const state = list.querySelector<HTMLElement>('.mk-state')!
+  if (!state.dataset.held) state.textContent = dirty.length ? 'Not saved' : 'Saved'
+}
+
+// A frame of the game's step either way of the playhead, held there.
+function nudge(by: number) {
+  if (!lab?.move) return
+  paused = true
+  clipT = Math.max(0, Math.min(durOf() - 1e-6, clipT + by * (game.engine.dt ?? 1 / 60)))
+  fill()
+}
+$('#fit').querySelector<HTMLButtonElement>('[data-act=back]')!.onclick = () => nudge(-1)
+$('#fit').querySelector<HTMLButtonElement>('[data-act=ahead]')!.onclick = () => nudge(1)
+$('#fit').querySelector<HTMLButtonElement>('[data-act=sheet]')!.onclick = () => { try { keyFrames() } catch (e) { fail(e) } }
+addEventListener('keydown', e => {
+  if (!lab?.move || (e.target as HTMLElement).closest('input, textarea, select')) return
+  if (e.key === ',') nudge(-1)
+  if (e.key === '.') nudge(1)
+})
+
 // Each IK limb's pole in the step shown, three fields a limb, made again for each step.
 function poles(st: Step) {
   $('#poles').replaceChildren(...(st.ik ?? []).map((l, i) => {
@@ -1899,9 +2953,37 @@ function poles(st: Step) {
   }))
 }
 
+// What the machine does in the step: a number field for each field any step of the interaction gives
+// (mech's jimmy's `kneel`, 0 standing to 1 knelt), empty where this step gives none.
+function pose(a: Act, st: Step) {
+  const fields = [...new Set(Object.values(posesNow(a)).flatMap(p => Object.keys(p)))]
+  $('#pose').replaceChildren(...fields.map(k => {
+    const row = document.createElement('div')
+    row.className = 'pole'
+    const name = document.createElement('span')
+    name.textContent = `${a.machine} ${k}`
+    const v = poseOf(a, st)[k]
+    const input = Object.assign(document.createElement('input'), { type: 'number', step: '0.01', value: v === undefined ? '' : String(v) })
+    input.addEventListener('input', () => {
+      const n = Number(input.value)
+      if (input.value !== '' && Number.isFinite(n)) setPose(k, n)
+    })
+    row.append(name, input)
+    return row
+  }))
+}
+
 // What is changed here and not in the game's files.
 function changes() {
   const out: string[] = []
+  const k = lab?.mark
+  if (sel.mark !== undefined) {
+    if (!k) return out
+    const moved = marksMoved(k), sized = sizesMoved(k)
+    if (moved.length) out.push(`points ${moved.join(', ')}`)
+    if (sized.length) out.push(`sizes ${sized.join(', ')}`)
+    return out
+  }
   const file = ownFile()
   if (file && framing()) {
     for (const f of frameFiles()) {
@@ -1917,6 +2999,8 @@ function changes() {
       const packs = edited.steps.filter(s => s.clip.startsWith('pack:')).map(s => clipName(s.clip))
       if (packs.length) out.push(`bakes ${[...new Set(packs)].join(', ')}`)
     }
+    const posed = a ? posesMoved(a) : []
+    if (posed.length) out.push(`${a!.machine} in ${posed.join(', ')}`)
     return out
   }
   const glb = file
@@ -2039,10 +3123,27 @@ function take() {
 // Save: the points into the glb, the hold and the IK into the game's scenes; a machine's points into
 // their solids models or its vehicle's look, and its interaction.
 async function save() {
-  const glb = ownFile()
-  if (!glb) return
   const state = $('#fit').querySelector<HTMLElement>('.state')!
   const wrote = new Set<string>()
+  const k = lab?.mark
+  if (k) {
+    // A marked model's points file: the points marked here, every size (set here, in the file, or as it
+    // starts) and the sizes measured off the model.
+    const now = marksNow(k)
+    const sizes = Object.fromEntries([...k.m.sizes.map(s => s.name), ...k.m.measured].map(n => [n, +now.sizes[n].toFixed(4)]))
+    savedMarks.set(k.file, await post<Marks>(`/api/beside?file=${encodeURIComponent(k.file)}`, { points: marksToSave(k), sizes, drop: markEdits.get(k.file)?.drop ?? [] }))
+    markEdits.delete(k.file)
+    remark()
+    fill()
+    const said = $('#marks-panel').querySelector<HTMLElement>('.mk-state')!
+    said.dataset.held = '1'
+    said.textContent = `Saved to ${k.file.replace(/\.glb$/, '.points.json')}`
+    setTimeout(() => { delete said.dataset.held; fill(false) }, 4000)
+    side()
+    return
+  }
+  const glb = ownFile()
+  if (!glb) return
   if (framing()) {
     // The nodes and empties moved here into the model's json, in place, and each fitted module's into
     // its own; a vehicle's points into the scene files that give its look (`written`, as the server
@@ -2057,7 +3158,10 @@ async function save() {
       frameEdits.delete(file)
     }
     const a = labAct()
-    if (a) await saveAct(a, state, wrote)
+    if (a) {
+      await saveAct(a, state, wrote)
+      await savePoses(a, wrote)
+    }
   }
   const edits = pointEdits.get(glb)
   if (edits && Object.keys(edits).length) {
@@ -2114,13 +3218,31 @@ async function saveAct(a: Act, state: HTMLElement, wrote: Set<string>) {
   if (baked.size) build()
 }
 
+// What the machine does in each step changed here, written into its definition in the game's
+// definitions file (`/api/machine`), each step changed with every field it has here.
+async function savePoses(a: Act, wrote: Set<string>) {
+  const key = `${a.machine}.${a.name}`, moved = posesMoved(a)
+  if (!moved.length || !a.defs) { poseEdits.delete(key); return }
+  const now = posesNow(a)
+  a.poses = await post<Record<string, Record<string, unknown>>>(`/api/machine?file=${encodeURIComponent(a.defs)}`, { machine: a.machine, name: a.name, poses: Object.fromEntries(moved.map(n => [n, now[n]])) })
+  poseEdits.delete(key)
+  wrote.add(a.defs)
+}
+
 // ---------------------------------------------------------------- notes
 
+// The model notes go on: the one open, or a marked model's glb.
+async function noteModel(): Promise<Model | undefined> {
+  if (sel.mark === undefined) return modelOf()
+  const m = (await markingOf()).models.find(x => x.name === sel.mark)
+  return m && modelOf(m.model)
+}
 async function refreshNotes() {
-  const m = modelOf()
+  const m = await noteModel()
   notes = m ? await api<Note[]>(`/api/notes?file=${encodeURIComponent(m.file)}`) : []
   const list = $('#notes')
-  if (sel.vehicle) list.innerHTML = '<div class="empty">A vehicle has no notes of its own: a note goes on a model (a vehicle\'s glb, when its look has one).</div>'
+  if (sel.move !== undefined) list.innerHTML = '<div class="empty">A move has no notes of its own: a note goes on a model.</div>'
+  else if (sel.vehicle) list.innerHTML = '<div class="empty">A vehicle has no notes of its own: a note goes on a model (a vehicle\'s glb, when its look has one).</div>'
   else if (!m) list.innerHTML = '<div class="empty">Choose a model to see its notes.</div>'
   else if (!notes.length) list.innerHTML = '<div class="empty">No notes. Click the model to add one.</div>'
   else list.replaceChildren(...notes.map(n => {
@@ -2152,8 +3274,8 @@ function goTo(n: Note) {
   const camera = lab.P.render3d.camera as THREE.PerspectiveCamera
   camera.position.fromArray(n.camera.position)
   lab.controls.target.fromArray(n.camera.target)
-  camera.fov = n.camera.fov
-  camera.updateProjectionMatrix()
+  if (camera.isPerspectiveCamera) camera.fov = n.camera.fov
+  fit(camera, camera.position.distanceTo(lab.controls.target))
 }
 
 const ray = new THREE.Raycaster()
@@ -2177,7 +3299,7 @@ view.addEventListener('pointerup', e => {
   pending = {
     at: m.worldToLocal(hit.point.clone()).toArray().map(v => +v.toFixed(5)),
     mesh: label ? label.node : mesh.name, material: label ? label.paint : mat.name,
-    camera: { position: camera.position.toArray(), target: lab.controls.target.toArray(), fov: camera.fov },
+    camera: { position: camera.position.toArray(), target: lab.controls.target.toArray(), fov: camera.isPerspectiveCamera ? camera.fov : FOV },
   }
   const ask = $('#ask'), vr = view.getBoundingClientRect()
   ask.style.left = Math.min(e.clientX - vr.left + 12, vr.width - 252) + 'px'
@@ -2189,7 +3311,7 @@ view.addEventListener('pointerup', e => {
   text.focus()
 })
 async function saveNote() {
-  const text = $('#ask').querySelector('textarea')!.value.trim(), m = modelOf()
+  const text = $('#ask').querySelector('textarea')!.value.trim(), m = await noteModel()
   if (!text || !pending || !m) return
   await post(`/api/notes?file=${encodeURIComponent(m.file)}`, { ...pending, text })
   closeAsk()
@@ -2211,6 +3333,7 @@ function toggle(id: string, flip: () => boolean) {
 toggle('wire', () => (wire = !wire))
 toggle('bounds', () => (showBounds = !showBounds))
 toggle('empties', () => (showEmpties = !showEmpties))
+$('#ortho').onclick = () => { ortho = !ortho; $('#ortho').classList.toggle('on', ortho); build() }
 
 // ---------------------------------------------------------------- bring a model from another game
 
@@ -2268,6 +3391,21 @@ const staleActs = new Set<string>() // interactions' files written on disk since
 new EventSource('/api/events').onmessage = e => {
   const [what, file] = String(e.data).split(' ')
   if (what !== 'changed' || !game || !file.startsWith(`games/${game.game}/`)) return
+  // A move is made by the game's own code and files, read once as the page imports them: any of them
+  // written loads the page again, on the same move and step, the camera kept.
+  if (sel.move !== undefined && !file.endsWith('.notes.json')) { keep(); location.reload(); return }
+  // A marked model's points file or its glb written is read again and drawn again in place (what is set
+  // here stays); its notes are read again; any other file of the game loads the page again on the same
+  // model, the camera kept, since its workshop file and the scene it boots are read once.
+  if (sel.mark !== undefined) {
+    const k = lab?.mark
+    if (k && file === k.file.replace(/\.glb$/, '.notes.json')) { refreshNotes().catch(fail); return }
+    if (!k || (file !== k.file && file !== k.file.replace(/\.glb$/, '.points.json'))) {
+      if (!file.endsWith('.notes.json') && !file.endsWith('.points.json')) { keep(); location.reload() }
+      return
+    }
+    savedMarks.delete(k.file)
+  }
   const m = modelOf()
   if (m && file === notesOf(m.file)) { refreshNotes().then(() => side()).catch(fail); return }
   if (file.endsWith('.notes.json')) return
@@ -2304,8 +3442,11 @@ new ResizeObserver(() => {
 async function open(name: string) {
   game = await api<Game>(`/api/game/${name}`)
   fits.clear()
+  own = stations = marking = undefined
   const q = new URLSearchParams(location.search)
-  const model = q.get('model') ?? undefined, body = q.get('body') ?? undefined, vehicle = q.get('vehicle') ?? undefined
+  const model = q.get('model') ?? undefined, body = q.get('body') ?? undefined, vehicle = q.get('vehicle') ?? undefined, move = q.get('move') ?? undefined, mark = q.get('mark') ?? undefined
+  if (move !== undefined && game.workshop) return choose({ move }, Math.max(0, Number(q.get('step')) || 0))
+  if (mark !== undefined && game.workshop) return choose({ mark })
   if (vehicle && carOf(vehicle)) return choose({ vehicle })
   const chosen = game.models.find(m => m.key === model)
   // A solids model is shown alone: no body holds one.
@@ -2321,4 +3462,4 @@ picker.onchange = () => { history.replaceState(null, '', `?game=${picker.value}`
 await open(first)
 
 // The view's pieces, for a test driving the page to read the camera, the model and the fit off.
-Object.assign(window, { workshop: { get lab() { return lab }, get shown() { return shown() }, get fit() { return fitOf() }, get sel() { return sel }, get building() { return building } } })
+Object.assign(window, { workshop: { get lab() { return lab }, get shown() { return shown() }, get fit() { return fitOf() }, get sel() { return sel }, get building() { return building }, get move() { return lab?.move }, get mark() { return lab?.mark && { ...lab.mark, now: marksNow(lab.mark) } } } })

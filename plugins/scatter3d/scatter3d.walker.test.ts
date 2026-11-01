@@ -1,8 +1,8 @@
 // scatter3d's mod for walker, given to walker by one key of a scene: `world.walker.mods.solids` is
 // 'scatter3d', with terrain3d's `height` beside it. The test writes a manager and one child, `wood`,
 // which `load` boots as a game's would: level ground with trunks on it, placed through
-// `world.scatter3d.mods.ground`. A body walked on walker's `groundOf` straight at a trunk walks round
-// it, never inside its circle. Its `probe` hands the test the child's `w`.
+// `world.scatter3d.mods.ground`. The scene's key hands walker scatter3d's solids before the first step.
+// Its `probe` hands the test the child's `w`.
 import { afterAll, expect, test } from 'vitest'
 import { mkdtempSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
@@ -14,7 +14,7 @@ import { scenemanager } from '#plugins/scenemanager/scenemanager.sim.ts'
 import { written } from '#plugins/loader/loader.sim.ts'
 import type { Field } from '#plugins/terrain3d/terrain3d.sim.ts'
 import type { Numbers } from '#plugins/walker/walker.sim.ts'
-import { placed, solids as over, type Scatter, type Solid } from './scatter3d.sim.ts'
+import type { Scatter } from './scatter3d.sim.ts'
 import { solids } from './scatter3d.walker.ts'
 
 const DT = 1 / 60
@@ -89,22 +89,4 @@ async function booted() {
 test('the scene\'s one key gives walker scatter3d\'s solids, loaded before the first step', async () => {
   const { child } = await booted()
   expect(mod(child.world, 'walker', 'solids')).toBe(solids)
-})
-
-test('a body walked on groundOf straight at a trunk walks round it, never inside its circle', async () => {
-  const { child, w } = await booted()
-  const all = over(w, 0, 0, 120, placed(w))
-  // A trunk with nothing else within 5 m of it along the body's way.
-  const trunk = all.find(s => all.every((o: Solid) => o === s || Math.hypot(o.x - s.x, o.z - s.z) > o.radius + s.radius + 5))!
-  expect(trunk).toBeDefined()
-  const body = w.spawn('body', { pos: [trunk.x - 4, 0, trunk.z + 0.05], want: [2, 0] })
-  let nearest = Infinity
-  for (let i = 0; i < 300; i++) {
-    child.step(DT)
-    nearest = Math.min(nearest, Math.hypot(body.data.pos[0] - trunk.x, body.data.pos[2] - trunk.z))
-  }
-  expect(nearest).toBeGreaterThanOrEqual(trunk.radius + K.radius - 1e-9)
-  expect(nearest).toBeLessThan(trunk.radius + K.radius + 0.1)
-  // Round it, and on past it.
-  expect(body.data.pos[0]).toBeGreaterThan(trunk.x + 3)
 })

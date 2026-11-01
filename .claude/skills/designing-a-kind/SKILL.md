@@ -11,7 +11,7 @@ each thing of it is a row. The engine's whole API for a kind is the top of `engi
 (`Kind`, `Hook`, `Act`, `W`) and of `engine/browser.ts` (`Actor`, `Plugins`, `Wire`), with the order
 a step runs in shown by `engine/engine.test.ts`. The engine is frozen: nothing here edits it. The
 game `yarn new-game` writes (its files are listed in the header of
-`extensions/games/games.route.ts`) still makes the seat's square a `body` row its `player` row spawns,
+`scripts/new-game.ts`) still makes the seat's square a `body` row its `player` row spawns,
 the pattern that drew every game's thing a round trip after its key; it is folded into `player`
 before anything else (`starting-a-game`, Fold the body into the player row), and the `body` files are
 never read as a model. Once folded, its working kinds to read first are `player.sim.ts` and
@@ -83,8 +83,7 @@ never on `world` or in a definition: it is a `start` actor per slot, which `yarn
    `{}` when it has none (a kind with no prefab throws `no prefab for <kind>`: at boot for an
    `actors` entry, at the `w.spawn` call for a spawned row). A prefab
    every scene of the game uses may go in the manager's `<game>.scene.json` instead, written once.
-   A thing that stands somewhere keeps `pos` there, which the editor's placer for the scene's
-   renderer moves (`plugins/render2d/render2d.extension.tsx`).
+   A thing that stands somewhere keeps `pos` there, and each of its `actors` entries sets its own.
 5. Its rule: `games/<game>/<kind>.sim.ts`, exporting `export const <kind>: Kind = { ... }`, with a
    header comment saying what each field means and what the rule does (below).
 6. The scene's sim: `<scene>.sim.ts` imports the rule and lists it in `sim`. Every kind the scene
@@ -99,16 +98,7 @@ never on `world` or in a definition: it is a `start` actor per slot, which `yarn
 9. Its test beside the rule, `<kind>.sim.test.ts`, run (How it is proven).
 10. Play it.
 
-The editor's New kind (the Kinds panel, or `kinds.make` on its MCP endpoint,
-`extensions/kinds/kinds.extension.tsx` and `kinds.route.ts` beside it) makes a kind as one change
-with one undo, blank or like another kind of the game. Made blank, it writes a rule that does
-nothing, `export const <kind>: Kind = {}`, the import and entry in each scene sim picked, and an
-empty prefab, and no look and no definition: steps 3 and 8 stay to be done, and until the
-definition is written every `def(w, me.kind)` throws `<defs> has no definition of <kind>`. Made
-like another kind, it copies that kind's rule, its look when it has one, its prefab and its
-definition under the new name, and puts the new kind beside it in the tables and lists of the
-game's data picked.
-The job is the whole kind, steps 1 to 10, either way.
+The job is the whole kind, steps 1 to 10.
 
 ## The rule
 
@@ -345,8 +335,8 @@ hair from the server's. A rule imports `plugins/math`, `import * as math from
 `outsidedata/three.js`, whose `src/math` turns every angle with a copy of the same code, so a rule
 may use three's vectors, quaternions, matrices, `Euler` and `MathUtils` (`setFromAxisAngle`, `slerp`,
 `angleTo` and all); the rest of three, its curves and its scene graph, calls `Math` as the engine has
-it and stays out of rules. `games/games.test.ts` fails on a rule of any game that breaks either, and
-`plugins/math/math.sim.test.ts` on a plugin's server half. A look only draws, and may use `Math`.
+it and stays out of rules. No test catches a rule that calls them on `Math`: it is found by reading
+the rule. `plugins/math/math.sim.test.ts` pins that `math` itself hands back the same bits. A look only draws, and may use `Math`.
 
 ## What goes wrong
 
@@ -449,12 +439,9 @@ yarn vitest run games/<game>/<game>.sim.test.ts
 yarn tsc
 ```
 
-`yarn tsc` checks the game's files; `yarn lint` does not reach them. A test that attaches the game
-view, so the client is made and draws frames, is `<kind>.view.test.tsx`, run with
-`yarn test:view <path>`.
+`yarn tsc` checks the game's files.
 
-Then play it: `yarn editor <game>`, and open `http://localhost:5173/games/<game>/index.html`, or
-the editor at `http://localhost:5173/editor/?game=<game>`. The thing is drawn where its row says,
+Then play it: `yarn dev`, and open `http://localhost:5173/games/<game>/index.html`. The thing is drawn where its row says,
 it acts on what it should, and a row that ends leaves nothing drawn. A kind that draws is looked at in
 Chrome (`.claude/skills/good-webviews/`), and a screen in each state it has, a screenshot of each read
 for every line standing inside its background; the work is not done until what those shots showed is

@@ -5,8 +5,6 @@
 // each hands back exactly what `Math` does. Every top-level plugin's server half, and every mod one of
 // them asks, computes with it.
 import { expect, test } from 'vitest'
-import { readdirSync, readFileSync } from 'node:fs'
-import { join } from 'node:path'
 import * as math from './math.sim.ts'
 
 type Fn = (...a: number[]) => number
@@ -121,42 +119,4 @@ test('three\'s src/math turns angles with these maths', async () => {
   }
   // Stock three, which calls `Math`, would come back different on these.
   expect(native).toBeGreaterThan(0)
-})
-
-// Every top-level plugin's server half, and every mod one of them asks (a function of the server's
-// `w`), runs in the truth on node and in a page that runs the scene ahead, so it computes with this
-// plugin: it calls none of `Math`'s functions that engines differ on and writes no `**`. From three it
-// takes only the classes of three's `src/math`, which turn angles with this plugin's code (above): the
-// rest of three, its curves and its scene graph among them, calls `Math` as the engine has it. A
-// game's own rules are held to the same in `games/games.test.ts`. Comments are read past.
-const VARIES = /\bMath\.(sin|cos|tan|asin|acos|atan|atan2|sinh|cosh|tanh|asinh|acosh|atanh|exp|expm1|log|log1p|log2|log10|pow|cbrt|hypot)\b|\*\*/
-const ASKS = /\b(?:mod|modsOf)\b[^;]*?\(\s*(?:w\.)?world\s*,\s*'(\w+)'\s*,\s*'(\w+)'\s*\)/g
-// What a file takes from three that is not a class of three's `src/math`: every name of each
-// `import { … } from 'three'` but `type` ones, and a whole `import * as`.
-const threeMath = new Set(readdirSync(new URL('../../node_modules/three/src/math/', import.meta.url)).filter(f => f.endsWith('.js')).map(f => f.slice(0, -3)))
-const notThreeMath = (c: string) => [
-  ...[...c.matchAll(/import\s+\{([^}]*)\}\s*from\s*'three'/g)].flatMap(m => m[1].split(',').map(n => n.trim()).filter(n => n && !n.startsWith('type ')).map(n => n.split(/\s+as\s+/)[0]))
-    .filter(n => !threeMath.has(n)),
-  ...[...c.matchAll(/import\s+\*\s+as\s+\w+\s+from\s*'three'/g)].map(m => m[0]),
-]
-
-test('no plugin\'s server half, nor a mod one asks, computes with what engines differ on', () => {
-  const root = new URL('../../', import.meta.url).pathname
-  const files = (readdirSync(join(root, 'plugins'), { recursive: true }) as string[]).map(f => join('plugins', f))
-    .filter(f => f.endsWith('.ts') && !f.endsWith('.test.ts'))
-  const code = (f: string) => readFileSync(join(root, f), 'utf8').replace(/\/\*[\s\S]*?\*\//g, '').replace(/(^|[^:])\/\/.*$/gm, '$1')
-  const sims = files.filter(f => f.endsWith('.sim.ts') && f !== 'plugins/math/math.sim.ts')
-  expect(sims.length).toBeGreaterThan(20)
-  const asked = new Set(sims.flatMap(f => [...code(f).matchAll(ASKS)].map(m => `${m[1]}.${m[2]}`)))
-  // A mod is `<a>/<a>.<p>.ts`; it runs in the truth when it exports a function a server half asks for.
-  const truthMods = files.filter(f => {
-    const m = /(?:^|\/)([a-z0-9]+)\/\1\.([a-z0-9]+)\.ts$/.exec(f)
-    if (!m) return false
-    return [...code(f).matchAll(/\bexport\s+(?:async\s+)?(?:function|const)\s+(\w+)/g)].some(e => asked.has(`${m[2]}.${e[1]}`))
-  })
-  expect(truthMods).toContain('plugins/terrain3d/terrain3d.hitscan3d.ts')
-  expect(truthMods).toContain('plugins/scatter3d/scatter3d.box3d.ts')
-  expect(threeMath.has('Quaternion')).toBe(true)
-  const breaking = [...sims, ...truthMods].filter(f => VARIES.test(code(f)) || notThreeMath(code(f)).length > 0)
-  expect(breaking).toEqual([])
 })

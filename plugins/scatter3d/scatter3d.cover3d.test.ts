@@ -1,8 +1,8 @@
 // scatter3d's mod for cover3d, given to cover3d by one key of a scene: `world.cover3d.mods.solids` is
 // 'scatter3d'. The test writes a manager and one child, `wood`, which `load` boots as a game's would:
 // hills with firs that stand `tall`, trunks that stand without end and ferns that are no solid, placed
-// through `world.scatter3d.mods.ground`. cover3d finds cover behind them, each as tall as its row's
-// `tall` times its size or without end. Its `probe` hands the test the child's `w`.
+// through `world.scatter3d.mods.ground`. The scene's key hands cover3d scatter3d's solids before the
+// first step. Its `probe` hands the test the child's `w`.
 import { afterAll, expect, test } from 'vitest'
 import { mkdtempSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
@@ -13,7 +13,6 @@ import { load, mod } from '#addons/scenemanager/scenemanager.addon.ts'
 import { scenemanager } from '#plugins/scenemanager/scenemanager.sim.ts'
 import { written } from '#plugins/loader/loader.sim.ts'
 import type { Field } from '#plugins/terrain3d/terrain3d.sim.ts'
-import { spots } from '#plugins/cover3d/cover3d.sim.ts'
 import type { Scatter } from './scatter3d.sim.ts'
 import { solids } from './scatter3d.cover3d.ts'
 
@@ -81,18 +80,4 @@ async function booted() {
 test('the scene\'s one key gives cover3d scatter3d\'s solids, loaded before the first step', async () => {
   const { child } = await booted()
   expect(mod(child.world, 'cover3d', 'solids')).toBe(solids)
-})
-
-test('cover3d finds cover behind them: each spot against the far side of one of them, straight on from the threat', async () => {
-  const { w } = await booted()
-  const threat = [40, -25]
-  const got = spots(w, [0, 0], threat, { reach: 20, radius: 0.35, low: 1.5 })
-  expect(got.length).toBeGreaterThan(3)
-  for (const s of got) {
-    expect(s.tall).toBeGreaterThanOrEqual(1.5)
-    const behind = solids(w, s.at[0], s.at[1], 20).find(o => Math.abs(Math.hypot(s.at[0] - o.x, s.at[1] - o.z) - (o.radius + 0.35)) < 1e-9)!
-    expect(behind.tall ?? Infinity).toBe(s.tall)
-    const toCentre = Math.hypot(behind.x - threat[0], behind.z - threat[1])
-    expect(Math.hypot(s.at[0] - threat[0], s.at[1] - threat[1])).toBeCloseTo(toCentre + behind.radius + 0.35, 9)
-  }
 })

@@ -1,6 +1,6 @@
 ---
 name: scene-flow
-description: Use in core, or any clone of it, when a game has, or is getting, more than one scene. That covers a title or start screen, a main menu, levels in sequence, a game over and back, a cutscene or intro between scenes, a hub and its rooms, "go to another scene", "switch scenes", "next level", "back to the menu", "restart the level" and "carry the score to the next level". It covers the manager scene and its children (`<game>.scene.json`, `scenes`, `entry`, `suspend`, `enter`), the `scenemanager` addon and plugin (`go`, `out`, `arrive`, envelopes, `view` making one client per scene), a menu's plain seat, and what crosses a move and what does not (the store, `arrive`, a scene that is never booted again). It also covers the `cutscene` plugin's `go` at its end, whether `party` moves seats together (it does not), the editor's Scenes panel and fields that name a scene (`scenemanager.scene`), and entering a scene directly from `dev.html`.
+description: Use in core, or any clone of it, when a game has, or is getting, more than one scene. That covers a title or start screen, a main menu, levels in sequence, a game over and back, a cutscene or intro between scenes, a hub and its rooms, "go to another scene", "switch scenes", "next level", "back to the menu", "restart the level" and "carry the score to the next level". It covers the manager scene and its children (`<game>.scene.json`, `scenes`, `entry`, `suspend`, `enter`), the `scenemanager` addon and plugin (`go`, `out`, `arrive`, envelopes, `view` making one client per scene), a menu's plain seat, and what crosses a move and what does not (the store, `arrive`, a scene that is never booted again). It also covers the `cutscene` plugin's `go` at its end, whether `party` moves seats together (it does not), and entering a scene directly from `dev.html`.
 ---
 
 # Scene flow
@@ -20,8 +20,6 @@ What applies instead:
 - Laying out a level, its map and its actors (`actorsFile`, `<level>.actors.json`):
   `building-a-level`.
 - More than one person over a network, `client.html` against the server: `going-multiplayer`.
-- Any editor work beyond binding a field to a type and the scene check of step 8:
-  `building-an-extension`.
 - A new plugin, or a mod (the Mods header of `addons/scenemanager/scenemanager.addon.ts`):
   `building-a-plugin`. A scene author only names a mod in `world.<p>.mods`.
 
@@ -108,7 +106,7 @@ every game but the file names they import. `client.html` wraps its link in `pred
 The pages); the template still writes it with `view` alone, and it is put in that shape before the
 game is played over a network (`publishing-a-game`). `index.html` and `client.html` hold no scene name.
 `<game>.server.ts` names the scene `yarn new-game` made in its opening comment and nowhere in its
-code; step 9 takes the name out. The page boots the manager, and `view` follows the envelopes
+code; step 8 takes the name out. The page boots the manager, and `view` follows the envelopes
 wherever the seat goes, so adding a scene, changing the entry or moving seats changes no line of
 code in any page. The page names its transport in one line: `index.html` a loopback, `client.html` a
 dial, the server a serve. The scenemanager carries envelopes over whichever transport it is handed,
@@ -119,17 +117,14 @@ name a scene (below).
 ## The work
 
 1. Write the scene.
-   - A scene that shares its kinds with one already there, a second level: the editor's Scenes
-     panel, New scene (the command `scenes.new`), makes it from that scene as one change and one
-     undo (`plugins/scenemanager/scenemanager.extension.tsx`). It writes `<name>.scene.json` beside
-     the manager's, a copy of the source's file with the actors of the kinds the form keeps (all of
-     them unless unticked); `<name>.sim.ts`, which exports the scene file as `scene` and hands out
-     as `sim` whichever sim the source hands out, `export { sim } from './<that>.sim.ts'`, the module
-     the source's sim hands out another's from, else the source's own (`simOf`, `simText`); its own
-     copy of each file the source's `world` names that not every scene names, its map say, catalogued
-     where the source's entry was (unticked, the two share it); and, last, its entry in the table, a
-     copy of the source's entry. `scenes.add` does the same with a scene file handed to it, or a
-     copy of the source's, and copies no file.
+   - A scene that shares its kinds with one already there, a second level, is made from that scene:
+     `<name>.scene.json` beside the manager's, a copy of the source's file with the actors it keeps;
+     `<name>.sim.ts`, which imports the scene file, exports it as `scene` and hands out as `sim`
+     whichever sim the source hands out, `export { sim } from './<that>.sim.ts'`, the module the
+     source's sim hands out another's from, else the source's own; its own copy of each file the
+     source's `world` names that it does not share with it, its map say, catalogued where the
+     source's entry was; and, last, its entry in the manager's `scenes`, a copy of the source's
+     entry.
    - A scene with kinds of its own, a title or a game-over screen: write `<scene>.scene.json` and
      `<scene>.sim.ts` beside the manager's by hand, and add `"<scene>": { "file":
      "<scene>.scene.json", "suspend": true }` to the manager's `scenes`. The sim imports the scene
@@ -141,10 +136,8 @@ name a scene (below).
      its first step and its first frame, and an `engine` prefab with `dt`, `width` and `height`,
      which size the page's canvases.
    - Give the scene's own kind a name no scene has. A kind's rule is `<kind>.sim.ts` and a scene's
-     sim is `<scene>.sim.ts`, so a `title` kind in a `title` scene would be one file. The editor
-     holds to it (`extensions/kinds/kinds.route.ts`): New kind refuses a name whose `<kind>.sim.ts`
-     is there already, and the kinds listing counts no `.sim.ts` that has a `.scene.json` beside it
-     as any kind's rule. A `title` scene shows a `titlecard`, say.
+     sim is `<scene>.sim.ts`, so a `title` kind in a `title` scene would be one file. A `title`
+     scene shows a `titlecard`, say.
 
 2. Move up what every scene reads. `yarn new-game` writes `world.defs` and `world.loader`, the
    definitions file and its catalogue entry, into its one scene's file. A second scene that reads a
@@ -155,10 +148,9 @@ name a scene (below).
    Every scene a seat plays in gives `world.predict`, so `client.html` runs it ahead and the seat's
    own `player` row answers the key on the next frame (`going-multiplayer`, A scene run ahead): it
    is written once in the manager's `world` when every scene is one a seat plays in, and otherwise
-   in each level's own, a scene made with New scene taking its source's with the rest of its file.
+   in each level's own, a scene made from another taking its source's with the rest of its file.
 
-3. Set the entry: `entry` in the manager's `scenemanager` prefab. The Scenes panel marks it and will
-   not take it out.
+3. Set the entry: `entry` in the manager's `scenemanager` prefab.
 
 4. A title screen, or any menu that leads somewhere.
    - It lists no `player`: `"plugins": ["loader", "scenemanager", "ui"]`, with no render2d or
@@ -267,19 +259,7 @@ name a scene (below).
      row spawns a count from. Every `go` into that level carries args, the title's button included: a
      `go` with none brings no `arrive`, and the row never stands.
 
-8. Bind every field that names a scene. The game's own extension, `games/<game>/<game>.extension.tsx`,
-   exports the function `<game>` and binds each such field to the scenemanager's field type,
-   `scenemanager.scene`: a definition's field with `ed.bind('<kind>', { <field>: 'scenemanager.scene'
-   })`, a `world` field of the scene files with `ed.bindFile(path => path.endsWith('.scene.json'), {
-   'world.<field>': 'scenemanager.scene' })`, or `'world.<field>.*'` for a map of exits. The editor
-   then shows each as a pick of the game's scenes, and the manager's `entry` is bound already. Remove
-   refuses to take out a scene a bound field names, unless told to anyway, but it looks only in the
-   scenes' prefabs and `actors` entries, their actors files and the definitions (`namingsOf` in
-   `plugins/scenemanager/scenemanager.extension.tsx`), not in `world`. The first game that names a
-   scene in `world` extends `namingsOf` to walk each scene file's `world` against the file bindings,
-   with its test beside it; the value never moves onto a row to be seen.
-
-9. Fix what assumed one scene. The `<game>.sim.test.ts` that `yarn new-game` writes connects a seat
+8. Fix what assumed one scene. The `<game>.sim.test.ts` that `yarn new-game` writes connects a seat
    and reads its `body` in the first scene; once the `body` is folded into the `player` row it reads
    the seat's `player` row instead. With a title as the entry it fails, and it is rewritten to
    go from the entry first. The comments `yarn new-game` writes name the one scene: `<game>.sim.ts`
@@ -365,12 +345,13 @@ as the cutscene's end does for its cast. Members in different scenes cannot be m
 
 `dev.html`, beside `index.html`, is `index.html` with changes made before the boot to the page's own
 copy in memory. Entering a scene directly is `file.prefabs.scenemanager.entry = '<scene>'` before
-`boot(file, sim)`. A child scene's file is changed the same way by importing it, `import main from
+`boot(file, sim)`; the basic page reads it off the address, `dev.html?scene=<scene>`, and the home
+page, `localhost:5173`, links each scene the manager names that way (`scripts/home.ts`). A child scene's file is changed the same way by importing it, `import main from
 './main.scene.json'`: it is the module the scene's sim exports, so the manager boots the changed
 copy. The entry is entered with no args, so a scene whose `player` row waits for `arrive` never
 stands it when entered directly; `dev.html` writes those fields on its `player` prefab in memory.
 Nothing else overrides the entry, and nothing reads what `dev.html` set. The rest of the testbed is
-`starting-a-game`'s.
+`using-the-dev-page`'s.
 
 ## What goes wrong
 
@@ -398,13 +379,13 @@ Nothing else overrides the entry, and nothing reads what `dev.html` set. The res
   `world` once.
 - The title's kind is named `title` in the `title` scene. A kind is named after no scene.
 - A rule or an actor writes a scene name in its code, `go('main')`. The name is a field of the
-  scene's `world` or of a kind's definition, bound to `scenemanager.scene`.
+  scene's `world` or of a kind's definition.
 - An exit's destination is written on its `actors` entry, where the row carries it to every seat
   every step. The entry holds which exit it is; the level's `world` holds where each leads.
 - A page, `index.html` or `client.html`, gets a scene name or a listener that moves the seat.
   Entering a scene to try it is `dev.html`'s.
-- A title is made with New scene from a level. The new scene hands out the level's sim and copies
-  its table entry. A scene with kinds of its own gets a sim of its own, written by hand.
+- A title is made from a level, handing out the level's sim and copying its table entry. A scene
+  with kinds of its own gets a sim of its own.
 - Args are sent to a plain-seat scene, expecting them to arrive. They are dropped: only a scene that
   lists `player` gets `arrive`, and core hands `enter` none (What crosses a move).
 - A score copied into the store so a game-over screen can show it. The store is the page's alone;
@@ -449,18 +430,10 @@ Each test sits beside the file it tests and is run alone: `yarn vitest run games
   client is closed (its `plugins.scenemanager.here` is false) and its listeners are gone, and that
   the next scene's rows reach the new client. `plugins/store/store.plugin.test.ts` is core's own
   page test across two scenes.
-- The game's extension test, `<game>.extension.test.tsx`, runs in jsdom on `editor/test/editor.ts`:
-  `sandbox(['<game>'])`, then `editor('<game>', { scenemanager: async () => ({ scenemanager }),
-  <game>: async () => ({ <game> }) })` and `ed.open()`, with the scenemanager's routes answered
-  (`answer('scenemanager', routes)`). A definition's field is `ed.typeOf('<kind>', ['<field>'])` and
-  a `world` field `ed.typeOf(undefined, ['world', '<field>'], 'games/<game>/<scene>.scene.json')`,
-  each `scenemanager.scene`; and `removeScene` of a scene a bound field names is refused, naming the
-  file and the field. The extension of `namingsOf` to `world` is tested beside the scenemanager's
-  extension, on a game its test writes, since a test outside `games/` uses no game in `games/`.
 - No test joins a page to a truth by hand, with a pipe of its own or packets handed to a client: it
   takes the loopback, as the pages do.
 
-Played: `yarn editor <game>` serves every game's pages, `localhost:5173/games/<game>/index.html`
+Played: `yarn dev` serves every game's pages, `localhost:5173/games/<game>/index.html`
 and `dev.html`. The entry draws first, its key moves the seat, the next scene's canvas takes the
 place of the last, and the way back draws the entry again. `dev.html` draws the scene it enters
 first.
@@ -477,7 +450,7 @@ first.
 - Can the arrived score be handed to a `tally` row the `player` row spawns? No: the seat's own state is
   a field of its `player` row (`designing-a-seat`).
 - Can a scene's name be written in code? No: a field of the scene's `world` or of a kind's
-  definition, bound to `scenemanager.scene`.
+  definition.
 - Can a level be booted again so it starts fresh? No: a rule spawns its cast again from
   `w.world.scenemanager.actors`.
 - Can a page name a scene or move the seat? No: `dev.html` enters a scene, and a rule or a button

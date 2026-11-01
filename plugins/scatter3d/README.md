@@ -23,7 +23,7 @@ handed in through a mod, never imported: `{ height, cover, ramp, rules, edits }`
   `density` × the ground's `cover` there (0 on a road) × each rule's ramp over the land record (an
   inverted ramp on height is a treeline) × Σ weight·share of the `biomes` it names; none inside
   `clearing` of the origin.
-- `place(pack, i, j, ground)` is a cell's instance `{ i, j, x, z, row, size, yaw, tint }` or undefined.
+- `place(pack, i, j, ground)` is a cell's instance `{ i, j, x, z, row, size, yaw, tint, sink }` or undefined.
 - `solids(w, x, z, r, ground)`: every kept instance of a row with `solid` whose circle reaches within
   r, `{ x, z, radius, tall? }`, remembering up to `remember` cells per truth and dropping those a
   terrain edit reaches.
@@ -31,7 +31,8 @@ handed in through a mod, never imported: `{ height, cover, ramp, rules, edits }`
 
 A pack is `asset` (a loader `model` whose meshes are named `<row>-<lod>[-<part>]`) or `shape`
 (boulders: lumpy icosahedra, with an optional noise `surface` of albedo, bump, moss on up-facing
-faces and roughness), with `rows` (`{ weight, solid?, tall? }`), `cell`, `seed`, `lods`, `shadow`,
+faces and roughness), with `rows` (`{ weight, solid?, tall?, sink? }`, `sink` [base, spread] the share
+of each instance's height pushed under the ground, drawn per cell), `cell`, `seed`, `lods`, `shadow`,
 `leaf`, `density`, `rules`, `biomes?`, `clearing`, `size`, `vary`.
 
 **Browser half (`scatter3d.plugin.ts`).** Each pack is a field of cells following render3d's camera,
@@ -52,7 +53,8 @@ never overflows.
 Crossing a cell only asks the rings that change shell; new cells are queued nearest first and placed
 within `budget` milliseconds a frame, or in the land's workers (`scatter3d.cells.ts`, the same
 arithmetic to the bit). Each instance is bedded: tilted `lean` of the way to the ground's fitted plane
-(a tussock follows the slope, a fir stands up straight) and sunk so its foot touches.
+(a tussock follows the slope, a fir stands up straight), sunk so its foot touches, and then lowered
+its cell's `sink` of its height, so a model boulder stands buried as a shape's does.
 
 Cards: every BLEND material becomes alpha-tested at `cutout`, alpha gains `coverage` per mip level so
 far firs do not thin to sticks, and `leaf` bends card normals toward the sky so a crown is lit and
@@ -79,8 +81,9 @@ It hands out `solids(x, z, r)`, `packs()` and `ready()`.
 - **terrain3d**: the mod `terrain3d.scatter3d.ts` (`mods: { ground, land: 'terrain3d' }`) is the
   ground both halves stand on; scatter3d's mod `scatter3d.terrain3d.ts` (`world.terrain3d.mods:
   { ready: ['scatter3d'] }`) holds a prepared place until the scatter on it is placed too.
-- **walker**: the mod `scatter3d.walker.ts` (`world.walker.mods: { solids: 'scatter3d' }`): bodies walk
-  round trunks.
+- **walker**: the mod `scatter3d.walker.ts` (`world.walker.mods: { fixed: 'scatter3d' }`): bodies walk
+  round trunks. The trunks never move, so name `fixed`: walker asks once for each tile of an agent's
+  map. `solids: 'scatter3d'` works too, and is asked on every call.
 - **hitscan3d**: the mod `scatter3d.hitscan3d.ts` (`mods: { solids: 'scatter3d' }`): shots stop at
   trunks and boulders.
 - **box3d**: the mod `scatter3d.box3d.ts` (`mods: { props: ['scatter3d'] }`): trunks and boulders are

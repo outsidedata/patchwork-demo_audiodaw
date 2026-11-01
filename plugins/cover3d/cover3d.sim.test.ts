@@ -22,9 +22,7 @@ const DT = 1 / 60
 const field: Field = {
   program: { world: 600, hscale: 10, sea: 0.5, flood: false, out: 'level', nodes: [{ id: 'level', op: 'const', value: 0 }] },
   analysis: { slopeStep: 1.5, curveStep: 4, positionRadius: 18, occlusionRadius: 30, occlusionSteps: 5, cliffProbe: 12, cliffSlope: 0.5, cliffDrop: 7, flatAngle: 0.03, records: 50000 },
-  bands: [{ colour: '#3e5722', amount: 1, rules: [] }],
-  grain: { base: 1, range: 0 },
-  detail: [],
+  ground: { layers: [{ name: 'grass', map: 'grass', scale: 30 }] },
   surfaces: {},
   layers: [],
 }

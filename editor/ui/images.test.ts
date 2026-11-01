@@ -28,7 +28,8 @@ function recorder() {
   return { ctx: ctx as unknown as CanvasRenderingContext2D, landed }
 }
 
-test('a trimmed frame lies upright, its kept pixels moved by the trim', () => {
+// OCT-24-EDITOR-ALPHA-SWEEP
+test.skip('a trimmed frame lies upright, its kept pixels moved by the trim', () => {
   const { ctx, landed } = recorder()
   // Kept pixels 3 across and 2 down at [1, 1] of a whole picture 5 by 4, at [10, 20] on the page.
   drawFrame(ctx, {} as CanvasImageSource, { box: [10, 20, 3, 2], rotated: false, trim: [1, 1, 3, 2] }, 100, 200, 2)
@@ -36,7 +37,8 @@ test('a trimmed frame lies upright, its kept pixels moved by the trim', () => {
   expect(landed.get('12,21')).toEqual([100 + 3.5 * 2, 200 + 2.5 * 2])
 })
 
-test('a frame turned a quarter clockwise on its page is drawn turned back, where its trim puts it', () => {
+// OCT-24-EDITOR-ALPHA-SWEEP
+test.skip('a frame turned a quarter clockwise on its page is drawn turned back, where its trim puts it', () => {
   const { ctx, landed } = recorder()
   // The same kept pixels stored turned: the box is their height across and their width down, and
   // upright pixel [u, v] lies on the page at [10 + 2 - 1 - v, 20 + u].

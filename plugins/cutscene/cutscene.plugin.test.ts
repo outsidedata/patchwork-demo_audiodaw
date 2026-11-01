@@ -7,11 +7,12 @@
 // the rows the page was handed. The scene is level at height 0, naming no `land`, but in the test of
 // the ground, whose page reads the `world` of a scene the scenemanager loads, `stage`, which names
 // terrain3d's `land` in `world.cutscene.mods`, so `prepare` has loaded that mod; the page is handed a
-// terrain3d of its own whose `ground` the mod hands on.
+// terrain3d of its own whose `ground` the mod hands on. A second child, `lamps`, names a game's own
+// plugin whose delivered step has a page half, which the test's page ticks.
 import { afterAll, afterEach, expect, test } from 'vitest'
 import * as THREE from 'three'
 import type * as PIXI from 'pixi.js'
-import { mkdtempSync, rmSync, writeFileSync } from 'node:fs'
+import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { pathToFileURL } from 'node:url'
@@ -68,9 +69,9 @@ written('test/cutscene/page.json', JSON.stringify(FILE))
 // The scene's `world.cutscene`.
 const numbers = () => ({ script: 'script', kinds: ['body'], settle: 4, tremor: TREMOR })
 
-const boots = (file = 'page', height = (_w: unknown, _x: number, _z: number) => 0) => {
+const boots = (file = 'page', height = (_w: unknown, _x: number, _z: number) => 0, world: Record<string, unknown> = { cutscene: numbers() }) => {
   const scene: Scene = {
-    world: { cutscene: numbers(), loader: { assets: { script: { type: 'json', url: `test/cutscene/${file}.json`, preload: true } } } },
+    world: { ...world, loader: { assets: { script: { type: 'json', url: `test/cutscene/${file}.json`, preload: true } } } },
     prefabs: {
       loader: {},
       cutscene: {},
@@ -91,7 +92,7 @@ const boots = (file = 'page', height = (_w: unknown, _x: number, _z: number) => 
 // A manager and its one child, `stage`, whose `world.cutscene` names terrain3d's `land`, written where
 // `load` finds them; `staged()` is the child's `world` once the scenemanager has loaded it.
 const TOP: Scene = {
-  prefabs: { engine: { dt: DT }, scenemanager: { scenes: { stage: { file: 'stage.scene.json', suspend: false } }, dt: DT, entry: 'stage', port: 0 } },
+  prefabs: { engine: { dt: DT }, scenemanager: { scenes: { stage: { file: 'stage.scene.json', suspend: false }, lamps: { file: 'lamps.scene.json', suspend: false } }, dt: DT, entry: 'stage', port: 0 } },
   actors: [{ is: 'scenemanager' }],
   plugins: ['scenemanager'],
   seats: 1,
@@ -110,7 +111,52 @@ import file from './stage.scene.json' with { type: 'json' }
 export const sim = { scenemanager }
 export const scene = file
 `)
-const staged = async () => (await load(boot(structuredClone(TOP), { scenemanager }), pathToFileURL(dir + '/').href)).get('stage')!.world
+const loaded = async (child: string) => (await load(boot(structuredClone(TOP), { scenemanager }), pathToFileURL(dir + '/').href)).get(child)!.world
+const staged = () => loaded('stage')
+
+// A second child, `lamps`, whose `world.cutscene` names a plugin of a game's own, `lamps`, which
+// delivers a step with a page half (Steps): `flare { on }` keeps `on` under its word, and its page
+// half puts a mesh named `flare` in render3d's scene while the scene runs with the flare on, and takes
+// it out when it is off, when the scene stops, and when the cutscene closes.
+const LAMPS = `
+export const behaviors = () => {
+  let flare
+  const out = () => { flare?.removeFromParent(); flare = undefined }
+  return {
+    flare: {
+      fields: { on: 'flag' },
+      fire: ({ state, cue }) => { state.on = cue.on },
+      page: {
+        tick(plugins, d) {
+          if (!(d.running && d.steps.flare?.on === true)) return out()
+          if (flare) return
+          const T = plugins.render3d.THREE
+          flare = new T.Mesh(new T.SphereGeometry(1), new T.MeshBasicMaterial())
+          flare.name = 'flare'
+          plugins.render3d.scene.add(flare)
+        },
+        close: out,
+      },
+    },
+  }
+}
+`
+mkdirSync(join(dir, 'plugins', 'lamps'), { recursive: true })
+writeFileSync(join(dir, 'plugins', 'lamps', 'lamps.cutscene.ts'), LAMPS)
+const LIT = { cutscene: { ...numbers(), mods: { behaviors: ['lamps'] } }, shipped: { plugins: ['lamps'] } }
+writeFileSync(join(dir, 'lamps.scene.json'), JSON.stringify({
+  world: LIT,
+  prefabs: { engine: { dt: DT }, scenemanager: { out: {} } },
+  actors: [{ is: 'scenemanager' }],
+  plugins: ['scenemanager'],
+}))
+writeFileSync(join(dir, 'lamps.sim.ts'), `
+import { scenemanager } from ${JSON.stringify(new URL('../scenemanager/scenemanager.sim.ts', import.meta.url).pathname)}
+import file from './lamps.scene.json' with { type: 'json' }
+export const sim = { scenemanager }
+export const scene = file
+`)
+written('test/cutscene/flare.json', JSON.stringify({ ...FILE, end: 2, cues: [FILE.cues[0], { at: 0.5, do: 'flare', on: true }, { at: 1, do: 'flare', on: false }, { at: 1.5, do: 'flare', on: true }] }))
 
 // A page whose plugins are `order`, of a scene whose `world` is `world`, handed rows each frame.
 const pages: { close(): void }[] = []
@@ -211,11 +257,19 @@ test('with terrain3d\'s land named, a point and a mark stand on its height as it
   const { plugins, frame, camera } = page(['render3d', 'terrain3d', 'cutscene', 'chasecamera3d', 'ui'], undefined, world)
   plugins.terrain3d = { ground: undefined as undefined | { height: typeof height } }
   t.step(DT)
-  // No ground yet: the shot places nothing, and the camera is render3d's prefab's.
+  // No ground yet: the shot places nothing, the camera is render3d's prefab's, and the world is
+  // covered in black in render3d's overlay while it waits.
   frame(sent(t))
   expect(camera().position.toArray()).toEqual(CAMERA.at)
+  expect(plugins.render3d.overlay.scene.children.map((c: THREE.Object3D) => c.name)).toEqual(['cutscene.cover'])
+  expect(plugins.cutscene.waiting()).toBe(true)
+  frame(sent(t))
+  expect(plugins.render3d.overlay.scene.children).toHaveLength(1)
   plugins.terrain3d.ground = { height }
   frame(sent(t))
+  // The ground is there: the shot is placed and the cover taken out.
+  expect(plugins.render3d.overlay.scene.children).toEqual([])
+  expect(plugins.cutscene.waiting()).toBe(false)
   // The wide shot stands 12 m over the ground at (0, −14), looking at the mark 0.5 m over it at (2, 6).
   const eye = [0, height(0, -14) + 12, -14]
   close(camera().position.toArray(), eye)
@@ -431,4 +485,33 @@ test('eye() is where render3d\'s camera stands and its world −z, and throws be
   frame(sent(t))
   close(plugins.cutscene.eye().pos, camera().position.toArray())
   close(plugins.cutscene.eye().dir, new THREE.Vector3(0, 0, -1).applyQuaternion(camera().quaternion).toArray())
+})
+
+test('a delivered step\'s page half draws from what its step keeps on the row, and takes it down when it is off, when the scene ends and when the cutscene closes', async () => {
+  const world = await loaded('lamps')
+  const flare = (plugins: any) => plugins.render3d.scene.getObjectByName('flare')
+  const to = (t: Truth, frame: (rows: Row[]) => void, e: number) => {
+    while (!cs(t.rows).done && (cs(t.rows).e ?? 0) < e - 1e-9) t.step(DT)
+    frame(sent(t))
+  }
+  const t = boots('flare', undefined, world)
+  const { plugins, frame } = page(undefined, undefined, world)
+  to(t, frame, DT)
+  expect(flare(plugins)).toBeUndefined()
+  to(t, frame, 0.6)
+  expect(flare(plugins)).toBeDefined()
+  to(t, frame, 1.1)
+  expect(flare(plugins)).toBeUndefined()
+  to(t, frame, 1.6)
+  expect(flare(plugins)).toBeDefined()
+  to(t, frame, 99)
+  expect(cs(t.rows).done).toBe(true)
+  expect(flare(plugins)).toBeUndefined()
+
+  const u = boots('flare', undefined, world)
+  const other = page(undefined, undefined, world)
+  to(u, other.frame, 0.6)
+  expect(flare(other.plugins)).toBeDefined()
+  other.plugins.cutscene.close()
+  expect(flare(other.plugins)).toBeUndefined()
 })

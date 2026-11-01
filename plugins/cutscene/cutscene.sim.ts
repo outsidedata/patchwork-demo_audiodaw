@@ -44,8 +44,9 @@
 //                                        lets go; it does not stop a walk
 //   say      who, text, for, voice?      the one line, for `for` seconds of e; `voice` is a cue
 //                                        raised from the speaker with it
-//   wait     who | "line"                holds the cue clock until that member's walk is done or the
-//                                        line has gone
+//   wait     who | "line" | on           holds the cue clock until that member's walk is done or the
+//                                        line has gone, or, with `on` a delivered step's word, while
+//                                        that step says it holds (Steps a game brings, below)
 //   shot     name, pos, look, fov?, over, follows?, frame?
 //                                        a cut when `over` is 0, else a dolly from the pose drawn;
 //                                        with `follows` a cast member, `pos` is an offset [x, y, z]
@@ -61,7 +62,40 @@
 //                                        browser half hands the land (`cutscene.plugin.ts`)
 // It refuses a first shot, in `at` order, with an `over`, since before it the camera is not the
 // cutscene's; a `frame` on a shot that follows nobody; a following shot whose `pos` is not an offset;
-// a sound with both `where` and `who`; and a cast member named `line`, which a wait would name.
+// a sound with both `where` and `who`; a wait with both `who` and `on`, or neither, or `on` a word no
+// delivered step that holds has; and a cast member named `line`, which a wait would name.
+//
+// Steps a game brings. The steps above are cutscene's own. A game brings steps in its own words, its
+// `open`, `spawn` or `rain`, through the plugins `world.cutscene.mods.behaviors` names, each exporting
+// `behaviors()`, `{ <word>: <step> }` (`Step`), laid one over another in the list's order: a later
+// one's word takes the place of an earlier one's. A cue's word is looked up among the delivered steps
+// first and among cutscene's own after, so a delivered word takes the place of cutscene's own of that
+// word too, in a scene that names its plugin; a scene that names none plays as it always did. A word
+// neither has is refused when the file is checked, naming the word: `<do> is not a cue: no plugin
+// world.cutscene.mods.behaviors names delivers it`. A step carries
+//   fields   its fields and their rules, as a row of `CUES`, each rule one of `RULES` (a rule that is
+//            not throws when the steps are made), so a delivered step's fields are checked as
+//            cutscene's own are; a field whose rule is `target` or `facing` is a place, whose names
+//            are looked for among the cast and the marks at the start (`strangers`)
+//   fire     what it does on the step `t` reaches its `at` (`Fired`): it is handed the row, the truth,
+//            the cue and its place in the file, the file, the rows targets are looked up in, the
+//            ground's height, `where(t)` and `on(t)`, a target's point and ground point [x, z] as
+//            cutscene's own steps find them, `who`, the row of the cast member its `who` field names,
+//            and `loud`, false while a skip plays the scene through, so a step still acts on a skip
+//            (spawns the boss) and stays quiet where it should (a sound). A step whose `who` names a
+//            member whose row has ended does not fire, as cutscene's own do not. What it keeps
+//            between steps it keeps on the row under its word, `steps[<word>]`, which `fire` is handed
+//            as `state`: the browser half reads it there. The row's `steps` is emptied when the scene
+//            starts and on `reset`.
+//   wait?    `{ holds(d, w), longest(file) }`: whether a wait `on` its word still holds, asked every
+//            step of the row and the truth, so it may read the rows its step acted on (a gate still
+//            opening), and the most seconds it can hold, which `longest` adds; a wait on it lets go
+//            then whatever `holds` says
+//   page?    `{ tick(plugins, d), close?() }`: the step's browser half, handed the page's plugins and
+//            the row each frame in the cutscene's own `tick`, after the camera is placed
+//            (`cutscene.plugin.ts`), and `close` when the cutscene closes; for a step that draws
+// The steps are made once for each scene's `world`, whose mods never change, by calling each mod's
+// `behaviors()` once, so a `page` keeps its page's things inside the object `behaviors()` makes.
 //
 // A target (`to`, `pos`, `look`, `where`) is a cast name, a mark's name, or a point `[x, z]` or
 // `[x, up, z]` on the ground (above). A name is a cast member's before a mark's, looked up
@@ -72,7 +106,7 @@
 // fired; `wait { cue, since }`; `line { who, text, until }`; `shot { from, to, at, over }`, `fade`
 // and `bars { from, to, at, over }`, `shake { at, over, amp }`; `music`; `walks { who: { cue, since
 // } }` and `faces { who: cue }`; `cast { name: id }`; `prepare`, the last prepare's [x, z] or null;
-// `running`, `skip` and `done`. `cue` in `wait`,
+// `steps`, what each delivered step keeps under its word; `running`, `skip` and `done`. `cue` in `wait`,
 // `walks` and `faces` is the cue's place in the file as written, and its target is read from there
 // again every step, so a walk or a face toward a cast member follows it. `at` in the ramps and
 // `since` are values of `e`. `shot.to` is the cue's view with `fov` (the cue's or the file's) and
@@ -126,7 +160,8 @@
 // the scene for every seat; it sets `skip` while the scene runs and is not kept before it starts. On
 // the next step the row plays the scene through to its end inside its `before`: its own step, then
 // `advance(dt)` on every cast member, and that engine step's own passes are then the cast's last step.
-// It steps every step while a walk runs, and `settle` seconds of steps of each quiet stretch: the
+// It steps every step while a walk runs or a wait on a delivered step holds, which lets go at that
+// step's `longest` seconds if it has not before, and `settle` seconds of steps of each quiet stretch: the
 // steps after the last one a cue fired on or a walk ran, up to the next cue, the line going while a
 // wait holds on it, or the end. The rest of a quiet stretch it leaps: `t` and `e` move on by whole
 // steps to one step short of that next thing, and the cast is not stepped. So a skip costs at most
@@ -157,9 +192,10 @@
 //
 // It imports no other plugin but the loader's `json`, which the cue file is read through.
 import type { Arg, Kind, Row, W } from '#engine/engine.ts'
+import type { Plugins } from '#engine/browser.ts'
 import { json } from '#plugins/loader/loader.sim.ts'
 import * as math from '#plugins/math/math.sim.ts'
-import { mod } from '#addons/scenemanager/scenemanager.addon.ts'
+import { mod, modsOf } from '#addons/scenemanager/scenemanager.addon.ts'
 
 type Target = string | number[]
 export type Cue = { at: number; do: string; [field: string]: any }
@@ -177,6 +213,21 @@ export type Height = (x: number, z: number) => number
 export type Numbers = { script: string; kinds: string[]; settle: number; tremor: number[][] }
 // The `play` mod: what sounds a cue, at a point, from a row, or with no place.
 export type Play = (w: W, cue: string, at?: number[], from?: number) => void
+// What a delivered step's `fire` is handed (Steps a game brings, above).
+export type Fired = {
+  me: Row; w: W; cue: Cue; i: number; file: Script; rows: Row[]; height: Height; loud: boolean
+  who?: Row; state: Record<string, any>
+  where(t: Target): number[] | undefined
+  on(t: Target): number[] | undefined
+}
+// A step a game brings, delivered for its word by a mod's `behaviors()`.
+export type Step = {
+  fields: Record<string, string>
+  fire(f: Fired): void
+  wait?: { holds(d: any, w: W): boolean; longest(file: Script): number }
+  page?: { tick(plugins: Plugins, d: any): void; close?(): void }
+}
+export type Steps = Record<string, Step>
 
 const TOLERANCE = 1e-9
 
@@ -212,7 +263,7 @@ export const CUES: Record<string, Record<string, string>> = {
   walk: { who: 'who', to: 'target', gear: 'clip', limit: 'positive?' },
   face: { who: 'who', to: 'facing' },
   say: { who: 'who', text: 'text', for: 'positive', voice: 'text?' },
-  wait: { who: 'waited' },
+  wait: { who: 'waited?', on: 'text?' },
   shot: { name: 'text', pos: 'target', look: 'target', fov: 'angle?', over: 'number', follows: 'who?', frame: 'frame?' },
   fade: { to: 'unit', over: 'number' },
   bars: { on: 'flag', over: 'number' },
@@ -232,8 +283,12 @@ export const said = ([, what, names]: Rule, file: Script) => (names ? `${what}: 
 // The cues' places in the file, stable-sorted by `at`: the order they fire in.
 export const sorted = (cues: Cue[]) => cues.map((_, i) => i).sort((a, b) => cues[a].at - cues[b].at || a - b)
 
-// Throws a sentence naming the file, and the cue, for a file the row cannot play.
-export function check(name: string, file: Script) {
+// Whether a cue's word is cutscene's own here: one it has that no delivered step takes the place of.
+const ownWord = (word: string, steps: Steps) => Object.hasOwn(CUES, word) && !Object.hasOwn(steps, word)
+
+// Throws a sentence naming the file, and the cue, for a file the row cannot play with the scene's
+// delivered `steps`.
+export function check(name: string, file: Script, steps: Steps = {}) {
   const fields = (of: Record<string, any>, rules: Record<string, string>, where: string) => {
     for (const [field, spec] of Object.entries(rules)) {
       const optional = spec.endsWith('?')
@@ -254,15 +309,22 @@ export function check(name: string, file: Script) {
     const where = `${name}: cue ${i} (${c?.do} at ${c?.at}): `
     if (!c || typeof c !== 'object') throw new Error(`${where}is not { at, do, ... }`)
     fields(c, { at: 'number' }, where)
+    if (Object.hasOwn(steps, c.do)) return fields(c, steps[c.do].fields, where)
     const rules = Object.hasOwn(CUES, c.do) ? CUES[c.do] : undefined
-    if (!rules) throw new Error(`${where}${c.do} is not a cue`)
+    if (!rules) throw new Error(`${where}${c.do} is not a cue: no plugin world.cutscene.mods.behaviors names delivers it`)
     fields(c, rules, where)
     if (c.do === 'shot' && c.frame !== undefined && c.follows === undefined) throw new Error(`${where}a frame with no follows`)
     if (c.do === 'shot' && c.follows !== undefined && !(Array.isArray(c.pos) && c.pos.length === 3)) {
       throw new Error(`${where}pos ${JSON.stringify(c.pos)} is not an offset [x, y, z] from the member it follows`)
     }
     if (c.do === 'sound' && c.where !== undefined && c.who !== undefined) throw new Error(`${where}both where and who`)
+    if (c.do === 'wait' && (c.who === undefined) === (c.on === undefined)) throw new Error(`${where}a wait names one of who and on`)
+    if (c.do === 'wait' && c.on !== undefined && !(Object.hasOwn(steps, c.on) && steps[c.on].wait)) {
+      const holding = Object.keys(steps).filter(k => steps[k].wait)
+      throw new Error(`${where}on ${JSON.stringify(c.on)} is not a delivered step that holds: ${holding.length ? holding.join(', ') : 'the scene delivers none'}`)
+    }
   })
+  if (!ownWord('shot', steps)) return
   const first = sorted(file.cues).find(i => file.cues[i].do === 'shot')
   if (first !== undefined && file.cues[first].over !== 0) {
     const c = file.cues[first]
@@ -270,19 +332,44 @@ export function check(name: string, file: Script) {
   }
 }
 
-// The file a row plays, checked, and its cues in `at` order: kept per `cues` list. The loader parses a
-// file once, and when the editor writes it refills that parse in place with a new value for every
-// top-level field, so a written file brings a new `cues` list and is checked again.
-const read = new WeakMap<object, number[]>()
-function scriptOf(w: W, name: string): { file: Script; order: number[] } {
-  const file = json(w, name) as Script
-  let order = read.get(file.cues)
-  if (!order) {
-    check(name, file)
-    order = sorted(file.cues)
-    read.set(file.cues, order)
+// Every step the scene's mods deliver (Steps a game brings, above): each mod's `behaviors()` laid over
+// the ones before it in the order `world.cutscene.mods.behaviors` names them; made once per scene's
+// `world`, whose mods never change. A field whose rule is not one of `RULES` throws, naming the step.
+const stepsMade = new WeakMap<object, Steps>()
+export function stepsOf(world: Record<string, any>): Steps {
+  let all = stepsMade.get(world)
+  if (!all) {
+    all = {}
+    for (const m of modsOf<() => Steps>(world, 'cutscene', 'behaviors')) Object.assign(all, m())
+    for (const [word, s] of Object.entries(all)) {
+      for (const [field, spec] of Object.entries(s.fields)) {
+        const rule = spec.endsWith('?') ? spec.slice(0, -1) : spec
+        if (!Object.hasOwn(RULES, rule)) throw new Error(`the delivered step ${word} gives its field ${field} the rule ${rule}, which is not one of ${Object.keys(RULES).join(', ')}`)
+      }
+    }
+    stepsMade.set(world, all)
   }
-  return { file, order }
+  return all
+}
+
+type Read = { file: Script; order: number[]; steps: Steps }
+
+// The file a row plays, checked against the scene's delivered steps, and its cues in `at` order: kept
+// per `cues` list and the steps it was checked with. The loader parses a file once, and when the
+// editor writes it refills that parse in place with a new value for every top-level field, so a
+// written file brings a new `cues` list and is checked again; so is one file played by a scene that
+// delivers other steps.
+const read = new WeakMap<object, { steps: Steps; order: number[] }>()
+function scriptOf(w: W, name: string): Read {
+  const file = json(w, name) as Script
+  const steps = stepsOf(w.world)
+  let seen = read.get(file.cues)
+  if (!seen || seen.steps !== steps) {
+    check(name, file, steps)
+    seen = { steps, order: sorted(file.cues) }
+    read.set(file.cues, seen)
+  }
+  return { file, order: seen.order, steps }
 }
 
 // ---------------------------------------------------------------- targets and the pose
@@ -427,6 +514,7 @@ function fill(d: any) {
   d.walks ??= {}
   d.faces ??= {}
   d.cast ??= {}
+  d.steps ??= {}
   d.running ??= false
   d.skip ??= false
   d.done ??= false
@@ -435,14 +523,18 @@ function fill(d: any) {
 // The rows a target is looked for in: the cast kinds' and the marks'.
 const rowsOf = (w: W): Row[] => [...(w.world.cutscene as Numbers).kinds.flatMap(k => w.all(k)), ...w.all('mark')]
 
+// The fields of a delivered step that are places: those whose rule is `target` or `facing`.
+const places = (step: Step) => Object.keys(step.fields).filter(f => ['target', 'facing'].includes(step.fields[f].replace(/\?$/, '')))
+
 // Every name a cue places something at (`to`, `where`, `look`, and the `pos` of a shot that follows
-// nobody) that is neither a cast member of the file nor one of `marks`: the cue's place in the file,
-// the field and the name.
-export function strangers(file: Script, marks: Iterable<string>): { cue: number; field: string; name: string }[] {
+// nobody, or a delivered step's places) that is neither a cast member of the file nor one of `marks`:
+// the cue's place in the file, the field and the name.
+export function strangers(file: Script, marks: Iterable<string>, steps: Steps = {}): { cue: number; field: string; name: string }[] {
   const known = new Set(marks)
   const out: { cue: number; field: string; name: string }[] = []
   file.cues.forEach((c, i) => {
-    for (const field of ['to', 'where', 'look', ...(c.follows === undefined ? ['pos'] : [])]) {
+    const fields = Object.hasOwn(steps, c.do) ? places(steps[c.do]) : ['to', 'where', 'look', ...(c.follows === undefined ? ['pos'] : [])]
+    for (const field of fields) {
       const t = c[field]
       if (typeof t === 'string' && !Object.hasOwn(file.cast, t) && !known.has(t)) out.push({ cue: i, field, name: t })
     }
@@ -458,7 +550,7 @@ function begin(me: Row, w: W) {
   fill(d)
   if (d.running || d.done) return
   const { script, kinds } = w.world.cutscene as Numbers
-  const { file } = scriptOf(w, script)
+  const { file, steps } = scriptOf(w, script)
   const cast: Record<string, number> = {}
   for (const [name, m] of Object.entries(file.cast)) {
     if (!kinds.includes(m.kind)) throw new Error(`the cast member ${name} is a ${m.kind}, which the cutscene's kinds do not name`)
@@ -467,12 +559,12 @@ function begin(me: Row, w: W) {
     if (r.id < me.id) throw new Error(`the cast member ${name} is listed ahead of the cutscene row, so its step would run before the row directs it`)
     cast[name] = r.id
   }
-  const stranger = strangers(file, w.all('mark').map(r => r.data.name))[0]
+  const stranger = strangers(file, w.all('mark').map(r => r.data.name), steps)[0]
   if (stranger) {
     const c = file.cues[stranger.cue]
     throw new Error(`${script}: cue ${stranger.cue} (${c.do} at ${c.at}): no cast member or mark is named ${stranger.name}`)
   }
-  Object.assign(d, { cast, t: 0, e: 0, fired: 0, wait: null, line: null, shot: null, fade: null, bars: null, shake: null, prepare: null, walks: {}, faces: {}, running: true, skip: false })
+  Object.assign(d, { cast, t: 0, e: 0, fired: 0, wait: null, line: null, shot: null, fade: null, bars: null, shake: null, prepare: null, walks: {}, faces: {}, steps: {}, running: true, skip: false })
   for (const id of Object.values(cast)) w.get(id).data.direct = {}
 }
 
@@ -537,16 +629,39 @@ function fire(me: Row, w: W, file: Script, c: Cue, i: number, loud: boolean, row
   }
 }
 
-// The most seconds of `e` the file can play: its end, and at each wait the longest it can hold, the
-// longest walk's limit for a wait on a member, or the longest line for a wait on the line.
-export function longest(file: Script): number {
-  const line = Math.max(0, ...file.cues.filter(c => c.do === 'say').map(c => c.for))
-  const walk = Math.max(0, ...file.cues.filter(c => c.do === 'walk').map(c => c.limit ?? file.limit))
-  return file.cues.reduce((s, c) => s + (c.do !== 'wait' ? 0 : c.who === 'line' ? line : walk), file.end)
+// A delivered step fired: the row of the cast member its `who` names found, and the step not fired
+// when that member's row has ended (Steps a game brings, above).
+function fireStep(me: Row, w: W, file: Script, c: Cue, i: number, loud: boolean, rows: Row[], height: Height, step: Step) {
+  const d = me.data
+  const named = typeof c.who === 'string' && Object.hasOwn(d.cast, c.who)
+  const who = named ? castRow(d.cast, c.who, rows) : undefined
+  if (named && !who) return
+  step.fire({
+    me, w, cue: c, i, file, rows, height, loud, who, state: (d.steps[c.do] ??= {}),
+    where: t => spot(t, d.cast, rows, height),
+    on: t => ground(t, d.cast, rows),
+  })
 }
 
-// Whether a wait has something to wait for.
-const holds = (d: any, c: Cue) => (c.who === 'line' ? d.line !== null : Object.hasOwn(d.walks, c.who))
+// The most seconds of `e` the file can play with the scene's delivered `steps`: its end, and at each
+// of cutscene's own waits the longest it can hold, the longest walk's limit for a wait on a member,
+// the longest line for a wait on the line, or the delivered step's `longest` for a wait on it.
+export function longest(file: Script, steps: Steps = {}): number {
+  const line = Math.max(0, ...file.cues.filter(c => c.do === 'say' && ownWord('say', steps)).map(c => c.for))
+  const walk = Math.max(0, ...file.cues.filter(c => c.do === 'walk' && ownWord('walk', steps)).map(c => c.limit ?? file.limit))
+  const held = (c: Cue) => (c.on !== undefined ? steps[c.on].wait!.longest(file) : c.who === 'line' ? line : walk)
+  return file.cues.reduce((s, c) => s + (c.do === 'wait' && ownWord('wait', steps) ? held(c) : 0), file.end)
+}
+
+// Whether a wait has something to wait for. A wait on a delivered step holds while the step says so,
+// and lets go `longest` seconds after it began, `since`, so a skip that steps it ends.
+const holds = (d: any, w: W, c: Cue, { file, steps }: Read, since: number = d.e) => {
+  if (c.on === undefined) return c.who === 'line' ? d.line !== null : Object.hasOwn(d.walks, c.who)
+  const hold = steps[c.on].wait!
+  return d.e - since < hold.longest(file) - TOLERANCE && hold.holds(d, w)
+}
+// Whether the scene is held by a wait on a delivered step, which a skip steps through every step.
+const stepWaiting = (d: any, file: Script) => d.wait !== null && file.cues[d.wait.cue].on !== undefined
 
 function finish(me: Row, w: W, file: Script, rows: Row[]) {
   const d = me.data
@@ -561,9 +676,9 @@ function finish(me: Row, w: W, file: Script, rows: Row[]) {
 
 // One step of the scene; `loud` raises its sounds and voices. It hands back the rows it looked targets
 // up in, the cast kinds' and the marks', found once a step: nothing it does adds or ends a row.
-function own(me: Row, w: W, dt: number, script: { file: Script; order: number[] }, loud: boolean, height: Height): Row[] {
+function own(me: Row, w: W, dt: number, script: Read, loud: boolean, height: Height): Row[] {
   const d = me.data
-  const { file, order } = script
+  const { file, order, steps } = script
   d.e += dt
   if (d.line && d.e >= d.line.until - TOLERANCE) d.line = null
   const rows = rowsOf(w)
@@ -596,7 +711,7 @@ function own(me: Row, w: W, dt: number, script: { file: Script; order: number[] 
   }
   let firing = true
   if (d.wait) {
-    if (holds(d, file.cues[d.wait.cue])) firing = false
+    if (holds(d, w, file.cues[d.wait.cue], script, d.wait.since)) firing = false
     else d.wait = null
   } else d.t += dt
   while (firing && d.fired < order.length) {
@@ -604,8 +719,9 @@ function own(me: Row, w: W, dt: number, script: { file: Script; order: number[] 
     const c = file.cues[i]
     if (c.at > d.t + TOLERANCE) break
     d.fired++
-    if (c.do !== 'wait') fire(me, w, file, c, i, loud, rows, height)
-    else if (holds(d, c)) {
+    if (Object.hasOwn(steps, c.do)) fireStep(me, w, file, c, i, loud, rows, height, steps[c.do])
+    else if (c.do !== 'wait') fire(me, w, file, c, i, loud, rows, height)
+    else if (holds(d, w, c, script)) {
       d.t = c.at
       d.wait = { cue: i, since: d.e }
       break
@@ -618,7 +734,7 @@ function own(me: Row, w: W, dt: number, script: { file: Script; order: number[] 
 // A quiet stretch's rest, leapt: the row's clocks moved on by whole steps to one step short of the
 // next thing that happens with no walk running, the line going while a wait holds on it, or else the
 // next cue or the end reached on `t`. The step after it lands on that thing as a played step would.
-function leap(d: any, { file, order }: { file: Script; order: number[] }, dt: number) {
+function leap(d: any, { file, order }: Read, dt: number) {
   const next = d.fired < order.length ? Math.min(file.cues[order[d.fired]].at, file.end) : file.end
   const n = Math.ceil(((d.wait ? d.line.until - d.e : next - d.t) - TOLERANCE) / dt) - 1
   if (n < 1) return
@@ -656,7 +772,7 @@ export const cutscene = (height: (w: W, x: number, z: number) => number): Kind =
         const r = rows.find(r => r.id === id)
         if (r) w.call(r, 'advance', -1, dt)
       }
-      const walking = Object.keys(d.walks).length > 0
+      const walking = Object.keys(d.walks).length > 0 || stepWaiting(d, script.file)
       quiet = walking || d.fired !== fired ? 0 : quiet + 1
       if (!walking && quiet >= settle) leap(d, script, dt)
     }
@@ -673,7 +789,7 @@ export const cutscene = (height: (w: W, x: number, z: number) => number): Kind =
       }
       Object.assign(d, {
         t: 0, e: 0, fired: 0, wait: null, line: null, shot: null, fade: null, bars: null, shake: null, music: null,
-        prepare: null, walks: {}, faces: {}, cast: {}, running: false, skip: false, done: false,
+        prepare: null, walks: {}, faces: {}, cast: {}, steps: {}, running: false, skip: false, done: false,
       })
     },
     skip(me) { if (me.data.running) me.data.skip = true },

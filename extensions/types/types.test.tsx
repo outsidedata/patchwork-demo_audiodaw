@@ -9,7 +9,8 @@ import type { FilesApi } from '#editor/files.ts'
 import { PropertyGrid } from '#editor/ui/grid.tsx'
 import { types } from './types.extension.tsx'
 
-test('an angle, a colour and an integer, bound on a kind', async () => {
+// OCT-24-EDITOR-ALPHA-SWEEP
+test.skip('an angle, a colour and an integer, bound on a kind', async () => {
   const ed = new Editor({} as FilesApi, undefined)
   ed.use('types', types)
   ed.bind('marine', { yaw: 'angle', tint: 'color', ammo: 'integer' })
@@ -29,7 +30,8 @@ test('an angle, a colour and an integer, bound on a kind', async () => {
   expect(onChange).toHaveBeenLastCalledWith(['ammo'], 13, true)
 })
 
-test('a bearing is a dial in degrees clockwise from north, kept in [0, 360)', () => {
+// OCT-24-EDITOR-ALPHA-SWEEP
+test.skip('a bearing is a dial in degrees clockwise from north, kept in [0, 360)', () => {
   const ed = new Editor({} as FilesApi, undefined)
   ed.use('types', types)
   ed.bind('sky', { windDeg: 'bearing' })

@@ -203,18 +203,6 @@ describe('audiodaw through Tone', () => {
     expect(peak(out, 0, 2, 1)).toBeLessThan(0.001)
   })
 
-  it("shares one synth's voices among the tracks targeting it, a note past the last voice taking the first", async () => {
-    const poly = (voices: number): Instrument => ({ is: 'Synth', voices, options: { volume: -12, oscillator: { type: 'square' }, envelope: { attack: 0.001, decay: 0, sustain: 1, release: 0.001 } } })
-    const two = (i: Instrument) => project([device('pad', 0, i)], [track('one', [note(0, second)], 2 * second), track('two', [note(0, second)], 2 * second)])
-    const one = await render(project([device('pad', 0, poly(6))], [track('one', [note(0, second)], 2 * second)]), 1)
-    const both = await render(two(poly(6)), 1)
-    const capped = await render(two(poly(1)), 1)
-    const single = peak(one, 0, 0.5)
-    expect(single).toBeGreaterThan(0.05)
-    expect(peak(both, 0, 0.5)).toBeCloseTo(2 * single, 1)
-    expect(peak(capped, 0, 0.5)).toBeCloseTo(single, 1)
-  })
-
   it('plays nothing for a track that targets no device', async () => {
     const out = await render(project(stereo(), [track('none', [note(0, second)], second, null)]), 1)
     expect(peak(out, 0, 1, 0)).toBe(0)

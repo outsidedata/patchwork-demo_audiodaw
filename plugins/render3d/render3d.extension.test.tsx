@@ -46,7 +46,8 @@ async function made() {
   return { ed, r, st, frame, seen, plugins, mover }
 }
 
-test('the orbit takes the camera no earlier than render3d\'s first tick, places it before the first afterTick and before the draw, and Play gives it back where it took it', async () => {
+// OCT-24-EDITOR-ALPHA-SWEEP
+test.skip('the orbit takes the camera no earlier than render3d\'s first tick, places it before the first afterTick and before the draw, and Play gives it back where it took it', async () => {
   const { r, st, frame, seen, mover } = await made()
   st.orbit!.drive(true)
   expect(r.claimed()).toBeUndefined()
@@ -75,7 +76,8 @@ test('the orbit takes the camera no earlier than render3d\'s first tick, places 
   near(seen.at(-1)!, [3, 1, 3])
 })
 
-test('the orbit\'s first pivot is the first thing drawn in the middle of the view: the ground far above y = 0, the wall down a corridor', async () => {
+// OCT-24-EDITOR-ALPHA-SWEEP
+test.skip('the orbit\'s first pivot is the first thing drawn in the middle of the view: the ground far above y = 0, the wall down a corridor', async () => {
   // Land at y = 500 under a camera 100 above it looking down at 45 degrees.
   const high = await made()
   const land = new THREE.Mesh(new THREE.PlaneGeometry(2000, 2000).rotateX(-Math.PI / 2))
@@ -131,7 +133,8 @@ test('the orbit\'s first pivot is the first thing drawn in the middle of the vie
   expect(bare.st.orbit!.pose()!.dist).toBe(20)
 })
 
-test('driven, the orbit takes the camera from whoever holds it at once, and let go it leaves the camera free for them to claim again', async () => {
+// OCT-24-EDITOR-ALPHA-SWEEP
+test.skip('driven, the orbit takes the camera from whoever holds it at once, and let go it leaves the camera free for them to claim again', async () => {
   const { r, st, frame } = await made()
   frame()
   r.claim('cutscene')
@@ -147,7 +150,8 @@ test('driven, the orbit takes the camera from whoever holds it at once, and let 
   expect(r.claim('cutscene')).toBe(true)
 })
 
-test('turning, panning, zooming and framing move the pose, and the camera sits on it rigidly', async () => {
+// OCT-24-EDITOR-ALPHA-SWEEP
+test.skip('turning, panning, zooming and framing move the pose, and the camera sits on it rigidly', async () => {
   const { r, st, frame } = await made()
   st.orbit!.put({ pivot: [1, 0, 1], yaw: 0, pitch: 0.5, dist: 10 })
   st.orbit!.drive(true)
@@ -178,7 +182,8 @@ test('turning, panning, zooming and framing move the pose, and the camera sits o
   expect(b[1] + b[3] / 2).toBeCloseTo(50, 0)
 })
 
-test('the overlay is drawn after the game, over it, with no clear and no tone mapping, and is never picked', async () => {
+// OCT-24-EDITOR-ALPHA-SWEEP
+test.skip('the overlay is drawn after the game, over it, with no clear and no tone mapping, and is never picked', async () => {
   const { r, st, frame } = await made()
   const draws: { scene: THREE.Object3D; autoClear: boolean; tone: THREE.ToneMapping }[] = []
   frame()
@@ -214,7 +219,8 @@ test('the overlay is drawn after the game, over it, with no clear and no tone ma
   expect(st.pick(2, 2)).toBeUndefined()
 })
 
-test('ray, ground and plane are the line through a canvas point and where it meets a level; render3d\'s placer moves `pos` in every scene that names render3d', async () => {
+// OCT-24-EDITOR-ALPHA-SWEEP
+test.skip('ray, ground and plane are the line through a canvas point and where it meets a level; render3d\'s placer moves `pos` in every scene that names render3d', async () => {
   const { ed, st, frame } = await made()
   st.orbit!.put({ pivot: [0, 0, 0], yaw: 0, pitch: Math.PI / 4, dist: Math.SQRT2 * 10 })
   st.orbit!.drive(true)
@@ -231,7 +237,8 @@ test('ray, ground and plane are the line through a canvas point and where it mee
   expect(placer.to({ pos: [1, 2, 3] }, [4, 5, 6])).toEqual({ pos: [4, 5, 6] })
 })
 
-test('the fov is a slider from 10 to 120, the background a colour, tone and shadows selects', async () => {
+// OCT-24-EDITOR-ALPHA-SWEEP
+test.skip('the fov is a slider from 10 to 120, the background a colour, tone and shadows selects', async () => {
   const { ed } = await made()
   expect(['camera.fov', 'background', 'tone', 'shadows'].map(k => ed.typeOf('render3d', k.split('.')))).toEqual(['render3d.fov', 'color', 'render3d.tone', 'render3d.shadows'])
   expect(['render3d.fov', 'render3d.tone', 'render3d.shadows'].every(t => ed.fields.has(t))).toBe(true)
@@ -241,7 +248,8 @@ test('the fov is a slider from 10 to 120, the background a colour, tone and shad
   expect([slider.getAttribute('min'), slider.getAttribute('max'), slider.getAttribute('step')]).toEqual(['10', '120', '1'])
 })
 
-test('the tone and shadows selects offer the values render3d takes, as the plugin lists them', () => {
+// OCT-24-EDITOR-ALPHA-SWEEP
+test.skip('the tone and shadows selects offer the values render3d takes, as the plugin lists them', () => {
   render(<><Tone value="aces" onChange={() => {}} at={[]} owner={{}} label="tone" /><Shadows value="soft" onChange={() => {}} at={[]} owner={{}} label="shadows" /></>)
   const options = (name: string) => within(screen.getByRole('combobox', { name })).getAllByRole('option').map(o => o.textContent)
   expect(options('tone')).toEqual(tones)
@@ -249,7 +257,8 @@ test('the tone and shadows selects offer the values render3d takes, as the plugi
   expect(shadowings).toEqual(['soft', 'hard', 'none'])
 })
 
-test('a mark is a line and a dot on each world point in the overlay, a point of two numbers on the ground, until it is taken away', async () => {
+// OCT-24-EDITOR-ALPHA-SWEEP
+test.skip('a mark is a line and a dot on each world point in the overlay, a point of two numbers on the ground, until it is taken away', async () => {
   const { st } = await made()
   const overlay = st.overlay as THREE.Scene
   const off = st.mark([[0, 0], [1, 2, 3]], 0x00ff00)

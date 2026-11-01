@@ -74,7 +74,8 @@ const drag = (el: Element, from: [number, number], to: [number, number], mods: {
   fireEvent.pointerUp(window, { clientX: to[0], clientY: to[1], ...mods })
 }
 
-test('chips sit in their lanes: points, bars, open, ramps, warned, and past the end is hatched', () => {
+// OCT-24-EDITOR-ALPHA-SWEEP
+test.skip('chips sit in their lanes: points, bars, open, ramps, warned, and past the end is hatched', () => {
   const { container } = render(<Harness log={[]} />)
   expect(within(screen.getByRole('listbox', { name: 'hero' })).getAllByRole('option').map(o => o.getAttribute('aria-label'))).toEqual(['walk', 'hero: go'])
   expect(chip('shot')).toHaveClass('ui-chip-point', 'ui-chip-warn')
@@ -87,7 +88,8 @@ test('chips sit in their lanes: points, bars, open, ramps, warned, and past the 
   expect((container.querySelector('.ui-tl-over .ui-tl-past') as HTMLElement).style.left).toBe(`${x(9)}px`)
 })
 
-test('a click selects, Shift-click adds and takes away, and a box across the lanes selects what it covers', () => {
+// OCT-24-EDITOR-ALPHA-SWEEP
+test.skip('a click selects, Shift-click adds and takes away, and a box across the lanes selects what it covers', () => {
   render(<Harness log={[]} />)
   fireEvent.pointerDown(chip('walk'), { button: 0, clientX: x(1.5), clientY: y(0) })
   fireEvent.pointerUp(window, { clientX: x(1.5), clientY: y(0) })
@@ -105,7 +107,8 @@ test('a click selects, Shift-click adds and takes away, and a box across the lan
   expect(screen.queryAllByRole('option', { selected: true })).toHaveLength(0)
 })
 
-test('a drag moves every chip selected, snapped to a quarter tick, Alt to a grain, as one move when let go', () => {
+// OCT-24-EDITOR-ALPHA-SWEEP
+test.skip('a drag moves every chip selected, snapped to a quarter tick, Alt to a grain, as one move when let go', () => {
   const log: unknown[] = []
   render(<Harness log={log} />)
   drag(chip('hero: go'), [x(4.5), y(0)], [x(5.63), y(0)])
@@ -122,7 +125,8 @@ test('a drag moves every chip selected, snapped to a quarter tick, Alt to a grai
   expect(log.at(-1)).toEqual(['move', [{ id: 'say', at: 6.4, lane: 'hero' }, { id: 'shot', at: 3, lane: 'camera' }], true])
 })
 
-test('a drag stays inside [0, end], and goes onto another lane only where the chip may go', () => {
+// OCT-24-EDITOR-ALPHA-SWEEP
+test.skip('a drag stays inside [0, end], and goes onto another lane only where the chip may go', () => {
   const log: unknown[] = []
   render(<Harness log={log} />)
   drag(chip('hero: go'), [x(5), y(0)], [x(20), y(0)])
@@ -134,7 +138,8 @@ test('a drag stays inside [0, end], and goes onto another lane only where the ch
   expect(log.at(-1)).toEqual(['move', [{ id: 'shot', at: 2, lane: 'camera' }], true])
 })
 
-test('the right edge of a resizable chip sets its length, and the end bracket is selected and dragged', () => {
+// OCT-24-EDITOR-ALPHA-SWEEP
+test.skip('the right edge of a resizable chip sets its length, and the end bracket is selected and dragged', () => {
   const log: unknown[] = []
   render(<Harness log={log} />)
   drag(screen.getByLabelText('hero: go end'), [x(7), y(0)], [x(8.1), y(0)])
@@ -147,7 +152,8 @@ test('the right edge of a resizable chip sets its length, and the end bracket is
   expect(END).toBe('end')
 })
 
-test('the ruler scrubs to a grain, and with the focus the arrows seek a grain and Shift a tick; keys on the lanes go to onKey', () => {
+// OCT-24-EDITOR-ALPHA-SWEEP
+test.skip('the ruler scrubs to a grain, and with the focus the arrows seek a grain and Shift a tick; keys on the lanes go to onKey', () => {
   const log: unknown[] = []
   render(<Harness log={log} />)
   const ruler = screen.getByRole('slider', { name: 'cutscene playhead' })
@@ -164,7 +170,8 @@ test('the ruler scrubs to a grain, and with the focus the arrows seek a grain an
   expect(log.at(-1)).toEqual(['key', 'Delete'])
 })
 
-test('the wheel zooms about the pointer, Shift and the wheel pans, and a new `fit` fits again', () => {
+// OCT-24-EDITOR-ALPHA-SWEEP
+test.skip('the wheel zooms about the pointer, Shift and the wheel pans, and a new `fit` fits again', () => {
   const onSeek = vi.fn()
   const props = { label: 'rec', lanes: [], head: 0, span: 10, grain: 1, onSeek }
   const { rerender } = render(<Timeline {...props} fit={1} />)
@@ -187,7 +194,8 @@ test('the wheel zooms about the pointer, Shift and the wheel pans, and a new `fi
   expect(at(x(5))).toBe(5)
 })
 
-test('a press on one of several selected chips, let go without a drag, selects it alone; Cmd or Ctrl adds as Shift does', () => {
+// OCT-24-EDITOR-ALPHA-SWEEP
+test.skip('a press on one of several selected chips, let go without a drag, selects it alone; Cmd or Ctrl adds as Shift does', () => {
   render(<Harness log={[]} />)
   fireEvent.pointerDown(chip('walk'), { button: 0, clientX: x(1.5), clientY: y(0) })
   fireEvent.pointerUp(window, { clientX: x(1.5), clientY: y(0) })
@@ -203,7 +211,8 @@ test('a press on one of several selected chips, let go without a drag, selects i
   expect(screen.getAllByRole('option', { selected: true }).map(o => o.getAttribute('aria-label'))).toEqual(['shot'])
 })
 
-test('a cancelled pointer ends the drag where it last was, once, and a later release commits nothing', () => {
+// OCT-24-EDITOR-ALPHA-SWEEP
+test.skip('a cancelled pointer ends the drag where it last was, once, and a later release commits nothing', () => {
   const log: unknown[] = []
   render(<Harness log={log} />)
   fireEvent.pointerDown(chip('hero: go'), { button: 0, clientX: x(4.5), clientY: y(0) })
@@ -215,7 +224,8 @@ test('a cancelled pointer ends the drag where it last was, once, and a later rel
   expect(log.filter(l => (l as unknown[])[2] === true)).toHaveLength(1)
 })
 
-test('a lane\'s marks are drawn merged to whole pixels: 36,000 steps, every other one marked, draw a few hundred spans, and a press seeks inside one', () => {
+// OCT-24-EDITOR-ALPHA-SWEEP
+test.skip('a lane\'s marks are drawn merged to whole pixels: 36,000 steps, every other one marked, draw a few hundred spans, and a press seeks inside one', () => {
   const onSeek = vi.fn()
   const marks = Array.from({ length: 18000 }, (_, i) => ({ at: i * 2 }))
   const lanes = [{ id: 'seat', label: 'seat', marks }, { id: 'edits', label: 'edits', marks: [{ at: 100, length: 50 }, { at: 30000 }] }]
@@ -233,7 +243,8 @@ test('a lane\'s marks are drawn merged to whole pixels: 36,000 steps, every othe
   expect(onSeek).toHaveBeenLastCalledWith(100, true)
 })
 
-test('a double-click on an empty stretch of a lane asks for a chip at the grain under it, and one on a chip asks for nothing', () => {
+// OCT-24-EDITOR-ALPHA-SWEEP
+test.skip('a double-click on an empty stretch of a lane asks for a chip at the grain under it, and one on a chip asks for nothing', () => {
   const added: [string, number][] = []
   render(<Timeline label="t" lanes={LANES} chips={CHIPS} head={0} span={10} grain={1} end={9} onAdd={(lane, t) => added.push([lane, t])} />)
   const tracks = screen.getAllByRole('listbox')

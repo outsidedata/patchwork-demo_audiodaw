@@ -194,8 +194,9 @@ Blender -b --python .claude/skills/making-3d-assets-in-blender/view.py -- <model
 
 NODE ...                       every node, its kind, parent, place, triangles and materials
 BBOX ...                       the bounds and size
-COPLANAR faces=<n> pairs=0     same-facing triangles in one plane (4 mm) sharing > 5 × 5 mm, each
-                               pair's two parts and place listed above it
+COPLANAR faces=<n> pairs=0     same-facing triangles (within 0.6°) that overlap by > 5 × 5 mm where
+                               they lie within 4 mm of each other, measured across the overlap
+                               itself; each pair's two parts and place listed above it
 RENDER <name>-high.png, -eye.png, -plan.png, -near-<k>.png, -look-<k>.png
 ```
 

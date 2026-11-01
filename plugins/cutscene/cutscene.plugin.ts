@@ -1,7 +1,7 @@
 // The browser half of the cutscene: the camera during a shot, and the bars, the veil and the line,
 // all drawn from the cutscene row and the cast rows as the frame's rows hold them. Its numbers are
 // the scene's `world.cutscene` (`cutscene.sim.ts`), read off `plugins.wire.scene.world`, and the
-// panels' sizes and styles are ui's prefab.
+// panels' sizes and styles are ui's, in `world.ui`.
 //
 // The camera. While the scene runs a shot, it claims render3d's camera (`render3d.claim`) and
 // places it in its `tick`: the pose `pose(row, rows, height)` with the shake `shaken(row, tremor)` added, its
@@ -34,6 +34,14 @@
 // Each is shown only while it has something to show, so a scene that shows none of them needs none of
 // the panels, and no ui; one that shows them throws when the scene lists no ui.
 //
+// Waiting. On a frame the scene runs a shot and this holds the camera but cannot place it, the land's
+// ground not there yet or a member the shot names not among the rows, the world is covered in black:
+// a square over the whole frame in render3d's overlay (`cutscene.cover`), which render3d draws in the
+// same frame as the world, over it, whatever the camera does. The first frame the shot is placed,
+// or the scene stops, or another driver holds the camera, the cover is taken out. `waiting()` is true
+// while it is up, so a game's own actor can show something over it on the ui, a spinner say, which
+// is drawn over the world's canvas.
+//
 // `heightOf(plugins)` is the ground's height the row's points stand on: that of the ground the scene's
 // `land` mod hands it, `mod(world, 'cutscene', 'land')` (terrain3d's `terrain3d.cutscene.ts`), or
 // undefined while that mod has no ground yet; with no `land` named, the ground is flat at 0
@@ -47,13 +55,21 @@
 // land's place is let go, `unprepare()`, if it is still the one this asked for. A land without
 // `prepare` makes nothing ready, and the cue does nothing on the page.
 //
+// Steps. A step a game brings (`cutscene.sim.ts`, Steps a game brings) may carry a page half, `page {
+// tick(plugins, d), close?() }`. Each frame there is a cutscene row, after the camera is placed, every
+// delivered step's `tick` is handed the page's plugins and the row, from which it reads what its
+// step keeps under its word, `d.steps[<word>]`, and draws it. It is ticked whether or not the scene
+// runs, so it takes down what it drew when the scene stops or `reset` empties `steps`. Its `close` is
+// called when the cutscene closes, and when the page is handed another scene, whose steps take the
+// place of these.
+//
 // `eye()` is `{ pos, dir }`: where render3d's camera stands and its world −z. It throws before the
 // first tick. `close` gives the claim back, as `done` would.
 import type * as THREE from 'three'
 import type * as PIXI from 'pixi.js'
 import type { Plugins } from '#engine/browser.ts'
 import { mod, provided } from '#addons/scenemanager/scenemanager.addon.ts'
-import { level, pose, shaken, type Height, type Numbers } from './cutscene.sim.ts'
+import { level, pose, shaken, stepsOf, type Height, type Numbers, type Steps } from './cutscene.sim.ts'
 
 // The `land` mod: the ground as this page has it, or undefined while there is none yet; with
 // `prepare`, `prepared` and `unprepare` when the land can be made ready ahead of a cut (Preparing).
@@ -100,7 +116,31 @@ export function cutscene() {
     }
   }
 
+  // The world covered in black while a shot cannot be placed (Waiting): a square over the whole frame
+  // in render3d's overlay, drawn wherever the camera looks.
+  let cover: THREE.Mesh | undefined
+  const hold = (on: boolean) => {
+    if (on && !cover && render3d?.overlay) {
+      const T = render3d.THREE as typeof THREE
+      cover = new T.Mesh(new T.PlaneGeometry(2, 2), new T.ShaderMaterial({
+        vertexShader: 'void main() { gl_Position = vec4(position.xy, 0.0, 1.0); }',
+        fragmentShader: 'void main() { gl_FragColor = vec4(0.0, 0.0, 0.0, 1.0); }',
+        depthTest: false,
+        depthWrite: false,
+      }))
+      cover.name = 'cutscene.cover'
+      cover.frustumCulled = false
+      render3d.overlay.scene.add(cover)
+    } else if (!on && cover) {
+      cover.removeFromParent()
+      cover.geometry.dispose()
+      ;(cover.material as THREE.Material).dispose()
+      cover = undefined
+    }
+  }
+
   const letGo = () => {
+    hold(false)
     if (taken === undefined) return
     const holder = render3d.claimed()
     if (holder !== undefined && holder !== me) return
@@ -118,6 +158,28 @@ export function cutscene() {
     return b
   }
 
+  // The camera placed from the row's shot (The camera).
+  const place = (plugins: Plugins, d: any) => {
+    if (!d?.running || !d.shot) return letGo()
+    if (!render3d) throw new Error('the cutscene places render3d\'s camera, and the scene lists no render3d')
+    const camera = render3d.camera as THREE.PerspectiveCamera | undefined
+    if (!camera) throw new Error('the cutscene places render3d\'s camera, and the scene gives no render3d prefab to make one')
+    if (!render3d.claim(me)) return hold(false)
+    taken ??= camera.fov
+    const height = heightOf(plugins)
+    const p = height && pose(d, plugins.wire.rows, height)
+    hold(!p)
+    if (!p) return
+    const s = shaken(d, (plugins.wire.scene.world!.cutscene as Numbers).tremor)
+    camera.position.set(p.pos[0] + s[0], p.pos[1] + s[1], p.pos[2] + s[2])
+    camera.quaternion.set(p.quat[0], p.quat[1], p.quat[2], p.quat[3])
+    camera.fov = p.fov
+    camera.updateProjectionMatrix()
+  }
+
+  // The delivered steps of the scene last ticked, whose page halves `close` closes (Steps).
+  let steps: Steps = {}
+
   const me = {
     tick(plugins: Plugins) {
       const order = plugins.wire.scene.plugins!
@@ -127,20 +189,11 @@ export function cutscene() {
       render3d = plugins.render3d
       const d = plugins.wire.rows.find(r => r.kind === 'cutscene')?.data
       prepare(plugins, d)
-      if (!d?.running || !d.shot) return letGo()
-      if (!render3d) throw new Error('the cutscene places render3d\'s camera, and the scene lists no render3d')
-      const camera = render3d.camera as THREE.PerspectiveCamera | undefined
-      if (!camera) throw new Error('the cutscene places render3d\'s camera, and the scene gives no render3d prefab to make one')
-      if (!render3d.claim(me)) return
-      taken ??= camera.fov
-      const height = heightOf(plugins)
-      const p = height && pose(d, plugins.wire.rows, height)
-      if (!p) return
-      const s = shaken(d, (plugins.wire.scene.world!.cutscene as Numbers).tremor)
-      camera.position.set(p.pos[0] + s[0], p.pos[1] + s[1], p.pos[2] + s[2])
-      camera.quaternion.set(p.quat[0], p.quat[1], p.quat[2], p.quat[3])
-      camera.fov = p.fov
-      camera.updateProjectionMatrix()
+      place(plugins, d)
+      const now = stepsOf(plugins.wire.scene.world!)
+      if (now !== steps) for (const s of Object.values(steps)) s.page?.close?.()
+      steps = now
+      if (d) for (const s of Object.values(steps)) s.page?.tick(plugins, d)
     },
     afterTick(plugins: Plugins) {
       const d = plugins.wire.rows.find(r => r.kind === 'cutscene')?.data
@@ -168,13 +221,19 @@ export function cutscene() {
         text.text = `${d.line.who}: ${d.line.text}`
       }
     },
+    // Whether the world is covered while a shot cannot be placed (Waiting).
+    waiting(): boolean { return cover !== undefined },
     eye(): { pos: number[]; dir: number[] } {
       const camera = render3d?.camera as THREE.PerspectiveCamera | undefined
       if (!camera) throw new Error('the cutscene has no camera to read: it has not ticked, or render3d made none')
       const { Vector3 } = render3d.THREE as typeof THREE
       return { pos: camera.getWorldPosition(new Vector3()).toArray(), dir: camera.getWorldDirection(new Vector3()).toArray() }
     },
-    close() { letGo() },
+    close() {
+      letGo()
+      for (const s of Object.values(steps)) s.page?.close?.()
+      steps = {}
+    },
   }
   return me
 }

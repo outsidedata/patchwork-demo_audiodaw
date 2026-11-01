@@ -42,7 +42,11 @@ hands on `gripL`/`gripR`, feet on `footL`/`footR`).
 | `tools/workshop/workshop.server.ts` | The node server: serves the page, core's own plugins, a game's files; reads and writes a game |
 | `tools/workshop/workshop.ts`, `workshop.html` | The page |
 | `tools/workshop/scenes.ts` | Edits a scene file's text in place, keeping its hand-laid layout |
+| `tools/workshop/loaded.ts` | Loads a scene whole through scenemanager's `child`, a fresh node process each read |
 | `tools/workshop/glb.ts` | Reads and writes a glb's empties (mount points) in node, no Blender |
+| `tools/workshop/beside.ts` | A glb's points file, `<stem>.points.json`, for a model written again from elsewhere |
+| `tools/workshop/retarget.ts` | Clip retargeting, shared by the page's pack clips and the pose lab |
+| `tools/workshop/poses.ts`, `poses.html`, `poses.export.py` | The pose lab (`/poses`) and the Blender script that writes its clip |
 | `tools/workshop/solids.ts` | Reads a solids model's nodes and empties and edits them in its json in place, layout kept |
 | `tools/workshop/drawn.ts` | A solids model's stand-in scene, and how the page finds its nodes and paints in a drawing |
 | `plugins/solids/solids.plugin.ts` | The solids every solids model is meshed by, in the game and in the workshop |
@@ -53,6 +57,7 @@ hands on `gripL`/`gripR`, feet on `footL`/`footR`).
 | `plugins/interact/interact.ik3d.ts` | interact's mod handing ik3d a step's limbs, on the points a machine's plugin draws |
 | `plugins/box3dvehicle/box3dvehicle.plugin.ts` | Draws a car from its rows and its look, its look's points as empties (`point(id, name)`) |
 | `plugins/box3dvehicle/box3dvehicle.interact.ts` | box3dvehicle's mod for interact: a car's points, `point` (server) and `object` (page) |
+| `games/<game>/<game>.workshop.ts` | A game's moves: its body against the things of its level, posed by the game's own code (demo_walker's is the first) |
 
 ## Running it
 
@@ -100,7 +105,8 @@ and `yarn vitest run plugins/box3dvehicle/box3dvehicle.plugin.test.ts plugins/bo
   and the scene's `world.particle3d`).
 - **Drift**: a body whose anim kind or IK differs between scenes is flagged with the scenes that
   differ. The page shows the first scene's numbers; a save writes every scene.
-- render3d's prefab (tone, shadows, AO) is the game's, so the look is the game's.
+- render3d's prefab (tone, shadows, AO) is the game's, so the look is the game's, but for its bloom:
+  the workshop never blooms, even for a game that does (`unbloomed` in `drawn.ts`).
 
 ## How it draws: the game's plugins, not a copy
 
@@ -151,6 +157,26 @@ which ride the steering wheel as it turns; the gizmo sets a point in that empty'
 place and turn (the chassis's, or the turned wheel's for a `steer` point), the same `moduleFrame` as a
 module's empty. A vehicle has no notes.
 
+## A game's moves
+
+A game whose own plugins move its body against its level (a ladder, a chair, a wall: demo_walker's
+climber and moves, not `plugins/interact`) hands them to the workshop in `games/<game>/<game>.workshop.ts`
+(the server's `workshop`). The file exports `scene` (a scene the manager names), `body` (the kind of the
+row that makes the moves), `looks` (the kinds whose rows are drawn round it) and `moves(w, me)`: each
+move `{ name, against, floor, steps }`, each step `{ name, clip, dur, loop, pose(t), marks() }`. `pose`
+writes the body's row as the game's code has it `t` seconds in (calling the game's own plugins on the
+row, never a copy of their arithmetic); `marks` is what the clip touches then, `{ name, on, at, gap?,
+off? }`. The file's header says how each step is posed and what each mark's gap is measured against.
+
+The page boots that scene as the game loads it (`child`, `boot`, `prepare`), spawns the body from its
+prefab, and draws a move on a stand-in scene of the loader, anim and render3d with the scene's world:
+each row of `looks` by a copy of its own look (the engine's `drawing`; the server serves any `.ts` with
+`?instance` as `scripts/instance.ts` makes it), the body by anim, a solid floor at `floor`. Steps, the
+playhead, a frame either way (`,` `.`), the dots and their list, the views turned by the body's facing
+as the step begins, and Key frames (the step at every moment its marks change, side by side). A move
+saves nothing; any file of the game written loads the page again on the same move and step, the camera
+kept. `?game=<game>&move=<name>&step=<n>` opens one.
+
 ## What a solids model carries
 
 - **Nodes**, `{ <name>: { parent?, at, turn?, mirror? } }`: frames, `at` metres in the parent's frame,
@@ -167,8 +193,9 @@ module's empty. A vehicle has no notes.
   solids model (below).
 - **Fitting one on a body is not built**: anim's `props` hang `plugins.loader.model(name)`, which is
   a `type: "model"` (glb) entry only, and ik3d reaches points on anim's prop roots. Holding a solids
-  model needs a new exported piece of a top-level plugin (anim taking a prop's object from a mod, a
-  `solids.anim.ts` handing a solids model's drawing, its nodes named), which waits on Bill's yes.
+  model needs anim and solids expanded (anim taking a prop's object from a mod, a `solids.anim.ts`
+  handing a solids model's drawing, its nodes named), which waits on the yes of the person you are
+  working for (`prime-directive`, Core is not touched).
 
 ## What a prop carries, and what a game carries
 
@@ -216,8 +243,9 @@ still loading is waited for. Every Mixamo skeleton copy gets the solved turns.
     the game that draws the body and has the model (a body that did not hold it gets it).
   - **Revert** drops what is not saved.
 - **Clips**: a search box (every typed word must be in the clip's name or pack, any case; ↑/↓,
-  Enter, Escape) over the rig's clips, then every pack in `/Users/bill/troupe-collection/packs` (hardcoded,
-  read no deeper than one pack folder) marked "(not baked)": retargeted as `anim.export.py`
+  Enter, Escape) over the rig's clips, then every pack in `packs/` of the clip collection
+  (`PATCHWORK_CLIPS` from the shell or `.env`, else `~/troupe-collection`; read no deeper than one
+  pack folder) marked "(not baked)": retargeted as `anim.export.py`
   retargets and played by anim through a stand-in rig. A preview: the game has the clip only once
   it is in the rig and baked (`using-mixamo-assets`).
 - **A solids model**: listed as `solids · <how the game names it>`, no body buttons. The hud says who
@@ -250,12 +278,25 @@ still loading is waited for. Every Mixamo skeleton copy gets the solved turns.
 - Any file of the game written on disk (by Claude, Blender, a save) reloads the view in place with
   the camera kept; "reloaded" shows the time.
 
+## The other pages of the same server
+
+- `/poses`, the pose lab: a library character (`PATCHWORK_LIBRARY`, else `~/patchwork-library`,
+  `characters/<name>/<name>.fbx`) posed by hand a pose at a time, any two tweened, the poses written
+  by Blender (`poses.export.py`) as one clip, `poses/<name>.fbx` in the packs folder, a frame a pose,
+  with its `<name>.poses.json` beside it.
+- `/ui`, the UI workshop (`building-the-hud`), and `/particles`, the particle workshop
+  (`tuning-particles`).
+
 ## The API, for Claude driving it without the page
 
 `GET /api/games`, `GET /api/game/<game>` (the summary above), `GET|POST /api/points?file=<glb>`
-(`{ points: { name: { at, turn: [x,y,z,w] } } }`), `GET|POST /api/frames?file=<solids json>`
-(`{ nodes?: { name: { at, turn?: [rx, ry], parent? } }, empties?: { name: [x,y,z] } }`, written in
-place, a missing one added), `GET|POST /api/notes?file=<glb or solids json>`,
+(`{ points: { name: { at, turn: [x,y,z,w] } } }`), `GET|POST /api/beside?file=<glb>` (`{ points?, sizes?, drop? }`: its `<stem>.points.json`, each point
+`drop` names taken out, each point and size named set, the rest kept),
+`GET|POST /api/frames?file=<solids json>`
+(`{ nodes?: { name: { at, turn?: [rx, ry], parent? } }, empties?: { name: [x,y,z] }, turns? }`,
+written in place, a missing one added),
+`POST /api/machine?file=<definitions file>` (`{ machine, name, poses }`: the machine's pose in each
+step of interaction `name`, written in place into `world.defs`' file), `GET|POST /api/notes?file=<glb or solids json>`,
 `PATCH /api/notes/<n>?file=<path>`, `POST /api/fit/<game>` (`{ body, prop, hold?, ik? }`),
 `POST /api/bring/<game>` (`{ from, key, body?, like? }`), `POST /api/interaction?file=<.interaction.json>`
 (the interaction, checked by interact's `check` and written each step on lines of its own),
@@ -264,7 +305,9 @@ turns }`; POST `{ empties?, turns? }` written in place into every file that give
 back the points and `written`),
 `POST /api/bake/<game>` (`{ body, clip: "pack:<pack>/<file>", name }`: the clip added to the body's
 rig as `name`, every body of the rig baked by Blender, `BLENDER`, and the table merged; refused for a
-name the rig gives another file), `GET /api/packs`, `GET /api/events` (SSE
+name the rig gives another file), `GET /api/packs`, `GET /api/characters` (the library's rigged
+characters), `GET|POST /api/poses` (the pose lab's clips; POST `{ name, body, rest, poses }` writes
+one), `GET /api/events` (SSE
 `changed <path>`). A JSON body is easiest sent from a file: `curl --data @file.json`.
 
 ## Rules that hold
@@ -275,9 +318,8 @@ name the rig gives another file), `GET /api/packs`, `GET /api/events` (SSE
 - Solids models are edited only through `solids.ts`: each node on its own line, compact or spaced as
   the file is. Setting every node and empty of all 27 of mech's solids models to its own value writes
   every file byte for byte as it was.
-- The workshop imports nothing from `editor/`, and no game imports the workshop. It never changes
-  how a game draws, only the game's files. The editor is on hold; this is the tool for props until
-  it is phase 2.
+- No game imports the workshop. It never changes how a game draws, only the game's files. It is the
+  tool for props.
 - `games/` is its own repo: a save changes files there, committed with `git -C games`.
 - Never scan the disk for textures or clips: only the packs folder above, and only on request.
 

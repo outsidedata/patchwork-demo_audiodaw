@@ -42,7 +42,7 @@
 // wants the thing shown: `make` runs the first time, and the same object comes back every frame
 // after that, for the actor to write this frame's values on. The thing is named by its key, PixiJS's
 // `label`, so a test, or anything else that reads the panel, finds it without showing it. After a frame in which nobody showed
-// it, it is destroyed, with its children and its Graphics contexts; a texture it draws is the
+// it, it is destroyed (or, gone with the newest step, once the clock reaches that step: Between steps), with its children and its Graphics contexts; a texture it draws is the
 // loader's and stays. So a row that ends takes its UI with it, a thing drawn only sometimes is shown
 // behind an `if`, and no `remove` tears anything down. `show` is the only way onto a panel: a panel
 // that holds a child `show` did not hand out throws at the end of the frame. What an actor adds
@@ -114,11 +114,32 @@
 // actor that shows things is listed after `ui` in the scene's `plugins`. `mount` hides the canvas
 // and the first `afterTick` shows it, so a canvas with nothing drawn on it is never shown.
 //
+// Fonts. A style's `fontFamily` names a font: one the page has, or a `font` entry of the scene's
+// catalogue by its name, which the loader installs in the page (`plugins/loader`). PixiJS draws a
+// `Text` once and keeps what it drew, and measures a font once and keeps that too, so a text drawn
+// before its font had landed would stay in the font after it. Every font is preloaded, and the UI draws
+// nothing, its canvas still hidden and no surface drawn, until the loader says every font of the
+// catalogue has landed or failed (`fonts()`): the first frame it draws is in the fonts it names. Things
+// are shown, destroyed, placed and hit meanwhile as on any frame.
+//
+// The first frame. The UI's renderer is there some frames after its canvas is mounted (PixiJS makes
+// one asynchronously), and the UI draws nothing until its fonts are in, while render3d draws the world
+// from the first frame. On a page, in a scene that names render3d, the UI covers the world in black
+// from its first tick until the frame it first draws: a square over the whole frame in render3d's
+// overlay (`ui.cover`), which render3d draws in the same frame as the world, over it, whatever the
+// camera does. The frame the UI first draws, the cover is taken out, and what the scene shows over
+// the world on the UI, a cover of its own, a cutscene's veil, is there in its place.
+//
 // Between steps. Each frame, just before it draws, every thing on the stage and on a panel drawn on a
 // surface is put between where the last two steps left it, as far as the frame's wire says (`steps`,
 // `engine/browser.ts`, Drawing between steps): its position in a straight line, its turn the short way
 // round, its scale; and once the frame is drawn each is put back where it was set. So a dial's hand
-// turned from a row turns as smoothly as the game's own things move under it.
+// turned from a row turns as smoothly as the game's own things move under it. The moment a frame
+// draws is before the newest step, so a thing shown first on the newest step is not drawn until the
+// clock reaches that step (`steps`), and a thing last shown on the step before the newest, which
+// nobody showed on the newest, is drawn, where it was last set, until the clock reaches it too, and
+// destroyed then: a screen handed from one thing to another on one step, a cover to a veil, draws the
+// one or the other on every frame.
 //
 // Node has no canvas to measure text on and no image to decode. So a test never reads a `Text`'s
 // size, a button is hit by its `hitArea`, and a test whose scene loads a texture for the UI stands
@@ -198,12 +219,17 @@ export type Button = {
   text: Partial<PIXI.TextStyleOptions>
   label: string
   bitmap?: boolean
+  baselineOffset?: number
 }
 
 // A button: a plain PIXI.Container of a background and a label centred on it, which the pointer
 // hits as one thing — its label is never hit apart from it — drawn with `focus` while the UI has it
 // focused and `fill` otherwise. With `bitmap` its label is a `BitmapText`, so a style whose
-// `fontFamily` is a loaded bitmap font's name draws it in that font. What it does is the actor's:
+// `fontFamily` is a loaded bitmap font's name draws it in that font. `baselineOffset`, 0 when left
+// out, is pixels added to the label's y, down positive: the label's anchor is the middle of the
+// font's line box, which is not the middle of its capitals (a BitmapText's box also takes in the
+// font's `lineHeight - base`), so a style whose font draws its words high or low says by how much.
+// The hit area is the button's box either way. What it does is the actor's:
 // `on('pointertap', ...)`, which hands the button back, so a button that does something is one
 // expression.
 export function button(o: Button): PIXI.Container {
@@ -217,7 +243,7 @@ export function button(o: Button): PIXI.Container {
   const paint = (fill: PIXI.FillInput) => back.clear().roundRect(0, 0, w, h, o.radius ?? 0).fill(fill)
   paint(o.fill)
   const label = o.bitmap ? new PIXI.BitmapText({ text: o.label, style: o.text, anchor: 0.5 }) : new PIXI.Text({ text: o.label, style: o.text, anchor: 0.5 })
-  label.position.set(w / 2, h / 2)
+  label.position.set(w / 2, h / 2 + (o.baselineOffset ?? 0))
   b.addChild(back, label)
   b.on('focus', () => paint(o.focus))
   b.on('blur', () => paint(o.fill))
@@ -292,6 +318,8 @@ type Panel = {
   backdrop?: PIXI.Graphics
   shown: Map<string, PIXI.Container>
   asked: Set<string>
+  // the step each thing shown was last shown on
+  steps: Map<string, number>
   // Drawn on a surface, asked to be this frame, and where on the surfaces' canvas.
   surfaced?: boolean
   wanted?: boolean
@@ -322,6 +350,7 @@ export function ui() {
   const down = new Set<string>() // the keys held on the page, each by its place on the keyboard (`keyOf`)
   let stale = new Set<string>() // the keys that were held when the modal that has the input took it
   // Every thing's position, turn and scale after the last two steps (Between steps).
+  let stepAt = -1, stepWas = -1 // the newest step the client took, and the one it took before it
   const between = steps<PIXI.Container>(
     c => [c.position.x, c.position.y, c.rotation, c.scale.x, c.scale.y],
     (c, p) => { c.position.set(p[0], p[1]); c.rotation = p[2]; c.scale.set(p[3], p[4]) },
@@ -391,7 +420,7 @@ export function ui() {
     // Its place among every panel `world.ui` lists, by layer and, within a layer, by the list.
     const all = Object.entries(table().panels)
     box.zIndex = all.map(([n, q], i) => ({ n, layer: q.layer ?? 0, i })).sort((a, b) => a.layer - b.layer || a.i - b.i).findIndex(q => q.n === name)
-    const panel: Panel = { name, box, spec: s, shown: new Map(), asked: new Set() }
+    const panel: Panel = { name, box, spec: s, shown: new Map(), asked: new Set(), steps: new Map() }
     if (s.size) box.boundsArea = new PIXI.Rectangle(0, 0, w, h)
     if (s.clip) {
       panel.mask = new PIXI.Graphics().rect(0, 0, w, h).fill()
@@ -543,6 +572,31 @@ export function ui() {
   }
   const onLeave = () => { if (!owner) focusOn(undefined) }
 
+  // The world covered until the UI first draws (The first frame): a black square over the whole frame in
+  // render3d's overlay, drawn wherever the camera looks.
+  let cover: { removeFromParent(): void; geometry: { dispose(): void }; material: { dispose(): void } } | undefined
+  let drew = false
+  const shroud = (r3: Plugins['render3d']) => {
+    const T = r3.THREE
+    const m = new T.Mesh(new T.PlaneGeometry(2, 2), new T.ShaderMaterial({
+      vertexShader: 'void main() { gl_Position = vec4(position.xy, 0.0, 1.0); }',
+      fragmentShader: 'void main() { gl_FragColor = vec4(0.0, 0.0, 0.0, 1.0); }',
+      depthTest: false,
+      depthWrite: false,
+    }))
+    m.name = 'ui.cover'
+    m.frustumCulled = false
+    r3.overlay.scene.add(m)
+    return m
+  }
+  const unshroud = () => {
+    if (!cover) return
+    cover.removeFromParent()
+    cover.geometry.dispose()
+    cover.material.dispose()
+    cover = undefined
+  }
+
   const me = {
     PIXI,
     stage,
@@ -567,6 +621,7 @@ export function ui() {
     },
     tick(p: Plugins) {
       plugins = p
+      if (me.canvas && !drew && !cover && p.render3d?.overlay) cover = shroud(p.render3d)
       if (!me.canvas || listening) return
       listening = true
       addEventListener('keydown', onKey, true)
@@ -592,6 +647,7 @@ export function ui() {
       const p = made(panel)
       if (p.asked.has(key)) throw new Error(`ui showed ${panel} ${key} twice in one frame`)
       p.asked.add(key)
+      if (typeof plugins?.wire.n === 'number') p.steps.set(key, plugins.wire.n)
       let it = p.shown.get(key)
       if (!it) {
         it = make()
@@ -633,6 +689,14 @@ export function ui() {
     // camera. A thing pinned one frame and not the next stays where it was last put.
     pin(c: PIXI.Container, at: number[]) { pins.set(c, at) },
     afterTick() {
+      // The newest step and the one the client took before it, and whether this frame is drawn behind
+      // the newest step, as `between` draws it (Between steps).
+      const wire = plugins?.wire
+      if (typeof wire?.n === 'number' && wire.n !== stepAt) {
+        stepWas = wire.n < stepAt ? -1 : stepAt
+        stepAt = wire.n
+      }
+      const behind = wire?.between !== undefined && stepWas >= 0 && (stepAt - 1 + wire.between - stepWas) / (stepAt - stepWas) < 1
       for (const p of panels.values()) {
         // A panel no one asked to draw on a surface this frame goes back on the stage.
         if (p.surfaced && !p.wanted) {
@@ -643,6 +707,10 @@ export function ui() {
         p.wanted = false
         for (const [key, it] of p.shown) {
           if (p.asked.has(key)) continue
+          // Last shown on the step before the newest, it went with the newest step, and the moment drawn
+          // is before that step: it is drawn until the clock reaches it.
+          if (behind && p.steps.get(key) === stepWas) continue
+          p.steps.delete(key)
           if (focus && within(focus, it)) focusOn(undefined)
           pins.delete(it)
           it.destroy({ children: true, context: true })
@@ -682,6 +750,8 @@ export function ui() {
       }
       pins.clear()
       if (!me.canvas) return
+      // Nothing is drawn until every font of the catalogue is in (Fonts).
+      if (plugins?.loader && !plugins.loader.fonts()) return
       // As big on the page as the game's canvas, drawn at the screen's pixel ratio times the game's
       // scale, so a pixel of the UI covers the physical pixels one of the game's does.
       const s = scale(), { width, height } = area()
@@ -702,6 +772,10 @@ export function ui() {
       }
       try {
         renderer?.render(stage)
+        if (renderer) {
+          drew = true
+          unshroud()
+        }
         // The surfaces side by side along the top of their canvas, each on its own colour.
         if (!surfacer || !on.length) return
         const res = renderer?.resolution ?? devicePixelRatio
@@ -730,6 +804,7 @@ export function ui() {
     },
     close() {
       closed = true
+      unshroud()
       if (listening) {
         listening = false
         removeEventListener('keydown', onKey, true)

@@ -47,6 +47,11 @@
 // reach it, the soonest point of it. `swing` hands back what it met, soonest first: `{ what, id, part,
 // point, dir, speed, u, blade }`, `what` `limb` or `blade`, `part` the limb or the other body's blade,
 // `point` where the path came nearest, `dir` the unit way it moved, `blade` the swinging blade's name.
+// `liveOf(me, strikes)` is the swing a body is in now, for a rule to hand `swing`: the clip it plays
+// that `strikes` (`{ <clip>: … }`, the clips that swing a blade) names, on anim's upper channel while a
+// gesture there has weight, else as its act, or null.
+//
+// melee3d hands npc3d a sword fight through its mod, `melee3d.npc3d.ts`.
 import type { Row, W } from '#engine/engine.ts'
 import type { Wire } from '#engine/browser.ts'
 import { Matrix4, Vector3 } from 'three'
@@ -153,6 +158,13 @@ function nearest(p0: number[], p1: number[], q0: number[], q1: number[]) {
   const p = [p0[0] + d1[0] * s, p0[1] + d1[1] * s, p0[2] + d1[2] * s]
   const q = [q0[0] + d2[0] * t, q0[1] + d2[1] * t, q0[2] + d2[2] * t]
   return { s, t, p, distance: math.hypot(p[0] - q[0], p[1] - q[1], p[2] - q[2]) }
+}
+
+export function liveOf(me: Row, strikes: Record<string, unknown>): string | null {
+  const d = me.data
+  if (d.upper != null && d.upperW > 0 && strikes[d.upper]) return d.upper
+  if (d.state === 'act' && strikes[d.clip]) return d.clip
+  return null
 }
 
 const lerp = (a: number[], b: number[], s: number) => [a[0] + (b[0] - a[0]) * s, a[1] + (b[1] - a[1]) * s, a[2] + (b[2] - a[2]) * s]

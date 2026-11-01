@@ -26,10 +26,16 @@ playhead fields: `state`, `clip`, `clipT`, `rate`, `blend`, `from`, `fromT`, the
   enough for. The playhead runs at speed / gear speed, so the feet stay planted at any speed.
 - Slower than `world.anim.still`, the body plays its stance's `still` role.
 - Leaving the ground it plays `jump` or `leap` (by speed over the ground), in the air `fall`, and on
-  touching down faster than `landFall`, `land`.
+  touching down faster than `landFall`, `land`. A kind with `falls`, `[{ above, role }]` in rising
+  m/s, falls by them instead: falling no faster than the first `above` it plays on as it was, so a
+  step down a stair is never a fall; past a band's `above` it plays that band's role, and it only
+  ever goes up the bands until it lands.
 - `play(me, clip, { holds, rate })` starts a one-shot as an act. A one-shot that moves the body
   (a roll, a vault, a turn on the spot) carries travel: `animate` returns `{ move, yaw }` measured from
   the clip's table, and the caller slides the body by it.
+- `pose(me, w, name)` plays one of the rig's `poses`, a frame of a clip held, as `play` plays a clip:
+  its clip stopped at that frame (`rate` 0) and held until `play`, `pose` or `stop` changes it, faded
+  in from the clip before as any clip is.
 - `gesture(me, clip)` plays a clip on the upper channel (the bones under the rig's `mask`) over
   whatever the legs are doing: a shot, a reload, a wave.
 - Markers (`"peak"`, `"50%"` or seconds) fire as the playhead crosses them, and `animate` returns them
@@ -47,7 +53,12 @@ playhead fields: `state`, `clip`, `clipT`, `rate`, `blend`, `from`, `fromT`, the
   sees it, mid-crossfade too: the joints it gives stand within a micron of the drawn ones. A row is
   posed once a step, however many rules ask.
 - `ends(w, me, segment)` is one limb segment's two ends in one clip at one playhead, read straight
-  between the two baked frames the playhead falls between.
+  between the two baked frames the playhead falls between. A mirrored clip's are its source's other
+  side's, reflected across.
+- `touchOf(from, me, clip)` is what a clip touches on the row's body, as the bake measured it: where
+  its hands grip, where its feet stand, the floors it stands on, its seat, and every patch of skin held
+  still and when. `plantsOf(from, me, clip)` is when each hand and foot is planted, the runs of
+  seconds it is held on something; a mirrored clip's are its source's, the left's the right's.
 
 **Browser half.** Each row of a kind `world.anim.kinds` lists gets its own clone of the kind's model
 from the loader, added to render3d's scene. The three.js mixer is scrubbed, never run: every frame
@@ -82,31 +93,46 @@ model.
    `model` entry, and `glb` a preloaded loader `binary` entry of the model's same file, which the
    server poses the body by (a kind no rule poses may leave it out). `still`, `leap` and `landFall` are m/s, `moves` metres, `turns` degrees,
    `shift` a share of a gear's speed, `fade` seconds. A kind may add `reads.aim` (a field, or a dotted
-   path such as `"look.pitch"`), `aim: { bones: { <bone suffix>: <share> } }` and
+   path such as `"look.pitch"`), `falls: [{ above, role }]`, `aim: { bones: { <bone suffix>: <share> } }` and
    `props: [{ model, bone, at, turn }]`. A row draws as the kind its `as` field names when it names
    one, so a `player` row can draw as another kind's body.
 3. Write the rig file: `clips` (name to FBX, or `{ file, loop, gear, markers, scale, rate, stance,
-   mirror, rebase }`), `roles`, `stances`, `mask`, `meshes`, `show`, `blades` (the roles of `meshes`
-   that are rigid weapons the body holds, a sword), and the measured `table`, `ends` and `grips`. The
-   header of `anim.sim.ts` describes every key.
+   mirror, rebase, held }`), `roles`, `stances`, `mask`, `meshes`, `show`, `blades` (the roles of
+   `meshes` that are rigid weapons the body holds, a sword), and the measured `table`, `ends`,
+   `grips`, `touches` and `poses`. A rig motion3d holds also carries each clip's `held` and the
+   measured `offsets` motion3d places the body by (motion3d's README). The header of `anim.sim.ts`
+   describes every key.
 4. Bake it: `anim.export.py` runs in Blender, bakes every clip onto each body the rig names, packs
    each body's glb with gltfpack, and measures the `table` (each clip's length, travel, turn, hips
    height, the second of its peak), the `ends` (where each limb segment is on every frame, and each
-   blade from its guard to its tip) and the `grips` (each blade's guard and tip in the frame of the
-   glb's joint that carries it). A blade's mesh must be weighted to one bone; its tip is found as its
-   furthest point from that bone and its guard as the crossguard. The skill's `merge-table.mjs` writes
-   the table, `ends` and `grips` into the rig file:
+   blade from its guard to its tip), the `grips` (each blade's guard and tip in the frame of the
+   glb's joint that carries it) and the `touches` (the body's skin measured on every frame by
+   `anim.touches.py` and read by `anim.touches.mjs`, by the cases of `anim.touches.json`: what each
+   clip touches, and when each patch of skin is planted). A blade's mesh must be weighted to one bone;
+   its tip is found as its furthest point from that bone and its guard as the crossguard. The skill's
+   `merge-table.mjs` writes the table, `ends`, `grips`, `touches` and `poses` into the rig file.
+
+   Two files beside a clip's FBX change how it bakes; the FBX itself is never changed. A sidecar of
+   the same name with `.json` (`Stand To Crouch.json`) may give an `offset`, `{ position, rotation }`:
+   `position` rows `[[t, x, y, z], …]` in metres and `rotation` rows `[[t, degrees], …]` about the
+   vertical, sampled straight between rows, laid onto the clip's hips as it bakes, so a clip that sinks
+   its feet through the floor or stands turned is set right, and the table and `ends` are measured with
+   it. A `.poses.json` (`Flying.poses.json`), `{ "poses": { "<frame>": "<pose>" } }`, names frames of the
+   clip as poses, which the bake writes into the rig's `poses` for `pose` to play.
 
    ```
    Blender -b --factory-startup --python plugins/anim/anim.export.py -- \
        <rig.json> <table.json> <body>=<out.glb> [<body>=<out.glb> ...]
    ```
 
-   Bodies are read from the library (`PATCHWORK_LIBRARY`, else `~/patchwork-library`), clips from
-   `~/troupe-collection`. Specular/gloss materials (Adobe Fuse, Mixamo) are turned into metal/rough
-   so skin and cloth do not come out as polished metal.
+   Bodies are read from the library (`PATCHWORK_LIBRARY`, else `~/patchwork-library`), clips from the
+   clip collection (`PATCHWORK_CLIPS`, else `~/troupe-collection`), each from the shell or the repo's
+   `.env`. Specular/gloss materials (Adobe Fuse, Mixamo) are turned into metal/rough
+   so skin and cloth do not come out as polished metal. The touch measure and reader also run on their
+   own, over a list of clips as their FBX have them (`anim.touches.py`'s and `anim.touches.mjs`'s
+   headers), which the library's touch catalogue is made by.
 5. In the kind's `<kind>.sim.ts`, call `animate(me, w, dt)` every step and apply the travel it
-   returns; call `play`, `gesture`, `stop` from acts.
+   returns; call `play`, `pose`, `gesture`, `stop` from acts.
 6. On the page, `plugins.anim.model(id)`, `socket(id, suffix)` (an object by the end of its name,
    say a muzzle) and `props(id)` reach the drawn body once anim's `tick` has run.
    `pose(id, clip, t)` draws a row in one clip at one time and hands back the model.
@@ -137,5 +163,6 @@ animation, skeletal animation, skinning, rig, Mixamo, mixamorig, Adobe Fuse, FBX
 AnimationMixer, clip, crossfade, blend, locomotion, gears, walk, run, strafe, idle, jump, fall, land,
 one-shot, root motion, travel, upper body layer, mask, gesture, markers, footsteps, events, aim
 offset, pitch, props, attach to bone, socket, muzzle, stance, mirrored clips, Blender bake,
-gltfpack, server-side pose, forward kinematics, bone matrices, blade, sword, weapon, `animate`,
-`play`, `gesture`, `stop`, `rest`, `committed`, `posed`, `ends`, `world.anim`
+gltfpack, server-side pose, forward kinematics, bone matrices, blade, sword, weapon, touches, planted,
+contacts, skin, poses, sidecar, `animate`, `play`, `pose`, `gesture`, `stop`, `rest`, `committed`, `posed`, `ends`, `touchOf`,
+`plantsOf`, `world.anim`

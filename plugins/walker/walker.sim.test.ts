@@ -7,7 +7,7 @@
 // and a walk φ off its normal heads at ψ + φ. `groundOf` is read on scenes a manager loads, as a
 // game's are, whose `world.walker.mods` name terrain3d and scatter3d.
 import { afterAll, describe, expect, test } from 'vitest'
-import { mkdtempSync, rmSync, writeFileSync } from 'node:fs'
+import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { pathToFileURL } from 'node:url'
@@ -18,7 +18,7 @@ import { written } from '#plugins/loader/loader.sim.ts'
 import * as math from '#plugins/math/math.sim.ts'
 import { depthAt, rawAt, type Field } from '#plugins/terrain3d/terrain3d.sim.ts'
 import { placed, solids as scattered, type Scatter } from '#plugins/scatter3d/scatter3d.sim.ts'
-import { carry, check, groundOf, relative, seek, stand, walk, type Ground, type Numbers, type Solid } from './walker.sim.ts'
+import { carry, check, groundOf, relative, seek, stand, walk, walker, type Ground, type Numbers, type Solid } from './walker.sim.ts'
 
 const DT = 1 / 60
 const K: Numbers = {
@@ -1144,9 +1144,7 @@ describe('groundOf', () => {
   const field: Field = {
     program: { world: 600, hscale: 4, sea: 0.625, flood: true, out: 'hills', nodes: [{ id: 'hills', op: 'noise', kind: 'simplex', freq: 6, seed: 5 }] },
     analysis: { slopeStep: 1.5, curveStep: 4, positionRadius: 18, occlusionRadius: 30, occlusionSteps: 5, cliffProbe: 12, cliffSlope: 0.5, cliffDrop: 7, flatAngle: 0.03, records: 50000 },
-    bands: [{ colour: '#3e5722', amount: 1, rules: [] }],
-    grain: { base: 1, range: 0 },
-    detail: [],
+    ground: { layers: [{ name: 'grass', map: 'grass', scale: 30 }] },
     surfaces: {},
     layers: [],
   }
@@ -1237,6 +1235,119 @@ export const scene = file
     w.world.walker.mods = undefined
     expect(() => groundOf(w)).toThrow('walker is asked for the ground its mods make, and the scene names no world.walker.mods.height')
   })
+})
+
+describe('a fixed world handed over once', () => {
+  // A game's own plugin `fixture`, shipped in the test's game folder, gives walker every mod: a hill, a
+  // pond, a cell of 2 and a post on each body's way, a little off its line, as `solids` or as `fixed`.
+  // Three children of one manager, each with walker's row: `asked` names `solids`, `kept` names `fixed`,
+  // and `agents` names `fixed` with the kind walking as an agent on 0.25 m squares. Four bodies, solid
+  // to each other, walk the same moves in each.
+  const dir = mkdtempSync(join(tmpdir(), 'walker-fixed-'))
+  afterAll(() => rmSync(dir, { recursive: true }))
+  const path = (p: string) => JSON.stringify(new URL(p, import.meta.url).pathname)
+  mkdirSync(join(dir, 'plugins/fixture'), { recursive: true })
+  writeFileSync(join(dir, 'plugins/fixture/fixture.walker.ts'), `
+const posts = [{ x: -7, z: -7.6, radius: 0.5 }, { x: 4.4, z: 6.2, radius: 0.8 }, { x: 0.8, z: -8, radius: 0.4 }, { x: 10, z: -0.8, radius: 0.4 }]
+export const height = (_w, x, z) => 0.05 * x + 0.3 * Math.sin(x / 3) * Math.cos(z / 4)
+export const depth = (_w, x, z) => Math.max(0, 0.8 - Math.hypot(x - 6, z + 4) / 3)
+export const cell = () => 2
+export const solids = (_w, x, z, r) => posts.filter(s => Math.hypot(s.x - x, s.z - z) <= r + s.radius)
+export const fixed = (_w, x, z, r) => posts.filter(s => Math.hypot(s.x - x, s.z - z) <= r + s.radius)
+`)
+  const walks = [
+    { at: [-10, -10], want: [2, 1.5] },
+    { at: [8, 8], want: [-1.8, -1] },
+    { at: [0, -11], want: [0.5, 2.5] },
+    { at: [7, -1], want: [2, 0] },
+  ]
+  const posts = [{ x: -7, z: -7.6, radius: 0.5 }, { x: 4.4, z: 6.2, radius: 0.8 }, { x: 0.8, z: -8, radius: 0.4 }, { x: 10, z: -0.8, radius: 0.4 }]
+  const childOf = (mods: Record<string, string>, agent?: number) => ({
+    world: { shipped: { plugins: ['fixture'] }, walker: { kinds: { body: { ...K, bodies: ['body'], ...(agent && { agent }) } }, mods } },
+    prefabs: { engine: { dt: DT }, scenemanager: { out: {} }, body: BODY, walker: {} },
+    actors: [{ is: 'scenemanager' }, { is: 'walker' }, ...walks.map(o => ({ is: 'body', pos: [o.at[0], 0, o.at[1]], want: o.want }))],
+    plugins: ['scenemanager'],
+  })
+  const top: Scene = {
+    prefabs: {
+      engine: { dt: DT },
+      scenemanager: {
+        scenes: Object.fromEntries(['asked', 'kept', 'agents'].map(n => [n, { file: `${n}.scene.json`, suspend: false }])),
+        dt: DT, entry: 'asked', port: 0,
+      },
+    },
+    actors: [{ is: 'scenemanager' }],
+    plugins: ['scenemanager'],
+    seats: 1,
+  }
+  const ground = { height: 'fixture', depth: 'fixture', cell: 'fixture' }
+  for (const [name, mods, agent] of [['asked', { ...ground, solids: 'fixture' }], ['kept', { ...ground, fixed: 'fixture' }], ['agents', { ...ground, fixed: 'fixture' }, 0.25]] as const) {
+    writeFileSync(join(dir, `${name}.scene.json`), JSON.stringify(childOf(mods, agent)))
+    writeFileSync(join(dir, `${name}.sim.ts`), `
+import { scenemanager } from ${path('../scenemanager/scenemanager.sim.ts')}
+import { groundOf, walk, walker } from ${path('./walker.sim.ts')}
+import file from './${name}.scene.json' with { type: 'json' }
+export const sim = { scenemanager, walker, body: { tick(me, dt, w) { walk(me, w, dt, groundOf(w)) } } }
+export const scene = file
+`)
+  }
+  const run = async () => {
+    const children = await load(boot(structuredClone(top), { scenemanager }), pathToFileURL(dir + '/').href)
+    const at = (name: string) => children.get(name)!.rows.filter(r => r.kind === 'body').map(r => r.data.pos)
+    return { children, at }
+  }
+
+  test('bodies walk on a world handed over once to exactly where they walk on one asked every step', async () => {
+    const { children, at } = await run()
+    for (let i = 0; i < 300; i++) for (const c of children.values()) c.step(DT)
+    expect(at('kept')).toEqual(at('asked'))
+    at('asked').forEach((p: number[], n: number) => expect(Math.hypot(p[0] - walks[n].at[0], p[2] - walks[n].at[1])).toBeGreaterThan(3))
+  })
+
+  test('agents walk round the posts handed over as fixed, never through them', async () => {
+    const { children, at } = await run()
+    const agents = children.get('agents')!
+    // Pushed out of each post as the whole body is, a body's centre comes no nearer than the two radii.
+    const nearest = (p: number[]) => Math.min(...posts.map(s => Math.hypot(p[0] - s.x, p[2] - s.z) - s.radius - K.radius))
+    let closest = Infinity
+    for (let i = 0; i < 300; i++) {
+      agents.step(DT)
+      for (const p of at('agents')) closest = Math.min(closest, nearest(p))
+    }
+    expect(closest).toBeGreaterThan(-1e-9)
+    at('agents').forEach((p: number[], n: number) => expect(Math.hypot(p[0] - walks[n].at[0], p[2] - walks[n].at[1])).toBeGreaterThan(3))
+  })
+})
+
+test('agents walk the map walker makes: up a kerb, not up a riser or into deep water, round a post, and clear of each other', () => {
+  // Four lanes, each with its feature from x = 3: a 0.2 m kerb (z 0), a 1 m riser (z 10), water 1 m deep
+  // (z 20) and a post just off the line (z 30). A body walks each lane at 1.5 m/s for 4 s, and two more
+  // walk at each other along z 40. Each step's crowd is where the bodies stood as it began.
+  const height: Height = (x, z) => (x >= 3 && z < 5 ? 0.2 : x >= 3 && z >= 5 && z < 15 ? 1 : 0)
+  const depth: Height = (x, z) => (x >= 3 && z >= 15 && z < 25 ? 1 : 0)
+  const post: Solid = { x: 3, z: 30.1, radius: 0.5 }
+  const ground: Ground = { height, depth, solids: (x, z, r) => (Math.hypot(post.x - x, post.z - z) <= r + post.radius ? [post] : []) }
+  const lanes = [{ at: [0, 0], want: [1.5, 0] }, { at: [0, 10], want: [1.5, 0] }, { at: [0, 20], want: [1.5, 0] }, { at: [0, 30], want: [1.5, 0] }, { at: [0, 40], want: [1.5, 0] }, { at: [6, 40], want: [-1.5, 0] }]
+  const truth = boot({
+    world: { walker: { kinds: { body: { ...K, agent: 0.25, bodies: ['body'] } } } },
+    prefabs: { body: BODY, walker: {} },
+    actors: [{ is: 'walker' }, ...lanes.map(l => ({ is: 'body', pos: [l.at[0], 0, l.at[1]], want: l.want }))],
+  }, { walker, body: { tick(me, dt, w) { walk(me, w, dt, ground) } } })
+  const bodies = truth.rows.filter(r => r.kind === 'body')
+  let closest = Infinity
+  for (let i = 0; i < 240; i++) {
+    truth.step(DT)
+    const [a, b] = [bodies[4].data.pos, bodies[5].data.pos]
+    closest = Math.min(closest, Math.hypot(a[0] - b[0], a[2] - b[2]))
+  }
+  const [kerb, riser, pond, round] = bodies.map(r => r.data.pos)
+  expect(kerb[0]).toBeGreaterThan(4)
+  expect(kerb[1]).toBeCloseTo(0.2, 9)
+  expect(riser[0]).toBeLessThan(3)
+  expect(riser[1]).toBe(0)
+  expect(pond[0]).toBeLessThan(3.5)
+  expect(round[0]).toBeGreaterThan(4)
+  expect(closest).toBeGreaterThan(2 * K.radius - 1.5 * 2 * DT)
 })
 
 test('in the air, vel eases by airAccel: at 0 a body thrown sideways keeps its speed until it lands and eases by accel from there; absent, by accel as on the ground', () => {

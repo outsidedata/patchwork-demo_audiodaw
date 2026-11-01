@@ -6,7 +6,16 @@
 // row, and this half takes it the first frame it sees it, at the age it has on the row, and while
 // the row still holds it follows the `at`, `dir`, `to` and `life` the rule may have written there.
 // Anything in the page — an actor, a local actor, another plugin — through this half's `emit`,
-// which hands the effect back: writing its `at`, `dir` or `to` moves it, writing its `life` stops it.
+// which hands the effect back: writing its `at`, `dir` or `to` moves it, writing its `life` stops it,
+// and writing its `rate`, 1 as it is handed back, runs its bursts that many times as often: each
+// layer's `after` and `every` are counted on the effect's clock, which goes on `rate` seconds for
+// each second of its age, so at 3 a layer bursts three times as often and at 0 it throws nothing new
+// until the rate is written again. A rate that is not a finite number no less than 0 throws, naming
+// the effect. `life` and every particle's own life, motion and fade stay in seconds of the world.
+// Writing its `force`, 1 as it is handed back, throws every particle of a burst from then on that many
+// times as hard: each layer's `speed` times the force, its way of going as before; at 0 every one is
+// thrown still. A force that is not a finite number no less than 0 throws, naming the effect.
+// Particles already thrown keep the speed they were thrown at.
 // Its rolls come from `seed` when the spawn gives one, so pages that emit one effect with one seed
 // draw the same particles, and from `Math.random` when it gives none. `has(name)` says whether the
 // effects file has an effect of that name, false until the file has been read; this half asks the
@@ -46,6 +55,12 @@
 //            evenly in it, so a box whose corners are one point starts every particle there.
 //   g        metres a second² down, negative rising; `drag` the fraction of its speed shed a second;
 //            `pull` metres a second² toward the point it was thrown from, negative away.
+//   swirl    radians a second it is carried round the point it was thrown from, about `axis`, its way
+//            of going turned with it, so a particle thrown out from the point spirals and one that
+//            stands off it orbits; negative turns the other way. With `pull` it is drawn in as it
+//            goes round, a whirlpool; with `speed` out from the point, it is flung out in arms.
+//   axis     [x, y, z] the line through that point it swirls about, the right-hand way: the layer's
+//            `dir`, else the spawn's, else straight up, when left out.
 //   pace     [[seconds, k], ...] in order: from that many seconds into its life on, it goes k times
 //            as far a step as its speed says, so one that slows in steps and stops is [[t, 0.5],
 //            [t2, 0]]; 1 before the first.
@@ -130,7 +145,7 @@ export type Emitter = {
   sheet?: string; clip?: string; play?: boolean
   size?: Range; grow?: number
   dir?: number[]; spread?: number; speed?: Range; jitter?: number[]; box?: number[]
-  g?: number; drag?: number; pull?: number; pace?: number[][]; follow?: boolean
+  g?: number; drag?: number; pull?: number; swirl?: number; axis?: number[]; pace?: number[][]; follow?: boolean
   tint?: number; tint1?: number; gain?: number; a0?: number; a1?: number; fade?: number
   spin?: number; origin?: [number, number]; add?: boolean; stretch?: boolean; face?: boolean; beam?: boolean; flips?: number[][]
   light?: { intensity: number; distance: number; decay: number }
@@ -142,19 +157,19 @@ export type Effects = { cap: number; alphaTest?: number; ppm?: number; effects: 
 // layer; the fields of the file; and the count of numbers each field that is a point or a box has.
 export const FIELDS = [
   'n', 'every', 'after', 'life', 'lasts', 'skip', 'sheet', 'clip', 'play', 'size', 'grow', 'dir', 'spread', 'speed', 'jitter', 'box',
-  'g', 'drag', 'pull', 'pace', 'follow', 'flips', 'tint', 'tint1', 'gain', 'a0', 'a1', 'fade', 'spin', 'origin', 'add', 'stretch', 'face', 'beam',
+  'g', 'drag', 'pull', 'swirl', 'axis', 'pace', 'follow', 'flips', 'tint', 'tint1', 'gain', 'a0', 'a1', 'fade', 'spin', 'origin', 'add', 'stretch', 'face', 'beam',
   'light',
 ] as const satisfies readonly (keyof Emitter)[]
 export const REF = ['effect', 'at'] as const
 export const FILE = ['cap', 'alphaTest', 'ppm', 'effects'] as const satisfies readonly (keyof Effects)[]
 export const WORLD = ['effects', 'hold'] as const
-const COUNTS: Record<string, number> = { dir: 3, jitter: 3, box: 6, at: 3 }
+const COUNTS: Record<string, number> = { dir: 3, axis: 3, jitter: 3, box: 6, at: 3 }
 
-// What `emit` hands back. `at`, `dir`, `to` and `life` may be written; `age` is read.
-export type Effect = { readonly name: string; at: number[]; dir?: number[]; to?: number[]; life: number; readonly age: number }
+// What `emit` hands back. `at`, `dir`, `to`, `floor`, `life`, `rate` and `force` may be written; `age` is read.
+export type Effect = { readonly name: string; at: number[]; dir?: number[]; to?: number[]; floor?: number; life: number; rate: number; force: number; readonly age: number }
 
 type Live = Effect & {
-  age: number; tint?: number; scale: number; floor?: number; die: Die
+  age: number; clock: number; tint?: number; scale: number; die: Die
   from?: number; fly?: number; land?: Land[]; landed: boolean
   layers?: Emitter[]; bursts: number[] // per layer, how many of its bursts have been fired
   parts: number; server?: number
@@ -212,6 +227,7 @@ export function check(file: Effects, own: Record<string, unknown>) {
       for (const [k, v] of Object.entries(l)) {
         if (!known.includes(k)) throw new Error(`particle3d effect ${name} layer ${i} has ${k}, which particle3d does not know`)
         if (k in COUNTS && (!Array.isArray(v) || v.length !== COUNTS[k])) throw new Error(`particle3d effect ${name} layer ${i} has a ${k} of ${JSON.stringify(v)}, and particle3d reads ${COUNTS[k]} numbers`)
+        if (k === 'axis' && Math.hypot(...(v as number[])) === 0) throw new Error(`particle3d effect ${name} layer ${i} has an axis of no length, and particle3d swirls about a line`)
         if (k === 'light' && !(v && typeof v === 'object' && ['intensity', 'distance', 'decay'].every(n => typeof (v as any)[n] === 'number' && (v as any)[n] >= 0) && Object.keys(v).length === 3))
           throw new Error(`particle3d effect ${name} layer ${i} has a light of ${JSON.stringify(v)}, and particle3d reads { intensity, distance, decay }, each 0 or more`)
       }
@@ -254,7 +270,7 @@ export function particle3d() {
 
   const spawn = (name: string, at: number[], s: Spawn, seed: number, server?: number): Live => {
     const fx: Live = {
-      name, at: [...at], dir: s.dir ? [...s.dir] : undefined, to: s.to ? [...s.to] : undefined, life: s.life ?? 0, age: 0,
+      name, at: [...at], dir: s.dir ? [...s.dir] : undefined, to: s.to ? [...s.to] : undefined, life: s.life ?? 0, rate: 1, force: 1, age: 0, clock: 0,
       tint: s.tint, scale: s.scale ?? 1, floor: s.floor, die: seeded(seed), bursts: [], parts: 0, server,
       from: s.from, fly: s.fly, land: s.land && structuredClone(s.land), landed: false,
     }
@@ -297,6 +313,21 @@ export function particle3d() {
     if (l.g) v[1] -= l.g * q.fx.scale * dt
     const k = l.pace ? (reached(l.pace, q.age)?.[1] ?? 1) : 1
     for (let i = 0; i < 3; i++) p[i] += v[i] * dt * k
+    if (l.swirl) {
+      // Carried round the line through `o` along the axis, Rodrigues' turn, and its way of going with it.
+      const a = unit(l.axis ?? l.dir ?? q.fx.dir ?? [0, 1, 0])
+      const turn = l.swirl * dt * k, cos = Math.cos(turn), sin = Math.sin(turn)
+      const round = (x: number[]): V3 => {
+        const c = cross(a, x), d = a[0] * x[0] + a[1] * x[1] + a[2] * x[2]
+        return [0, 1, 2].map(i => x[i] * cos + c[i] * sin + a[i] * d * (1 - cos)) as V3
+      }
+      const r = round([p[0] - o[0], p[1] - o[1], p[2] - o[2]])
+      const w = round(v)
+      for (let i = 0; i < 3; i++) {
+        p[i] = o[i] + r[i]
+        v[i] = w[i]
+      }
+    }
     const floor = q.fx.floor
     if (floor !== undefined && p[1] < floor) {
       p[1] = floor
@@ -329,7 +360,7 @@ export function particle3d() {
     const n = Math.round(lerp(l.n, fx.die(), 1))
     for (let i = 0; i < n; i++) {
       const dir = aim(fx, l)
-      const speed = lerp(l.speed, fx.die(), 0) * fx.scale
+      const speed = lerp(l.speed, fx.die(), 0) * fx.scale * fx.force
       const life = lerp(l.life, fx.die(), 0)
       const skip = (l.skip ?? 0) * fx.die()
       const size = lerp(l.size, fx.die(), 1) * fx.scale
@@ -350,7 +381,17 @@ export function particle3d() {
     }
   }
 
-  // Fires every burst of the effect due at its age now, in time order and layer order, which is
+  // The seconds of the effect's age at which a burst due at `t` on its clock is thrown: the clock
+  // runs at `rate` times the age, so the clock's `t` is that far back, or on, at the rate it runs now.
+  // At rate 1 the clock is the age, and `t` is handed back as it is. At rate 0 the clock stands, and a
+  // burst still to come is due now while the effect's life lasts, since a rate written later starts it.
+  const when = (fx: Live, t: number) => {
+    if (fx.rate === 1 && fx.clock === fx.age) return t
+    if (t <= fx.clock) return fx.rate > 0 ? fx.age - (fx.clock - t) / fx.rate : fx.age
+    return fx.rate > 0 ? fx.age + (t - fx.clock) / fx.rate : fx.age < fx.life ? fx.age : Infinity
+  }
+
+  // Fires every burst of the effect due on its clock now, in time order and layer order, which is
   // the order every page rolls them in.
   const fire = (fx: Live, dt: number, cap: number) => {
     const due: [number, number][] = []
@@ -358,14 +399,14 @@ export function particle3d() {
       for (;;) {
         const k = fx.bursts[i]
         const t = (l.after ?? 0) + k * (l.every ?? 0)
-        if (k > 0 && (!l.every || t >= fx.life)) break
-        if (t > fx.age + 1e-9) break
+        if (k > 0 && (!l.every || when(fx, t) >= fx.life)) break
+        if (t > fx.clock + 1e-9) break
         due.push([t, i])
         fx.bursts[i]++
       }
     })
     due.sort((a, b) => a[0] - b[0] || a[1] - b[1])
-    for (const [t, i] of due) burst(fx, fx.layers![i], t, dt, cap)
+    for (const [t, i] of due) burst(fx, fx.layers![i], when(fx, t), dt, cap)
   }
 
   // The effects file written again: a running effect's layers are read again from it, each of its
@@ -380,7 +421,7 @@ export function particle3d() {
 
   // Whether a layer has another burst to come: its first, or one more `every` before the effect's
   // life is over.
-  const more = (fx: Live) => fx.layers!.some((l, i) => fx.bursts[i] === 0 || (!!l.every && (l.after ?? 0) + fx.bursts[i] * l.every < fx.life))
+  const more = (fx: Live) => fx.layers!.some((l, i) => fx.bursts[i] === 0 || (!!l.every && when(fx, (l.after ?? 0) + fx.bursts[i] * l.every) < fx.life))
 
   // A mesh's material: `map`, a page of a sheet, or none for flat squares.
   const material = (plugins: Plugins, map: any, add: boolean) => {
@@ -613,7 +654,13 @@ export function particle3d() {
         q.fx.parts--
         return false
       })
-      for (const fx of ledger) if (!fresh.has(fx)) fx.age += dt
+      for (const fx of ledger) {
+        if (!(Number.isFinite(fx.rate) && fx.rate >= 0)) throw new Error(`particle3d effect ${fx.name} has a rate of ${fx.rate}, and a rate is a finite number no less than 0`)
+        if (!(Number.isFinite(fx.force) && fx.force >= 0)) throw new Error(`particle3d effect ${fx.name} has a force of ${fx.force}, and a force is a finite number no less than 0`)
+        if (fresh.has(fx)) continue
+        fx.age += dt
+        fx.clock += dt * fx.rate
+      }
 
       const row = plugins.wire.rows.find(r => r.kind === 'particle3d')
       const live: Entry[] = row?.data.live ?? []
@@ -632,7 +679,8 @@ export function particle3d() {
           continue
         }
         seen.add(e.id)
-        spawn(e.effect, e.at, e, e.id, e.id).age = e.age
+        const fx = spawn(e.effect, e.at, e, e.id, e.id)
+        fx.age = fx.clock = e.age
       }
       for (const id of seen) {
         if (live.some(e => e.id === id)) continue

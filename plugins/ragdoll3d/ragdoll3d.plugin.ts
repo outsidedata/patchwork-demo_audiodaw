@@ -30,7 +30,9 @@
 // (`provided`); the gravity is read off the scene's `world`, which every page has.
 //
 // The numbers, `world.ragdoll3d`:
-//   bones     role to the suffix of the bone that joint is, for the 15 roles: hips, spine (the upper
+//   kinds     `[<kind>]`: the kinds whose limp rows are its bodies. A limp row of any other kind is
+//             not its, and is left alone. A scene that gives none throws.
+//   bones    role to the suffix of the bone that joint is, for the 15 roles: hips, spine (the upper
 //             spine), head, armL, forearmL, handL, armR, forearmR, handR, uplegL, legL, footL,
 //             uplegR, legR, footR.
 //   damp      the share of a step's velocity kept into the next.
@@ -50,8 +52,8 @@
 // body and never a body part way down. The scene's `engine` prefab gives `dt`, the seconds a step.
 //
 // The dying row. A game's rule writes, on the step its row dies:
-//   limp      true while the body lies. A row whose `limp` is true is the ragdoll's, and anim stops
-//             drawing it.
+//   limp      true while the body lies. A row of a kind `kinds` names whose `limp` is true is the
+//             ragdoll's, and anim stops drawing it.
 //   limpFor   the steps since it went limp: 0 as it dies, one more each step after while `limp`
 //             holds. A rule reads no step counter, so the row counts its own.
 //   blow      `{ dir: [x, z], speed, height }`: the way it was struck across the ground (normalised
@@ -137,7 +139,7 @@
 // The physics mode, `world.ragdoll3d.physics: true`: the body is a box3d ragdoll the server made
 // (`ragdoll3d.sim.ts`'s `fall`, `ragdoll3d.box3d.ts`), and none of the above runs. A body lying limp
 // with a `ragdoll` (bone name to its `bone` row's id) has its model's bones turned to follow its
-// bodies every frame. anim draws no limp row, so the model is the ragdoll's.
+// bodies every frame, for a row of a kind `kinds` names. anim draws no limp row, so the model is the ragdoll's.
 //   The frame a ragdoll is first drawn, its meshes stop being culled by their rest-pose bounds, and
 //   each bone's turn in the world against its body's, and the hips' place against the torso's body,
 //   are kept: the model stands as it stood. Each frame after, each bone of `PHYSICS.bones`
@@ -159,6 +161,7 @@ const ROLES = ['hips', 'spine', 'head', 'armL', 'forearmL', 'handL', 'armR', 'fo
 export type Role = (typeof ROLES)[number]
 const LIMITS = ['elbow', 'knee', 'spine', 'hip', 'shoulder'] as const
 export type Numbers = {
+  kinds: string[]
   bones: Record<Role, string>
   damp: number; iter: number; sweeps: number; radius: number; vmax: number; friction: number; spread: number
   limits: Record<(typeof LIMITS)[number], [number, number]>
@@ -352,13 +355,13 @@ export function ragdoll3d() {
   const held = new Map<number, Held>()
   let text: string | undefined
 
-  // The physics mode: each limp row's model follows its box3d bodies.
-  function follow(plugins: Plugins) {
+  // The physics mode: each limp row of `kinds` has its model follow its box3d bodies.
+  function follow(plugins: Plugins, kinds: string[]) {
     const T: Three = plugins.render3d.THREE
     const numbers = PHYSICS
     const byId = new Map(plugins.wire.rows.map(r => [r.id, r]))
     for (const row of plugins.wire.rows) {
-      if (!row.data.limp || !row.data.ragdoll) {
+      if (!row.data.limp || !row.data.ragdoll || !kinds.includes(row.kind)) {
         held.delete(row.id)
         continue
       }
@@ -561,8 +564,9 @@ export function ragdoll3d() {
       const scene = plugins.wire.scene
       const p = scene.world?.ragdoll3d as Numbers | undefined
       if (!p) throw new Error('ragdoll3d: the scene gives no world.ragdoll3d')
+      if (!Array.isArray(p.kinds)) throw new Error('ragdoll3d: the scene gives no world.ragdoll3d.kinds, the kinds whose limp rows are its bodies')
       if ((p as { physics?: boolean }).physics) {
-        follow(plugins)
+        follow(plugins, p.kinds)
         return
       }
       const now = JSON.stringify(p)
@@ -588,7 +592,7 @@ export function ragdoll3d() {
       const T: Three = plugins.render3d.THREE
       const seen = new Set<number>()
       for (const r of plugins.wire.rows) {
-        if (!r.data.limp) continue
+        if (!r.data.limp || !p.kinds.includes(r.kind)) continue
         seen.add(r.id)
         let b = bodies.get(r.id)
         if (b && (r.data.limpFor < b.seen || model(plugins, r.id) !== b.root)) {

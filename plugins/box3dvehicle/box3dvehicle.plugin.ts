@@ -70,14 +70,26 @@
 //                front, glowing `glow`. Each headlight throws a beam, a spot light in `light` of
 //                `beam.intensity` candela reaching `distance` metres falling off by `decay`, its cone
 //                `angle` radians from its middle soft over its outer `penumbra`, aimed ahead `dip`
-//                radians down. The tail lights glow `tail.glow` and, with the car braking (`pedals`,
-//                `box3dvehicle.sim.ts`), up to `tail.brake` at a full brake, as the point light
+//                radians down and `toe` radians out to its own side (none when left out; below 0,
+//                in toward the middle). With `beam.at` [x, y, z] in the chassis's frame, the two
+//                beams stand there instead, the left at −z and the right at +z, and the lamps are
+//                drawn where they were, unlit by them. The tail lights glow `tail.glow` and, with the car braking (`pedals`,
+//                `box3dvehicle.sim.ts`), up to `tail.brake` at a full brake, always in `tail`; under the
+//                glow the lens itself is `tail.lens` (`tail` when left out), so a dark `lens` with a
+//                `glow` of 0 is a lens near black until the brake lights it, as the point light
 //                behind the car in `tail` goes to `tail.light.intensity`; the reverse lights glow
 //                `reverse.glow` and light theirs, in `light`, `reverse.light.intensity`, while it
 //                drives backwards, and are dark otherwise; amber lenses glow `parking.glow`, three's
-//                own 1 with no `parking`. Every light is made with the car (a model's beams with the
-//                model, as it lands) and kept, at no intensity while off, so switching one never
-//                changes how many lights a frame draws, and none casts a shadow.
+//                own 1 with no `parking`. With `world.box3dvehicle.lightsOff: true` the car makes no
+//                brake light or reverse light, and its lenses glow as above, lighting nothing round
+//                them, since every light a scene holds is summed by every lit pixel and a few cars of
+//                four lights each slow the whole frame; its headlights' beams are made with it as
+//                ever, at no intensity while its row's `lights` is off and at `beam.intensity` while
+//                it is on (box3dvehicle's `lights` act, `activateHeadlights`), so switching them never
+//                changes how many lights a frame draws and three never builds its lit materials again
+//                for it. Without it, every light is made with the car (a model's beams with the model, as
+//                it lands) and kept, at no intensity while off, so switching one never changes how
+//                many lights a frame draws, and none casts a shadow.
 //   spare        the last axle's wheel on the back, `lift` above the body's top, on a bracket.
 //   model        `{ asset, at?, scale? }`: the loader catalogue's `model` entry `asset`, drawn on the
 //                chassis row in place of the body, its cabin, the fenders, the bumpers, the grille,
@@ -91,7 +103,8 @@
 //                until then the car is drawn with no body. Its own nodes place the lamps, by the
 //                start of their names (glTF's `beam.L` reaches three as `beamL`): every node named
 //                `beam…` throws a beam of `lights.beam`, a spot light where the node is, aimed along
-//                the node's +x (its `dip` is the node's own turn); and every mesh named, or under a
+//                the node's +x (its `dip` is the node's own turn), or, with `beam.at`, the two beams
+//                at it as a drawn car's, its `beam…` nodes lighting nothing; and every mesh named, or under a
 //                node named, `tail…`, `reverse…` or `amber…` takes the car's tail, reverse or amber
 //                lens material, glowing and lit as the drawn lenses are (below), the brake and reverse
 //                lights moved to the middle of the tail and the reverse meshes. A look with `model`
@@ -118,13 +131,16 @@
 //                the wheel straight, for one on it): a hand bent onto it takes that turn. A `part`
 //                that names nothing the look draws throws naming the point: on the frame the car is
 //                made, or, for a model, on the frame it comes and has no `steer…` node.
-//   exhaust      a list of tailpipes, each `{ at, dir, pipe, effect, rev? }`: a chrome tailpipe `pipe`
-//                round ending at `at`, along `dir`, and particle3d's `effect` thrown from it, both in
-//                the chassis's frame and turned with it every frame, for as long as the car is drawn;
+//   exhaust      a list of tailpipes, each `{ at, dir, pipe, effect, rev?, rpm? }`: a chrome tailpipe
+//                `pipe` round ending at `at`, along `dir`, and particle3d's `effect` thrown from it, both
+//                in the chassis's frame and turned with it every frame, for as long as the car is drawn;
 //                and `rev` beside it while the car's row holds a throttle, stopped the frame it lets go.
 //                Each pipe throws its own. Each is the page's own (particle3d's `emit`), left where it is
-//                thrown, so a moving car leaves a trail, and stopped with the car. A scene whose look
-//                has an exhaust lists particle3d after this plugin.
+//                thrown, so a moving car leaves a trail, and stopped with the car. With `rpm`,
+//                `[[rpm, rate], …]` in rising rpm, both run at the rate the curve gives for the row's
+//                `rpm` each frame (particle3d's `rate`: that many times as many bursts), its points
+//                joined by straight lines and held past its ends (`along`); with none, at 1. A scene
+//                whose look has an exhaust lists particle3d after this plugin.
 //   dust         `{ effect, clear, speed }`: particle3d's `effect` thrown from under each wheel while
 //                it is on the ground, its lowest point within `clear` metres of the land's height there,
 //                and either going faster than `speed` metres a second across it or its tread sliding
@@ -142,6 +158,31 @@
 //                in its `afterTick` is this frame's, and a scene with dust or tracks that lists it
 //                after, or does not list it, throws (`ahead`), as does one with dust on any of its
 //                vehicles that does not list particle3d.
+//   sprays       a list, each `{ effect, clear, speed: [from, to], rpm? }`: particle3d's `effect` thrown
+//                from under each wheel beside its dust, from the same point along the same way, while
+//                the wheel is within `clear` metres of the land's height there and its tread goes
+//                faster than `from` metres a second over it (its speed across the land or its slide,
+//                whichever is more, as dust's), until the wheel itself goes `to` metres a second or
+//                faster across the land: a spray that only a car pulling away throws. Ground whose
+//                `spray` is false throws none of them, and ground that throws some other effect
+//                leaves them as they are. With `rpm`, run at the rate its curve gives for the row's
+//                `rpm`, as an exhaust's; with none, at 1. The way it is thrown is its effect's: a
+//                layer with its own `dir` throws along that. The land and the order are dust's, and
+//                a scene with sprays on any of its vehicles that does not list particle3d throws.
+//   skid         `{ effect, clear, speed, rate?, force? }`: particle3d's `effect` thrown from under each wheel
+//                sliding sideways: while the wheel is within `clear` metres of the land's height there
+//                and goes faster than `speed` metres a second along its axle (its velocity across the
+//                land on its own z, turned by its rot, laid flat), at the ground under it, along the
+//                way it slides and up by a tenth as much, stopped the frame either is no longer so. With
+//                `rate`, `[[m/s, rate], …]` in rising speed, run at the rate that curve gives for the
+//                sideways speed each frame (`along`), so a harder slide throws more; with none, at 1.
+//                With `force`, per m/s, each frame it is thrown with particle3d's `force` that times the
+//                sideways speed, every layer's speed multiplied by it, so a harder slide throws harder:
+//                at `force` 0.25 a slide of 4 m/s throws as the effect says and one of 12 m/s three
+//                times as hard; with none, at 1.
+//                It is thrown whatever the ground under the wheel sprays: a tyre slid over asphalt
+//                smokes. The land and the order are dust's, and a scene with a skid on any of its
+//                vehicles that does not list particle3d throws.
 //   tracks       `{ colour, opacity, skid, slide, clear, step, life, max, lift }`: the track each tyre
 //                leaves on the land, a ribbon its wheel's width laid `lift` metres over the land's
 //                height under each edge, a piece every `step` metres the wheel goes while its lowest
@@ -254,7 +295,7 @@ import type { Row } from '#engine/engine.ts'
 import type { Plugins } from '#engine/browser.ts'
 import { ahead, mod, provided } from '#addons/scenemanager/scenemanager.addon.ts'
 import type { Effect } from '#plugins/particle3d/particle3d.plugin.ts'
-import { cabinPoints, corners, cross, design as designOf, pedals, pointOf, solidParts, turn, wheelAt, type Engine, type Fleet, type Lamp, type Paint, type Tracks, type Vehicle, type Wheel } from './box3dvehicle.sim.ts'
+import { along, cabinPoints, corners, cross, design as designOf, pedals, pointOf, solidParts, turn, wheelAt, type Engine, type Fleet, type Lamp, type Lights, type Paint, type Tracks, type Vehicle, type Wheel } from './box3dvehicle.sim.ts'
 import type { Quat, Vec3 } from '#plugins/box3d/box3d.sim.ts'
 
 // What a `land` mod is: the ground dust is thrown from, or undefined until there is one.
@@ -281,9 +322,16 @@ type Drawn = {
   solid: any[][]
   // Each tailpipe's smoke, and its rev while the throttle is held, by the pipe's place in the list.
   smoke: (Effect | undefined)[]; rev: (Effect | undefined)[]; dust: ({ fx: Effect; effect: string } | undefined)[]; tracks: Track[]
+  // Each wheel's sprays, by the wheel's corner and the spray's place in the look's list.
+  sprays: (Effect | undefined)[][]
+  // Each wheel's skid, by the wheel's corner.
+  skid: (Effect | undefined)[]
   // The lamps: the tail lenses' and reverse lenses' materials and their two lights, which change, and
   // the amber lenses' material.
-  lamps?: { tail: any; backup: any; amber: any; brake: any; reverse: any }
+  lamps?: { tail: any; backup: any; amber: any; brake?: any; reverse?: any }
+  // Each headlight's beam, its spot light; under `lightsOff` at no intensity while the car row's
+  // `lights` is off.
+  headlights: any[]
   // With `look.model`: the model's group on the chassis, once the loader has it.
   model?: any
   // Each steering wheel, the drawn one or a model's `steer…` nodes, and its turn as it was made.
@@ -346,7 +394,7 @@ export function box3dvehicle() {
     })().catch(e => console.error(e))
   }
 
-  function make(render3d: Plugins['render3d'], v: Vehicle, name: string): Drawn {
+  function make(render3d: Plugins['render3d'], v: Vehicle, name: string, lightsOff: boolean): Drawn {
     const { THREE, scene } = render3d as { THREE: any; scene: any }
     const owned: { dispose(): void }[] = []
     const mats = new Map<string, any>()
@@ -841,15 +889,18 @@ export function box3dvehicle() {
     }
 
     let lamps: Drawn['lamps']
+    const headlights: any[] = []
     if (lights) {
       const l = lights, { radius: r, depth, bezel, beam } = l
       const tail = mat('tail'), backup = render3d.dress(new THREE.MeshPhysicalMaterial({ color: look.paint.light, ...look.finish?.light, transparent: true, depthWrite: false, emissive: look.paint.light, emissiveIntensity: 0 }))
       owned.push(backup)
       tail.emissiveIntensity = l.tail.glow
+      if (l.tail.lens !== undefined) tail.color.set(l.tail.lens)
       const amber = mat('amber')
       if (l.parking) amber.emissiveIntensity = l.parking.glow
-      // A light at `at` in the chassis's frame, off until its lamp is on.
+      // A light at `at` in the chassis's frame, off until its lamp is on; none under `lightsOff`.
       const glow = (name: string, colour: number, lamp: Lamp, at: number[]) => {
+        if (lightsOff) return undefined
         const p = new THREE.PointLight(colour, 0, lamp.distance, lamp.decay)
         p.name = name
         p.position.set(at[0], at[1], at[2])
@@ -870,12 +921,9 @@ export function box3dvehicle() {
         const lens = put(chassis, new THREE.SphereGeometry(r, segments, 8, 0, 2 * Math.PI, 0, Math.PI / 2).rotateZ(-Math.PI / 2), [nose, lampY, z], 'light')
         lens.scale.x = depth / r
         put(chassis, new THREE.TorusGeometry(r + bezel / 2, bezel / 2, 8, segments).rotateY(Math.PI / 2), [nose + bezel * 0.2, lampY, z], 'chrome')
-        const spot = new THREE.SpotLight(look.paint.light, beam.intensity, beam.distance, beam.angle, beam.penumbra, beam.decay)
-        spot.name = 'box3dvehicle.beam'
-        spot.position.set(nose + depth, lampY, z)
-        spot.target.position.set(nose + depth + Math.cos(beam.dip), lampY - Math.sin(beam.dip), z)
-        chassis.add(spot, spot.target)
+        if (!beam.at) headlights.push(beamed(THREE, chassis, look.paint.light, beam, [nose + depth, lampY, z], k))
       }
+      if (drawn && beam.at) for (const k of [-1, 1]) headlights.push(beamed(THREE, chassis, look.paint.light, beam, [beam.at[0], beam.at[1], k * beam.at[2]], k))
       // A parking light under each front fender's nose, where it runs flat to the front.
       if (l.parking && frontTop?.frontFlat && fenders) {
         const p = l.parking, axle = v.axles.reduce((a, b) => (b.at > a.at ? b : a)), outer = axle.track / 2 + axle.wheel.width / 2 + fenders.flare
@@ -1007,7 +1055,7 @@ export function box3dvehicle() {
       scene.add(mesh)
       return { mesh, born: new Float32Array(t.max), strength: new Float32Array(t.max), next: 0, laid: 0 }
     }) : []
-    return { chassis, wheels, corners: drawnCorners, solid, owned, smoke: [], rev: [], dust: [], tracks, lamps, steers, points }
+    return { chassis, wheels, corners: drawnCorners, solid, owned, smoke: [], rev: [], dust: [], sprays: [], skid: [], tracks, lamps, headlights, steers, points }
   }
 
   // Lays the next piece of `tr` from its last edges to `edges`, `strength` opaque, laid at `now`.
@@ -1039,7 +1087,7 @@ export function box3dvehicle() {
     const d = cars.get(id)!
     for (const m of [d.chassis, ...d.wheels, ...d.corners.flatMap(c => [c.coil, c.sleeve, c.rod, c.arm]), ...d.tracks.map(t => t.mesh)]) if (m) scene.remove(m)
     for (const o of d.owned) o.dispose()
-    for (const fx of [...d.smoke, ...d.rev, ...d.dust.map(t => t?.fx)]) if (fx) fx.life = fx.age
+    for (const fx of [...d.smoke, ...d.rev, ...d.dust.map(t => t?.fx), ...d.sprays.flat(), ...d.skid]) if (fx) fx.life = fx.age
     for (const s of d.engine ?? []) for (const held of s.held) held.stop()
     cars.delete(id)
   }
@@ -1051,6 +1099,25 @@ export function box3dvehicle() {
     obj.position.set(from[0], from[1], from[2])
     obj.quaternion.setFromUnitVectors(new THREE.Vector3(0, 1, 0), dir.divideScalar(len || 1))
     obj.scale.y = len
+  }
+
+  // A headlight's beam of `beam` in `colour` put on `chassis` at `at` in its frame, aimed ahead `beam.dip`
+  // radians down and `beam.toe` out to side `k` (−1 the left, at −z; 1 the right).
+  function beamed(THREE: any, chassis: any, colour: number, beam: Lights['beam'], at: Vec3, k: number) {
+    const spot = new THREE.SpotLight(colour, beam.intensity, beam.distance, beam.angle, beam.penumbra, beam.decay)
+    spot.name = 'box3dvehicle.beam'
+    const toe = beam.toe ?? 0
+    spot.position.set(at[0], at[1], at[2])
+    spot.target.position.set(at[0] + Math.cos(beam.dip) * Math.cos(toe), at[1] - Math.sin(beam.dip), at[2] + k * Math.cos(beam.dip) * Math.sin(toe))
+    chassis.add(spot, spot.target)
+    return spot
+  }
+
+  // Car `d`'s headlights on or off as its row's `lights` says, under `lightsOff`: each beam at the
+  // look's `beam.intensity` on and at none off, never made or taken away, so the number of lights a
+  // frame draws never changes.
+  function activateHeadlights(d: Drawn, beam: Lights['beam'], on: boolean) {
+    for (const spot of d.headlights) spot.intensity = on ? beam.intensity : 0
   }
 
   // An empty named `name` hung in `into`, a part of `chassis` as it was made, set back by `into`'s place,
@@ -1104,20 +1171,23 @@ export function box3dvehicle() {
       o.castShadow = !(Array.isArray(o.material) ? o.material : [o.material]).some((mt: any) => mt.transparent)
       o.receiveShadow = true
     })
-    for (const node of beams) {
+    const at = l?.beam.at
+    if (at) for (const k of [-1, 1]) d.headlights.push(beamed(THREE, d.chassis, v.look.paint.light, l!.beam, [at[0], at[1], k * at[2]], k))
+    else for (const node of beams) {
       const { beam } = l!
       const spot = new THREE.SpotLight(v.look.paint.light, beam.intensity, beam.distance, beam.angle, beam.penumbra, beam.decay)
       spot.name = 'box3dvehicle.beam'
       spot.position.set(0, 0, 0)
       spot.target.position.set(1, 0, 0)
       node.add(spot, spot.target)
+      d.headlights.push(spot)
     }
     if (d.lamps) {
       d.chassis.updateMatrixWorld(true)
       const inverse = d.chassis.matrixWorld.clone().invert()
       for (const [lamp, light] of [['tail', d.lamps.brake], ['reverse', d.lamps.reverse]] as const) {
         const found = lenses[lamp]
-        if (!found.length) continue
+        if (!light || !found.length) continue
         const at = new THREE.Vector3()
         for (const o of found) at.add(new THREE.Box3().setFromObject(o).getCenter(new THREE.Vector3()).applyMatrix4(inverse))
         light.position.copy(at.divideScalar(found.length))
@@ -1143,10 +1213,10 @@ export function box3dvehicle() {
       if (now !== design) { for (const id of [...cars.keys()]) drop(scene, id); design = now }
       const rows = new Map<number, Row>(plugins.wire.rows.map(r => [r.id, r]))
       const seen = new Set<number>()
-      const dusty = Object.values(fleet.vehicles).some(v => v.look.dust)
+      const dusty = Object.values(fleet.vehicles).some(v => v.look.dust || v.look.sprays?.length || v.look.skid)
       const tracked = Object.values(fleet.vehicles).some(v => v.look.tracks)
       if (dusty || tracked) ahead(plugins.wire.scene, 'box3dvehicle', 'land')
-      if (dusty && !plugins.particle3d) throw new Error('world.box3dvehicle has a vehicle whose look has dust, and this scene does not list particle3d')
+      if (dusty && !plugins.particle3d) throw new Error('world.box3dvehicle has a vehicle whose look has dust, sprays or a skid, and this scene does not list particle3d')
       const ground = dusty || tracked ? mod<Land>(world!, 'box3dvehicle', 'land')?.(plugins) : undefined
       const seconds = performance.now() / 1000
       for (const car of plugins.wire.rows) {
@@ -1155,7 +1225,7 @@ export function box3dvehicle() {
         if (!chassis || wheels.some(w => !w)) continue
         seen.add(car.id)
         const v = designOf(world!, car), cs = corners(v), dust = v.look.dust, tracks = v.look.tracks
-        if (!cars.has(car.id)) cars.set(car.id, make(plugins.render3d, v, car.data.vehicle))
+        if (!cars.has(car.id)) cars.set(car.id, make(plugins.render3d, v, car.data.vehicle, fleet.lightsOff === true))
         const d = cars.get(car.id)!
         if (v.look.model && !d.model) {
           const loader = plugins.loader, { asset } = v.look.model
@@ -1173,12 +1243,13 @@ export function box3dvehicle() {
         // Each steering wheel turned `steer` × `lock` about its column, its top to the left on a left steer.
         const wheelTurn = -(car.data.steer ?? 0) * (v.look.lock ?? 0)
         for (const s of d.steers) s.piece.quaternion.copy(s.rest).multiply(new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(1, 0, 0), wheelTurn))
+        if (fleet.lightsOff && v.look.lights) activateHeadlights(d, v.look.lights.beam, car.data.lights === true)
         if (d.lamps) {
           const l = v.look.lights!, { brake, reverse } = pedals(v, car)
           d.lamps.tail.emissiveIntensity = l.tail.glow + (l.tail.brake - l.tail.glow) * brake
-          d.lamps.brake.intensity = l.tail.light.intensity * brake
           d.lamps.backup.emissiveIntensity = reverse ? l.reverse.glow : 0
-          d.lamps.reverse.intensity = reverse ? l.reverse.light.intensity : 0
+          if (d.lamps.brake) d.lamps.brake.intensity = l.tail.light.intensity * brake
+          if (d.lamps.reverse) d.lamps.reverse.intensity = reverse ? l.reverse.light.intensity : 0
         }
         const inboard = v.look.inboard ?? 0
         cs.forEach((c, i) => {
@@ -1223,17 +1294,54 @@ export function box3dvehicle() {
             }
             fade(tr, tracks, seconds)
           }
+          // What the ground under the wheel throws, and where and along what a wheel's throw leaves: the
+          // ground under it, along the way the tread pushes the ground back and up by half as much.
+          const sprays = floor === undefined ? undefined : ground!.spray?.(x, z)
+          const thrown = () => {
+            const back = Math.hypot(tx, tz) > 1e-6 ? [tx, tz] : [-vx, -vz], len = Math.hypot(back[0], back[1]) || 1
+            return { at: [x, floor!, z], dir: [back[0] / len, 0.5, back[1] / len] }
+          }
           if (dust) {
-            const sprays = floor === undefined ? undefined : ground!.spray?.(x, z)
             const effect = sprays === false ? undefined : sprays ?? dust.effect
             const on = floor !== undefined && effect !== undefined && y - r - floor <= dust.clear && Math.max(speed, slide) > dust.speed
             const was = d.dust[i]
             if (was && (!on || was.effect !== effect)) { was.fx.life = was.fx.age; d.dust[i] = undefined }
             if (on) {
-              const back = Math.hypot(tx, tz) > 1e-6 ? [tx, tz] : [-vx, -vz], len = Math.hypot(back[0], back[1]) || 1
-              const at = [x, floor, z], dir = [back[0] / len, 0.5, back[1] / len]
+              const { at, dir } = thrown()
               const now = d.dust[i]
-              if (now) { now.fx.at = at; now.fx.dir = dir } else d.dust[i] = { fx: plugins.particle3d.emit(effect, at, { dir, life: Infinity }), effect }
+              if (now) { now.fx.at = at; now.fx.dir = dir; now.fx.floor = floor } else d.dust[i] = { fx: plugins.particle3d.emit(effect, at, { dir, floor, life: Infinity }), effect }
+            }
+          }
+          ;(v.look.sprays ?? []).forEach((s, k) => {
+            const own = (d.sprays[i] ??= [])
+            const on = floor !== undefined && sprays !== false && y - r - floor <= s.clear && Math.max(speed, slide) > s.speed[0] && speed < s.speed[1]
+            const was = own[k]
+            if (was && !on) { was.life = was.age; own[k] = undefined }
+            if (!on) return
+            const { at, dir } = thrown()
+            const fx = (own[k] ??= plugins.particle3d.emit(s.effect, at, { dir, floor, life: Infinity }))
+            fx.at = at
+            fx.dir = dir
+            fx.floor = floor
+            fx.rate = s.rpm ? along(s.rpm, car.data.rpm ?? s.rpm[0][0]) : 1
+          })
+          const skid = v.look.skid
+          if (skid) {
+            // The wheel's axle across the land (its own z turned by its rot), and its speed along it.
+            const [ax, , az] = turn(wd.rot as Quat, [0, 0, 1]), across = Math.hypot(ax, az)
+            const sideways = across > 1e-6 ? (vx * ax + vz * az) / across : 0
+            const on = floor !== undefined && y - r - floor <= skid.clear && Math.abs(sideways) > skid.speed
+            const was = d.skid[i]
+            if (was && !on) { was.life = was.age; d.skid[i] = undefined }
+            if (on) {
+              const s = Math.sign(sideways) / across
+              const at = [x, floor!, z], dir = [ax * s, 0.1, az * s]
+              const fx = (d.skid[i] ??= plugins.particle3d.emit(skid.effect, at, { dir, floor, life: Infinity }))
+              fx.at = at
+              fx.dir = dir
+              fx.floor = floor
+              fx.rate = skid.rate ? along(skid.rate, Math.abs(sideways)) : 1
+              fx.force = skid.force !== undefined ? skid.force * Math.abs(sideways) : 1
             }
           }
         })
@@ -1263,7 +1371,8 @@ export function box3dvehicle() {
           if (ex.rev && car.data.throttle && !d.rev[i]) d.rev[i] = particles.emit(ex.rev, exhaust, { dir, life: Infinity })
           const rev = d.rev[i]
           if (rev && !car.data.throttle) { rev.life = rev.age; d.rev[i] = undefined }
-          for (const fx of [d.smoke[i], d.rev[i]]) if (fx) { fx.at = exhaust; fx.dir = dir }
+          const rate = ex.rpm ? along(ex.rpm, car.data.rpm ?? ex.rpm[0][0]) : 1
+          for (const fx of [d.smoke[i], d.rev[i]]) if (fx) { fx.at = exhaust; fx.dir = dir; fx.rate = rate }
         })
         const sound = v.look.sound
         if (sound) {

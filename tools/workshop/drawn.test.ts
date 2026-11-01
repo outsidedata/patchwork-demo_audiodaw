@@ -7,9 +7,9 @@ import { expect, test } from 'vitest'
 import * as THREE from 'three'
 import { written } from '../../plugins/loader/loader.sim.ts'
 import { meshes, lights, solids } from '../../plugins/solids/solids.plugin.ts'
-import { assemble, labels, nodeGroups, rootOf, standScene, stillRow, type Model, type Stand } from './drawn.ts'
+import { assemble, labels, nodeGroups, rootOf, standScene, stillRow, unbloomed, type Model, type Stand } from './drawn.ts'
 
-const GAME = { world: { loader: { assets: { m: { type: 'json', url: '/games/t/m.json' }, defs: { type: 'json', url: '/games/t/defs.json' } } } }, engine: { dt: 0.02 }, render3d: { tone: 'neutral' } }
+const GAME = { world: { loader: { assets: { m: { type: 'json', url: '/games/t/m.json' }, defs: { type: 'json', url: '/games/t/defs.json' } } } }, engine: { dt: 0.02 }, render3d: { tone: 'neutral' as const, exposure: 1.05, bloom: { strength: 0.42, radius: 0.26, threshold: 1 } } }
 const SIZE = { width: 640, height: 480 }
 
 // A machine: a body, a mirrored arm turned about x then y, a bare mount on the arm; two paints on the body.
@@ -52,6 +52,12 @@ test('the stand-in scene for each way a game finds a model', () => {
   expect(a.scene.world).toEqual({ loader: GAME.world.loader, scenemanager: { home: 'http://x/games/t/' }, solids: { kinds: { pad: 'm' } } })
   expect(a.scene.prefabs.engine).toEqual({ width: 640, height: 480, dt: 0.02 })
   expect(a.scene.prefabs.render3d.tone).toBe('neutral')
+  expect(a.scene.prefabs.render3d.exposure).toBe(1.05)
+  // The game blooms; the workshop never does.
+  expect('bloom' in a.scene.prefabs.render3d).toBe(false)
+  expect(unbloomed(GAME.render3d)).toEqual({ tone: 'neutral', exposure: 1.05 })
+  expect(GAME.render3d.bloom).toEqual({ strength: 0.42, radius: 0.26, threshold: 1 })
+  expect(unbloomed(undefined)).toEqual({})
   const byDefs: Stand = { scene: 'yard', kind: 'walker', by: 'defs', defs: 'defs', drawers: ['legs', 'hang'], world: { legs: { mods: {} }, hang: { mods: { node: 'legs' } } } }
   const b = standScene(GAME, 'm', byDefs, 'http://x/games/t/', SIZE)
   expect(b.drawers).toEqual(['legs', 'hang'])

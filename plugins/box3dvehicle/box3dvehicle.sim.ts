@@ -6,7 +6,8 @@
 // car. It holds `vehicle`, the name of the fleet's Vehicle it is (below), and what changes:
 // `throttle` (-1 to 1), `brake` (0 to 1), `steer` (-1 to 1, positive turns left), and `chassis`,
 // `wheels` and `joints`, the ids of its parts. Its actor entry gives `pos` and `rot`, where the car
-// is made: on the row's first step box3dvehicle spawns the parts there, each wheel where the spring
+// is made, and optionally `initialVelocity`, [x, y, z] m/s in the car's own axes, which the chassis
+// and every wheel are spawned moving at: on the row's first step box3dvehicle spawns the parts there, each wheel where the spring
 // holds it at rest, and takes `pos` and `rot` off the row, so it carries nothing that no longer
 // changes. A rule that makes a car in a step makes it with `vehicle(w, name, pos, rot)`, which
 // spawns the row with its parts made and its joints driven: a row
@@ -21,6 +22,10 @@
 //              each made from the Vehicle of the car that lists the part, so the scene's
 //              `world.box3d` lists none of them.
 //   vehicles   name to Vehicle: the cars the scene can make. `design(world, row)` is a car's.
+//   lightsOff  true: no car of the scene makes a brake or reverse light, its lamps' lenses glowing
+//              and lighting nothing round them (`look.lights`, `box3dvehicle.plugin.ts`), and its
+//              headlights' beams are dark while its row's `lights` is off. Left out, every car lights
+//              as its look says, whatever its `lights`.
 //   mods       below.
 // A Vehicle is the whole car, which the body, the wheels, the joints and the look are all made from:
 //   body      the chassis: a box `length` along x, `height` along y and `width` along z, centred on
@@ -132,6 +137,8 @@
 //   steer(v)    -1 to 1, positive left.
 //   brake(v)    0 to 1.
 //   shift(by)   1 or -1: the gear moved by one (`shift`, below).
+//   lights(on)  true or false, kept on the row as `lights`: the headlights on or off, which the
+//               browser half lights under `lightsOff` (left out of a row, off).
 // What a car does while nobody drives it is its game's.
 //
 // The car's forward is its chassis's +x, up its +y, and left its -z. A wheel joint's frame on the
@@ -227,8 +234,8 @@ export type Open = {
 export type Lamp = { intensity: number; distance: number; decay: number }
 export type Lights = {
   radius: number; depth: number; bezel: number
-  beam: Lamp & { angle: number; penumbra: number; dip: number }
-  tail: { glow: number; brake: number; light: Lamp }
+  beam: Lamp & { angle: number; penumbra: number; dip: number; at?: Vec3; toe?: number }
+  tail: { glow: number; brake: number; light: Lamp; lens?: number }
   reverse: { glow: number; light: Lamp }
   parking?: { radius: number; depth: number; glow: number }
 }
@@ -236,9 +243,22 @@ export type Tracks = { colour: number; opacity: number; skid: number; slide: num
 // A model drawn on the chassis in place of the body the look draws: the loader catalogue's `model`
 // entry `asset`, its origin at `at` in the chassis's frame, `scale` metres to one of its units.
 export type Model = { asset: string; at?: Vec3; scale?: number }
+// How often an effect bursts for the engine's rpm: `[rpm, rate]` points in rising rpm, joined by
+// straight lines and held past their ends (`along`), the rate particle3d runs the effect at.
+export type Rpm = [rpm: number, rate: number][]
 // One tailpipe: its tip `at` and the way it points `dir` in the chassis's frame, `pipe` round,
-// throwing particle3d's `effect`, and `rev` beside it while the throttle is held.
-export type Exhaust = { at: Vec3; dir: Vec3; pipe: number; effect: string; rev?: string }
+// throwing particle3d's `effect`, and `rev` beside it while the throttle is held, both run at the
+// `rpm` curve's rate for the car's rpm when it has one.
+export type Exhaust = { at: Vec3; dir: Vec3; pipe: number; effect: string; rev?: string; rpm?: Rpm }
+// An effect thrown from under each wheel beside the dust: while the wheel is within `clear` metres of
+// the land and its tread goes faster than `speed[0]` m/s over it, until the wheel itself goes
+// `speed[1]` m/s or faster, run at the `rpm` curve's rate when it has one.
+export type Spray = { effect: string; clear: number; speed: [from: number, to: number]; rpm?: Rpm }
+// An effect thrown from under each wheel sliding sideways: while the wheel is within `clear` metres of
+// the land and goes faster than `speed` m/s across its own way (along its axle), along that sideways
+// way, run at the `rate` curve's rate for that sideways speed, `[[m/s, rate], …]`, when it has one, and
+// thrown with `force` times that sideways speed, when it has one.
+export type Skid = { effect: string; clear: number; speed: number; rate?: [speed: number, rate: number][]; force?: number }
 // A named point of the car, in the chassis's frame: where it is, at its place, or `{ at, part, turn }`,
 // riding the steering wheel with `part: 'steer'` and turned `turn`, a quaternion [x, y, z, w].
 export type Spot = { at: Vec3; part?: 'steer'; turn?: Quat }
@@ -283,6 +303,8 @@ export type Look = {
   spare?: { lift: number }
   exhaust?: Exhaust[]
   dust?: { effect: string; clear: number; speed: number }
+  sprays?: Spray[]
+  skid?: Skid
   tracks?: Tracks
   open?: Open
   model?: Model
@@ -331,6 +353,7 @@ export type Fleet = {
   joint: string
   vehicles: Record<string, Vehicle>
   hit?: { speed: number; damage: number }
+  lightsOff?: boolean
   mods?: { gravity?: string; land?: string; grip?: string; drag?: string; bodies?: string; strike?: string; sound?: string }
 }
 
@@ -601,7 +624,7 @@ export const frameA = (k: Corner, c: number) =>
 
 // ---------------------------------------------------------------- the rule
 
-const still = (pos: Vec3, rot: Quat) => ({ pos, rot, vel: [0, 0, 0], spin: [0, 0, 0], awake: true })
+const still = (pos: Vec3, rot: Quat, vel: Vec3) => ({ pos, rot, vel, spin: [0, 0, 0], awake: true })
 
 // How high a car's chassis origin stands over flat ground at rest: a wheel's radius, the spring's
 // length less its sag, less the mount's height, the highest of its axles'.
@@ -610,11 +633,11 @@ export const standing = (v: Vehicle) =>
 
 function build(me: Row, v: Vehicle, w: W) {
   const fleet: Fleet = w.world.box3dvehicle
-  const pos: Vec3 = me.data.pos, rot: Quat = me.data.rot
-  const chassis = w.spawn(fleet.chassis, still([...pos] as Vec3, [...rot] as Quat))
+  const pos: Vec3 = me.data.pos, rot: Quat = me.data.rot, vel = turn(rot, me.data.initialVelocity ?? [0, 0, 0])
+  const chassis = w.spawn(fleet.chassis, still([...pos] as Vec3, [...rot] as Quat, [...vel] as Vec3))
   const wheels: number[] = [], joints: number[] = []
   for (const c of corners(v)) {
-    const wheel = w.spawn(fleet.wheel, still(add(pos, turn(rot, wheelAt(c, c.axle.spring.sag))), [...rot] as Quat))
+    const wheel = w.spawn(fleet.wheel, still(add(pos, turn(rot, wheelAt(c, c.axle.spring.sag))), [...rot] as Quat, [...vel] as Vec3))
     const joint = w.spawn(fleet.joint, { a: chassis.id, b: wheel.id })
     wheels.push(wheel.id)
     joints.push(joint.id)
@@ -624,6 +647,7 @@ function build(me: Row, v: Vehicle, w: W) {
   me.data.joints = joints
   delete me.data.pos
   delete me.data.rot
+  delete me.data.initialVelocity
 }
 
 function drive(me: Row, v: Vehicle, w: W, dt: number) {
@@ -691,16 +715,19 @@ function direct(me: Row, e: Direct, cs: Corner[], w: W) {
   })
 }
 
-// The engine's torque at full throttle at `rpm`, N·m: the curve's points joined by straight lines,
-// its ends held past them.
-export function torqueAt(curve: Petrol['curve'], rpm: number): number {
-  if (rpm <= curve[0][0]) return curve[0][1]
-  for (let i = 1; i < curve.length; i++) {
-    const [r0, t0] = curve[i - 1], [r1, t1] = curve[i]
-    if (rpm <= r1) return t0 + ((t1 - t0) * (rpm - r0)) / (r1 - r0)
+// A curve's value at `x`: its `[x, y]` points, in rising x, joined by straight lines, its ends held
+// past them.
+export function along(points: [number, number][], x: number): number {
+  if (x <= points[0][0]) return points[0][1]
+  for (let i = 1; i < points.length; i++) {
+    const [x0, y0] = points[i - 1], [x1, y1] = points[i]
+    if (x <= x1) return y0 + ((y1 - y0) * (x - x0)) / (x1 - x0)
   }
-  return curve[curve.length - 1][1]
+  return points[points.length - 1][1]
 }
+
+// The engine's torque at full throttle at `rpm`, N·m: its curve `along` there.
+export const torqueAt = (curve: Petrol['curve'], rpm: number): number => along(curve, rpm)
 
 const RPM = 60 / (2 * Math.PI)
 
@@ -914,8 +941,8 @@ function drags(me: Row, v: Vehicle, w: W, dt: number, pressed: number[]) {
 
 /** A car of the fleet's `name` at `pos` turned `rot`, spawned with its parts made and its joints
  * driven. */
-export function vehicle(w: W, name: string, pos: Vec3, rot: Quat): Row {
-  const me = w.spawn('box3dvehicle', { vehicle: name, pos, rot })
+export function vehicle(w: W, name: string, pos: Vec3, rot: Quat, initialVelocity?: Vec3): Row {
+  const me = w.spawn('box3dvehicle', { vehicle: name, pos, rot, initialVelocity })
   const v = design(w.world, me)
   build(me, v, w)
   drive(me, v, w, 0)
@@ -1034,6 +1061,9 @@ export const box3dvehicle: Kind = {
     },
     shift(me, w, _seat, by: unknown) {
       if (by === 1 || by === -1) shift(me, design(w.world, me), by)
+    },
+    lights(me, _w, _seat, on: unknown) {
+      if (on === true || on === false) me.data.lights = on
     },
   },
 }

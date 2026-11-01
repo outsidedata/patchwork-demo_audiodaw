@@ -35,7 +35,7 @@ import type { RouteFiles, Router } from '#editor/server/routes.ts'
 
 const NAME = /^[a-z][a-zA-Z0-9]*$/
 // A game's name: its folder's, a lower-case letter then lower-case letters, digits and underscores
-// (`extensions/games/games.route.ts`).
+// (`scripts/new-game.ts`).
 const GAME = /^[a-z][a-z0-9_]*$/
 // The words a kind's name cannot be, since the name is an identifier of its rule's module.
 const RESERVED = new Set([

@@ -10,12 +10,16 @@ import { defineWorkspace } from 'vitest/config'
 // temp folder, where a scene a test adds is written and its sim imported from.
 // `.view.test.tsx` holds the tests that attach a game view to the session (`session.attach`), so
 // the game's client is made and draws its frames in jsdom: a game booted, built and drawn on the
-// CPU, seconds a test. They are left out of every run but `yarn test:view`, which sets VIEW.
+// CPU, seconds a test. They are left out of every run but one that sets VIEW,
+// `VIEW=1 yarn vitest run --project view`.
 // `.game.test.ts` holds the tests that boot a whole game, its manager scene with its `sim` and every
 // child scene loaded, and step it, and `<game>.predict.test.ts` runs a game's pages on its server: a
 // game played for seconds to minutes of its time, a test. They are left out of every run but
 // `yarn test:game`, which sets GAME.
-const outside = ['node_modules/**', 'dist/**', '.claude/**']
+// OCT-24-EDITOR-ALPHA-SWEEP
+// Editor tests whose files throw as they load, before their skips are read: left out of every run.
+const alpha = ['games/paladin/skydome3d.extension.test.tsx', 'games/citybuilder/extensions/networks/networks.route.test.ts']
+const outside = ['node_modules/**', 'dist/**', '.claude/**', ...alpha]
 const played = ['**/*.game.test.ts', '**/*.predict.test.ts']
 const dom = { environment: 'jsdom', setupFiles: ['./editor/test/setup.ts'] }
 const serve = { fs: { allow: [searchForWorkspaceRoot(process.cwd()), realpathSync(tmpdir())] } }

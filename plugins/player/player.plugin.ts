@@ -64,7 +64,8 @@
 // PlayStation's), `Pad1` the right, `Pad2` the left, `Pad3` the top, `Pad4` and `Pad5` the left and
 // right shoulders, `Pad6` and `Pad7` the triggers, `Pad8` select, `Pad9` start, `Pad10` and `Pad11`
 // the sticks pressed in, `Pad12` to `Pad15` the d-pad's up, down, left and right, `Pad16` the home
-// button; a button is down while the browser calls it `pressed`. A gamepad the browser does not map
+// button; a button is down while the browser calls it `pressed` and its `value` is past
+// `world.player.deadzone`, so a trigger resting a little in is not down. A gamepad the browser does not map
 // to the standard numbers its buttons its own way. The left stick holds `PadStickLeft`,
 // `PadStickRight`, `PadStickUp` and `PadStickDown` while it is pushed that way past
 // `world.player.deadzone`, a fraction of the way out, each axis on its own, so a push both ways holds
@@ -641,7 +642,8 @@ export function player() {
         now.add(k)
         level.set(k, Math.max(level.get(k) ?? 0, v))
       }
-      pad.buttons.forEach((b, i) => { if (b.pressed) add(`Pad${i}`, b.value) })
+      // A button is down past the dead zone too: a trigger resting a little in is not pressed.
+      pad.buttons.forEach((b, i) => { if (b.pressed && (deadzone === undefined || b.value > deadzone)) add(`Pad${i}`, b.value) })
       if (deadzone === undefined) return
       const past = (a: number) => Math.min(1, (Math.abs(a) - deadzone) / (1 - deadzone))
       // A gamepad of one stick has two axes; the standard mapping's right stick is the third and fourth.

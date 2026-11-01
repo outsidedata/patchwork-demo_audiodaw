@@ -22,6 +22,7 @@
 * { box-sizing: border-box }
 html, body { margin: 0; height: 100%; background: var(--bg); color: var(--text); font: 13px/1.4 -apple-system, system-ui, sans-serif }
 .app { display: grid; grid-template-columns: 240px 1fr 300px; grid-template-rows: 40px 1fr; height: 100vh }
+.app.marking { grid-template-columns: 240px 1fr 460px }
 header { grid-column: 1 / 4; display: flex; align-items: center; gap: 6px; padding: 0 12px; background: var(--panel); border-bottom: 1px solid var(--line) }
 header b { color: var(--accent); margin-right: 6px }
 button, select, input { font: inherit; font-size: 12px; color: var(--text) }
@@ -100,6 +101,49 @@ main canvas { display: block }
 .card .reply { margin-top: 6px; padding: 4px 6px; border-left: 2px solid var(--accent); color: var(--dim); font-size: 12px }
 .card button { margin-top: 6px; font-size: 11px; padding: 2px 8px }
 .empty { padding: 8px 12px; color: var(--dim) }
+#moves-head, #moves, #marks-head, #marks { display: none }
+#marks-panel { display: none; padding: 10px 12px; border-bottom: 1px solid var(--line) }
+#marks-panel .mk-head { display: flex; align-items: center; gap: 8px }
+#marks-panel .mk-head b { font-size: 14px; color: var(--accent) }
+#marks-panel .mk-count { color: var(--dim); font-size: 12px }
+#marks-panel .mk-save.on { background: var(--accent); color: #111; border-color: var(--accent) }
+#marks-panel .mk-state { color: var(--dim); font-size: 12px; margin: 4px 0 2px }
+#marks-panel .mk-group { margin: 14px 0 4px; font-size: 11px; letter-spacing: .08em; text-transform: uppercase; color: var(--dim) }
+#marks-panel .mk-table { width: 100%; border-collapse: collapse; margin-top: 8px; font-size: 12px }
+#marks-panel .mk-table th { text-align: left; color: var(--dim); font-weight: normal; font-size: 11px; text-transform: uppercase; letter-spacing: .06em; padding: 4px 6px; border-bottom: 1px solid var(--line) }
+#marks-panel .mk-table td { padding: 5px 6px; border-bottom: 1px solid var(--line); vertical-align: top; cursor: pointer }
+#marks-panel .mk-table tr:hover td { background: #262930 }
+#marks-panel .mk-table tr.on td { background: #2f3238 }
+#marks-panel .mk-table tr.on td:first-child { box-shadow: inset 2px 0 var(--accent) }
+#marks-panel .mk-name { font-weight: 600; white-space: nowrap }
+#marks-panel .mk-where { color: var(--dim); line-height: 1.4 }
+#marks-panel .mk-dot { display: inline-block; width: 8px; height: 8px; border-radius: 50%; margin-right: 6px; vertical-align: 1px }
+#marks-panel .mk-dot.todo { background: var(--pin) }
+#marks-panel .mk-dot.done { background: var(--ok) }
+#marks-panel .mk-dot.size { background: var(--accent) }
+#marks-panel .mk-edit { margin-top: 12px; padding: 8px; border: 1px solid var(--line); border-radius: 5px }
+#marks-panel .mk-chosen { font-weight: 600; color: var(--accent); margin-bottom: 4px }
+#marks-panel .mk-line { display: flex; gap: 6px; align-items: center; margin: 5px 0 }
+#marks-panel .mk-lab { flex: 0 0 64px; color: var(--dim); font-size: 12px }
+#marks-panel .mk-line input[type=number] { width: 0; flex: 1; font: 12px ui-monospace, monospace; padding: 3px 4px }
+#marks-panel .mk-unit { color: var(--dim); font-size: 12px; width: 10px }
+#marks-panel .mk-add { margin: 6px 0 0; border-style: dashed; color: var(--dim) }
+#marks-panel .mk-control input[type=range] { flex: 1; accent-color: var(--accent); padding: 0; border: 0; background: none }
+#marks-panel .mk-at { font: 11px ui-monospace, monospace; color: var(--dim); width: 36px; text-align: right }
+#contacts-head, #contacts { display: none }
+#contacts { padding: 0 12px 8px; font: 12px ui-monospace, monospace; color: var(--dim) }
+#contacts .mark { display: flex; justify-content: space-between; gap: 8px; padding: 2px 0 }
+#contacts .mark .on { color: var(--ok) }
+#contacts .mark.off .on { color: var(--pin) }
+#sheet { position: absolute; inset: 0; display: none; background: #0d0e10f2; z-index: 7; overflow: auto; padding: 10px 12px }
+#sheet .head { display: flex; align-items: center; gap: 8px; position: sticky; top: 0; background: #0d0e10; padding-bottom: 8px }
+#sheet .head .who { color: var(--dim); font-size: 12px }
+#sheet .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: 10px }
+#sheet .frame { border: 1px solid var(--line); border-radius: 6px; overflow: hidden; cursor: pointer; background: #16171a }
+#sheet .frame:hover { border-color: var(--accent) }
+#sheet .frame canvas { display: block; width: 100%; height: auto }
+#sheet .frame .cap { padding: 4px 8px; font: 11px ui-monospace, monospace; color: var(--dim); white-space: pre-wrap }
+#sheet .frame .cap .off { color: var(--pin) }
 </style>
 </head>
 <body>
@@ -108,6 +152,7 @@ main canvas { display: block }
     <b>Asset workshop</b>
     <select id="game"></select>
     <span id="views"></span>
+    <button id="ortho">Ortho</button>
     <span class="sp"></span>
     <button id="wire">Wireframe</button>
     <button id="bounds" class="on">Bounds</button>
@@ -127,6 +172,10 @@ main canvas { display: block }
     <div id="models"></div>
     <h3>Bodies</h3>
     <div id="bodies"></div>
+    <h3 id="moves-head">Moves</h3>
+    <div id="moves"></div>
+    <h3 id="marks-head">Marks</h3>
+    <div id="marks"></div>
   </aside>
   <main id="view">
     <div id="hud"></div>
@@ -135,6 +184,10 @@ main canvas { display: block }
       <textarea placeholder="What is wrong here?"></textarea>
       <div class="meta"></div>
       <div class="row"><button data-act="cancel">Cancel</button><button data-act="save" class="on">Add note</button></div>
+    </div>
+    <div id="sheet">
+      <div class="head"><b>Key frames</b><span class="who"></span><span class="sp"></span><button data-act="close">Close</button></div>
+      <div class="grid"></div>
     </div>
     <div id="fit">
       <div class="top"><b>Fit</b> <span class="who"></span></div>
@@ -147,9 +200,11 @@ main canvas { display: block }
       <div class="row" id="steps-row" title="The interaction's steps, each tuned alone"><span class="lab">step</span><div class="btns" id="steps"></div></div>
       <div class="row" id="clip-row"><span class="lab">clip</span><div class="picker"><input id="clip-search" placeholder="search clips" autocomplete="off" spellcheck="false"><div id="clip-list"></div></div></div>
       <div class="row" id="time-row"><button data-act="pause">Pause</button><input id="time" type="range" min="0" max="1" step="0.001" value="0"><span id="clock">0.00 s</span></div>
+      <div class="row" id="frames-row"><button data-act="back" title="A frame back (,)">◀ frame</button><button data-act="ahead" title="A frame on (.)">frame ▶</button><span class="sp"></span><button data-act="sheet" title="The step at every moment a contact begins or ends, side by side">Key frames</button></div>
       <div class="step">
         <div class="row"><span class="lab">facing</span><input id="turn" type="number" step="1" title="Degrees the body faces from its point's way, left positive"><span class="unit">°</span><span class="sp"></span><span id="held"></span></div>
         <div id="poles"></div>
+        <div id="pose"></div>
       </div>
       <div class="row" id="steer-row" title="The car row's steer, -1 to 1, left positive: the steering wheel turns by it times the look's lock, and the points on it with it. Not saved: the game's driver sets it."><span class="lab">steer</span><input id="steer" type="range" min="-1" max="1" step="0.01" value="0"><span id="steer-at">0.00</span></div>
       <div class="reach"></div>
@@ -163,7 +218,7 @@ main canvas { display: block }
       <div class="row"><span class="state"></span><span class="sp"></span><button data-act="revert">Revert</button><button data-act="save">Save to game</button></div>
     </div>
   </main>
-  <aside class="right"><h3>Notes</h3><div id="notes"></div></aside>
+  <aside class="right"><div id="marks-panel"></div><h3 id="contacts-head">Contacts</h3><div id="contacts"></div><h3>Notes</h3><div id="notes"></div></aside>
 </div>
 <script type="module" src="/workshop.ts"></script>
 </body>

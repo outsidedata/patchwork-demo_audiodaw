@@ -32,7 +32,10 @@ let clock = 0
 vi.spyOn(performance, 'now').mockImplementation(() => clock)
 
 const EFFECTS_URL = '/box3dvehicle-plugin-test/effects.json'
-written(EFFECTS_URL, JSON.stringify({ cap: 50, effects: { dust: [{ every: 0.05, life: [0.2, 0.2] }], mud: [{ every: 0.05, life: [0.2, 0.2] }] } }))
+written(EFFECTS_URL, JSON.stringify({
+  cap: 50,
+  effects: Object.fromEntries(['dust', 'mud', 'kick', 'smoke', 'roar', 'plume', 'skid'].map(name => [name, [{ every: 0.05, life: [0.2, 0.2] }]])),
+}))
 
 const axle = (at: number, steered: boolean): Axle => ({
   at, track: 1.7, mount: 0.2,
@@ -189,6 +192,30 @@ const boxGripped: Vehicle = { ...boxCar, look: { ...boxCar.look, points: POINTS 
 const doored: Vehicle = { ...vehicle, look: { ...vehicle.look, dust: undefined, tracks: undefined, points: JSON.parse('{ "handle": { "at": [0, 0, 0], "part": "door" } }') } }
 // The open jeep with no cabin to build round.
 const roofless: Vehicle = { ...vehicle, body: boxBody, look: { ...vehicle.look, dust: undefined, tracks: undefined } }
+// The beams raised onto a bar over the car, `RAISED`, 0.6 m either side of its middle, splayed `TOE` out:
+// the open car, its lamps drawn on the nose; and the model, its beam nodes on the nose.
+const RAISED: [number, number, number] = [0.4, 1.3, 0.6]
+const TOE = 0.2
+const raisedBeam = { ...LIGHTS.beam, at: RAISED, toe: TOE }
+const raised: Vehicle = { ...vehicle, look: { ...vehicle.look, dust: undefined, tracks: undefined, lights: { ...LIGHTS, beam: raisedBeam } } }
+const raisedModel: Vehicle = { ...modelCar, look: { ...modelCar.look, lights: { ...LIGHTS, beam: raisedBeam } } }
+const quiet: Vehicle = { ...vehicle, look: { ...vehicle.look, dust: undefined, tracks: undefined } }
+// Thrown more often as the engine revs: 1× at 1000 rpm, 3× at 6000, joined by a straight line.
+const REVS: [number, number][] = [[1000, 1], [6000, 3]]
+// The car with its dust and a kick beside it, thrown from a tread over 1.5 m/s until the wheel goes 8 m/s.
+const kicking: Vehicle = { ...vehicle, look: { ...vehicle.look, tracks: undefined, sprays: [{ effect: 'kick', clear: 0.1, speed: [1.5, 8], rpm: REVS }] } }
+// The car with a skid thrown past 2 m/s sideways, 1× at 2 m/s and 4× at 10, and no dust.
+const skidding: Vehicle = { ...vehicle, look: { ...vehicle.look, dust: undefined, tracks: undefined, skid: { effect: 'skid', clear: 0.1, speed: 2, rate: [[2, 1], [10, 4]] } } }
+// The same, thrown a quarter as hard per m/s it slides.
+const forced: Vehicle = { ...skidding, look: { ...skidding.look, skid: { ...skidding.look.skid!, force: 0.25 } } }
+// The car with two tailpipes: smoke and its roar on the rpm curve, and a plume on none.
+const smoky: Vehicle = {
+  ...vehicle,
+  look: {
+    ...vehicle.look, dust: undefined, tracks: undefined,
+    exhaust: [{ at: [-1, 0, 0.3], dir: [-1, 0, 0], pipe: 0.04, effect: 'smoke', rev: 'roar', rpm: REVS }, { at: [-1, 0, -0.3], dir: [-1, 0, 0], pipe: 0.04, effect: 'plume' }],
+  },
+}
 
 // ---------------------------------------------------------------- an engine heard
 
@@ -235,13 +262,14 @@ const heardOf = (car: Vehicle, named: boolean, plugins = ['scenemanager', 'loade
 }
 // A car of `car`'s vehicle in a scene that lists `plugins` and ships what `shipped` lists, its land
 // `land`, its field muddy or not, its catalogue the effects and the machine.
-const yardOf = (plugins: string[], shipped: string[], land?: string, muddy = false, car: Vehicle = vehicle): Scene => ({
+// With `lightsOff`, the fleet's `lightsOff: true`.
+const yardOf = (plugins: string[], shipped: string[], land?: string, muddy = false, car: Vehicle = vehicle, lightsOff = false): Scene => ({
   world: {
     loader: { assets: { effects: { type: 'json', url: EFFECTS_URL, preload: true }, machine: { type: 'model', url: MACHINE_URL }, plain: { type: 'model', url: PLAIN_URL } } },
     particle3d: { effects: 'effects' },
     shipped: { plugins: shipped },
     field: { ...FIELD, muddy },
-    box3dvehicle: { chassis: 'body', wheel: 'tyre', joint: 'axle', vehicles: { car }, ...(land && { mods: { land } }) },
+    box3dvehicle: { chassis: 'body', wheel: 'tyre', joint: 'axle', vehicles: { car }, ...(land && { mods: { land } }), ...(lightsOff && { lightsOff }) },
   },
   prefabs: {
     engine: { dt: DT, width: 320, height: 200 }, scenemanager: { out: {} }, loader: {},
@@ -257,6 +285,14 @@ const scenes: Record<string, Scene> = {
   dusty: yardOf(['scenemanager', 'loader', 'shipped', 'box3dvehicle', 'particle3d', 'render3d'], ['field'], 'field'),
   // The same, its field muddy.
   muddy: yardOf(['scenemanager', 'loader', 'shipped', 'box3dvehicle', 'particle3d', 'render3d'], ['field'], 'field', true),
+  // The kicking car on the muddy field.
+  kicked: yardOf(['scenemanager', 'loader', 'shipped', 'box3dvehicle', 'particle3d', 'render3d'], ['field'], 'field', true, kicking),
+  // The skidding car on the muddy field.
+  skidded: yardOf(['scenemanager', 'loader', 'shipped', 'box3dvehicle', 'particle3d', 'render3d'], ['field'], 'field', true, skidding),
+  // The skidding car with a force.
+  forced: yardOf(['scenemanager', 'loader', 'shipped', 'box3dvehicle', 'particle3d', 'render3d'], ['field'], 'field', true, forced),
+  // The car with two tailpipes.
+  smoked: yardOf(['scenemanager', 'loader', 'shipped', 'box3dvehicle', 'particle3d', 'render3d'], ['field'], undefined, false, smoky),
   // No land named.
   bare: yardOf(['scenemanager', 'loader', 'shipped', 'box3dvehicle', 'particle3d', 'render3d'], ['field']),
   // The field's land, field shipped after box3dvehicle.
@@ -269,6 +305,12 @@ const scenes: Record<string, Scene> = {
   boxed: yardOf(['scenemanager', 'loader', 'shipped', 'box3dvehicle', 'particle3d', 'render3d'], ['field'], undefined, false, boxCar),
   // An open car with no cabin.
   roofless: yardOf(['scenemanager', 'loader', 'shipped', 'box3dvehicle', 'particle3d', 'render3d'], ['field'], undefined, false, roofless),
+  // The open car and the model with their beams raised over them.
+  raised: yardOf(['scenemanager', 'loader', 'shipped', 'box3dvehicle', 'particle3d', 'render3d'], ['field'], undefined, false, raised),
+  raisedModel: yardOf(['scenemanager', 'loader', 'shipped', 'box3dvehicle', 'particle3d', 'render3d'], ['field'], undefined, false, raisedModel),
+  // The open car and the model in a fleet with `lightsOff`.
+  dark: yardOf(['scenemanager', 'loader', 'shipped', 'box3dvehicle', 'particle3d', 'render3d'], ['field'], undefined, false, quiet, true),
+  darkModel: yardOf(['scenemanager', 'loader', 'shipped', 'box3dvehicle', 'particle3d', 'render3d'], ['field'], undefined, false, modelCar, true),
   // A model with no steering wheel, its points on the chassis; and with the grip on the wheel too.
   plain: yardOf(['scenemanager', 'loader', 'shipped', 'box3dvehicle', 'particle3d', 'render3d'], ['field'], undefined, false, plainCar),
   plainGripped: yardOf(['scenemanager', 'loader', 'shipped', 'box3dvehicle', 'particle3d', 'render3d'], ['field'], undefined, false, plainGripped),
@@ -414,6 +456,128 @@ test('a wheel throws what the land sprays under it, nothing where it sprays fals
   expect(live(dusts(page)).map(fx => fx.at[2]).sort()).toEqual([-0.85, -0.85])
 })
 
+const kicks = (page: { client?: any }) => live(thrown(page, 'kick'))
+
+test('a spray is thrown from under each wheel beside its dust, from the same point along the same way, where the ground throws anything, and stops once the wheel goes its top speed', async () => {
+  const { page, frames, wheels, car } = await open('kicked')
+  car.data.rpm = 1000
+  // At 3 m/s: the front wheels on mud and the rear left on unpainted ground throw it; the rear right,
+  // on ground that throws nothing, does not.
+  stand(wheels, [3, 0, 0], 0.05)
+  await frames(3)
+  const kicked = kicks(page)
+  expect(kicked.map(fx => [fx.at[0], fx.at[2]])).toEqual([[1.25, -0.85], [1.25, 0.85], [-1.25, -0.85]])
+  // Beside the dust, at its point and along its way.
+  const dust = live(dusts(page))[0]
+  expect(kicked[2].at).toEqual(dust.at)
+  expect(kicked[2].dir).toEqual(dust.dir)
+  // At 8 m/s, its top speed, every one stops; the dust goes on.
+  stand(wheels, [8, 0, 0], 0.05)
+  await frames(2)
+  expect(kicks(page)).toHaveLength(0)
+  for (const fx of kicked) expect(fx.life).toBeLessThanOrEqual(fx.age)
+  expect(live(dusts(page))).toHaveLength(1)
+  // Spinning on the spot, its tread past 1.5 m/s while the wheel itself stands: thrown again.
+  stand(wheels, [0, 0, 0], 0.05, [0, 0, -10])
+  await frames(2)
+  expect(kicks(page)).toHaveLength(3)
+  // Lifted off the land, past `clear`: none.
+  stand(wheels, [3, 0, 0], 0.5)
+  await frames(2)
+  expect(kicks(page)).toHaveLength(0)
+})
+
+test('a spray with an rpm curve runs at the rate the curve gives for the car\'s rpm each frame, held at its ends', async () => {
+  const { page, frames, wheels, car } = await open('kicked')
+  stand(wheels, [3, 0, 0], 0.05)
+  for (const [rpm, rate] of [[1000, 1], [6000, 3], [3500, 2], [500, 1], [7000, 3]]) {
+    car.data.rpm = rpm
+    await frames(2)
+    for (const fx of kicks(page)) expect(fx.rate).toBeCloseTo(rate, 12)
+  }
+  // The dust beside it, with no curve, at 1 throughout.
+  for (const fx of live(dusts(page))) expect(fx.rate).toBe(1)
+})
+
+test('a wheel sliding along its axle faster than `speed` throws its skid at the land under it, the way it slides and up by a tenth as much, more often the harder it slides, on any ground, until it rolls straight or leaves the land', async () => {
+  const { page, frames, wheels } = await open('skidded')
+  const skids = () => live(thrown(page, 'skid'))
+  // Rolling straight along x at 6 m/s, across its axle (its z): no skid.
+  stand(wheels, [6, 0, 0], 0.05)
+  await frames(2)
+  expect(skids()).toHaveLength(0)
+  // Sliding 4 m/s toward -z along its axle, and 3 m/s ahead: every wheel throws, on the mud, on
+  // its own ground and on the ground that sprays nothing alike, toward -z and up by a tenth.
+  stand(wheels, [3, 0, -4], 0.05)
+  await frames(2)
+  const slid = skids()
+  expect(slid).toHaveLength(4)
+  corners(vehicle).forEach((c, i) => {
+    const x = c.mount[0], z = (c.side * c.axle.track) / 2
+    expect(slid[i].at[0]).toBeCloseTo(x, 9)
+    expect(slid[i].at[1]).toBeCloseTo(fieldHeight(x, z), 9)
+    expect(slid[i].at[2]).toBeCloseTo(z, 9)
+    ;[0, 0.1, -1].forEach((n, k) => expect(slid[i].dir![k]).toBeCloseTo(n, 9))
+  })
+  // Its rate the curve's for the sideways speed: 4 m/s is 1.75, 10 m/s 4, and past 10 held at 4.
+  for (const [sideways, rate] of [[4, 1.75], [10, 4], [14, 4]]) {
+    stand(wheels, [3, 0, sideways], 0.05)
+    await frames(2)
+    const now = skids()
+    expect(now).toHaveLength(4)
+    for (const fx of now) {
+      expect(fx.rate).toBeCloseTo(rate, 12)
+      ;[0, 0.1, 1].forEach((n, k) => expect(fx.dir![k]).toBeCloseTo(n, 9))
+    }
+  }
+  // Slowed to 1.5 m/s sideways, under `speed`, and lifted off the land: none.
+  stand(wheels, [3, 0, 1.5], 0.05)
+  await frames(2)
+  expect(skids()).toHaveLength(0)
+  stand(wheels, [3, 0, 6], 0.5)
+  await frames(2)
+  expect(skids()).toHaveLength(0)
+})
+
+test('a skid with a force is thrown with that times the sideways speed each frame; one without at 1', async () => {
+  for (const [scene, per] of [['forced', 0.25], ['skidded', undefined]] as const) {
+    const { page, frames, wheels } = await open(scene)
+    for (const sideways of [4, 12, -8]) {
+      stand(wheels, [3, 0, sideways], 0.05)
+      await frames(2)
+      const now = live(thrown(page, 'skid'))
+      expect(now).toHaveLength(4)
+      for (const fx of now) expect(fx.force).toBeCloseTo(per === undefined ? 1 : per * Math.abs(sideways), 12)
+    }
+  }
+})
+
+test('a wheel turned on its steering slides along its own axle, not the chassis\'s', async () => {
+  const { page, frames, wheels } = await open('skidded')
+  // Each wheel turned a quarter about up, its axle along x: going 6 m/s along x is all sideways.
+  stand(wheels, [6, 0, 0], 0.05)
+  for (const w of wheels) w.data.rot = [0, Math.SQRT1_2, 0, Math.SQRT1_2]
+  await frames(2)
+  const slid = live(thrown(page, 'skid'))
+  expect(slid).toHaveLength(4)
+  for (const fx of slid) {
+    expect(Math.abs(fx.dir![0])).toBeCloseTo(1, 9)
+    expect(fx.dir![2]).toBeCloseTo(0, 9)
+  }
+})
+
+test('a tailpipe with an rpm curve runs its smoke and its rev at the rate the curve gives for the car\'s rpm; one with none at 1', async () => {
+  const { page, frames, car } = await open('smoked')
+  for (const [rpm, rate] of [[1000, 1], [6000, 3], [3500, 2]]) {
+    Object.assign(car.data, { rpm, throttle: 1 })
+    await frames(2)
+    const [smoke] = live(thrown(page, 'smoke')), [roar] = live(thrown(page, 'roar')), [plume] = live(thrown(page, 'plume'))
+    expect(smoke.rate).toBeCloseTo(rate, 12)
+    expect(roar.rate).toBeCloseTo(rate, 12)
+    expect(plume.rate).toBe(1)
+  }
+})
+
 // Each tyre's track, in corner order.
 const tracksOf = (page: { client?: any }): any[] => {
   const found: any[] = []
@@ -553,6 +717,79 @@ test('the headlights throw beams ahead and down, the tail lights brighten as the
   expect(reverse.intensity).toBe(LIGHTS.reverse.light.intensity)
   expect(backup.material.emissiveIntensity).toBe(LIGHTS.reverse.glow)
   expect(lightCount(page)).toBe(lights)
+})
+
+test('with the fleet\'s `lightsOff` a car makes no brake or reverse light, a drawn car or a model, its beams dark until its row\'s `lights` is on, and switching them never changes how many lights there are, while its tail lenses still glow brighter as it brakes and its reverse lenses as it backs', async () => {
+  // The scene's own lights, with no car's: the dusty yard's count less its car's four.
+  const lit = await open('dusty')
+  await lit.frames(2)
+  const yard = lightCount(lit.page) - 4
+  for (const name of ['dark', 'darkModel']) {
+    const { page, frames, car } = await open(name)
+    await frames(1)
+    if (name === 'darkModel') for (let i = 0; i < 200 && !named(page, 'box3dvehicle.model').length; i++) { await new Promise(r => setTimeout(r, 5)); await frames(1) }
+    await frames(1)
+    const beams = named(page, 'box3dvehicle.beam')
+    expect(beams.length).toBeGreaterThan(0)
+    expect(lightCount(page)).toBe(yard + beams.length)
+    for (const n of ['box3dvehicle.brake', 'box3dvehicle.reverse']) expect(named(page, n)).toHaveLength(0)
+    for (const b of beams) expect(b.intensity).toBe(0)
+    car.data.lights = true
+    await frames(2)
+    for (const b of beams) expect(b.intensity).toBe(LIGHTS.beam.intensity)
+    expect(lightCount(page)).toBe(yard + beams.length)
+    car.data.lights = false
+    await frames(2)
+    for (const b of beams) expect(b.intensity).toBe(0)
+    const tails: any[] = [], backs: any[] = []
+    page.client!.plugins.render3d.scene.traverse((o: any) => { if (o.isMesh && o.material.color?.getHex() === (name === 'dark' ? vehicle.look.paint.tail : PAINT.tail) && o.material.emissiveIntensity) tails.push(o) })
+    expect(tails.length).toBeGreaterThan(0)
+    expect(tails[0].material.emissiveIntensity).toBe(LIGHTS.tail.glow)
+    car.data.brake = 1
+    await frames(2)
+    expect(tails[0].material.emissiveIntensity).toBe(LIGHTS.tail.brake)
+    Object.assign(car.data, { brake: 0, throttle: -1 })
+    await frames(2)
+    page.client!.plugins.render3d.scene.traverse((o: any) => { if (o.isMesh && o.material.emissiveIntensity === LIGHTS.reverse.glow) backs.push(o) })
+    expect(backs.length).toBeGreaterThan(0)
+    expect(lightCount(page)).toBe(yard + beams.length)
+  }
+})
+
+test('with `beam.at`, the two beams stand there either side of the middle, aimed `dip` down and `toe` out, the lamps still drawn on the nose, on a drawn car and on a model', async () => {
+  // A beam's place and its aim, both in the chassis's frame: the left one at −z splayed to −z, the right
+  // at +z to +z.
+  const check = (beams: any[]) => {
+    expect(beams).toHaveLength(2)
+    const sorted = [...beams].sort((a, b) => a.position.z - b.position.z)
+    sorted.forEach((b, i) => {
+      const k = i ? 1 : -1
+      near(b.position.toArray(), [RAISED[0], RAISED[1], k * RAISED[2]])
+      const d = b.target.position.clone().sub(b.position).normalize()
+      near(d.toArray(), [Math.cos(LIGHTS.beam.dip) * Math.cos(TOE), -Math.sin(LIGHTS.beam.dip), k * Math.cos(LIGHTS.beam.dip) * Math.sin(TOE)])
+      expect(b.intensity).toBe(LIGHTS.beam.intensity)
+    })
+  }
+  const drawn = await open('raised')
+  await drawn.frames(2)
+  const beams = named(drawn.page, 'box3dvehicle.beam')
+  check(beams)
+  for (const b of beams) expect(b.parent).toBe(chassisOf(drawn.page))
+  // The lamps on the nose are drawn as without `at`: the open car's same meshes, each as many vertices,
+  // and as many lights.
+  const plain = await open('dusty')
+  await plain.frames(2)
+  const drawnOf = (page: { client?: any }) => meshesOf(chassisOf(page)).map(m => m.geometry.attributes.position.count)
+  expect(drawnOf(drawn.page)).toEqual(drawnOf(plain.page))
+  expect(lightCount(drawn.page)).toBe(lightCount(plain.page))
+  // The model: the two beams on the chassis at `at`, none on its beam nodes.
+  const model = await open('raisedModel')
+  await model.frames(1)
+  for (let i = 0; i < 200 && !named(model.page, 'box3dvehicle.model').length; i++) { await new Promise(r => setTimeout(r, 5)); await model.frames(1) }
+  const [group] = named(model.page, 'box3dvehicle.model')
+  const modelBeams = named(model.page, 'box3dvehicle.beam')
+  check(modelBeams)
+  for (const b of modelBeams) expect(b.parent).toBe(group.parent)
 })
 
 test('an open car\'s body is drawn as one mesh a material beside its named lenses and its steering wheel, every material physical, the glass see-through and casting no shadow, and each wheel likewise', async () => {

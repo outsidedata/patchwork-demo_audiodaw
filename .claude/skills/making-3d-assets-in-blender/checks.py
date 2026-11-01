@@ -3,8 +3,12 @@
 #   G(v), B(p)        Blender's frame (+z up) to the glb's (+y up), and back
 #   tree(objs)        one BVH over every mesh in the glb's frame, each triangle knowing its node:
 #                     first(origin, d) is the node a ray meets first, and how far
-#   coplanar(objs)    same-facing triangles in one plane (4 mm) sharing more than 5 × 5 mm, which
-#                     z-fight in the game: prints where, and COPLANAR faces=<n> pairs=<n> PASS at 0
+#   coplanar(objs)    same-facing triangles (0.6°) that overlap by more than 5 × 5 mm within 4 mm of
+#                     each other, which z-fight in the game: prints where, and COPLANAR faces=<n>
+#                     pairs=<n> PASS at 0. The 4 mm is measured where the two overlap: the overlap,
+#                     in the first one's plane, cut to where the second lies within 4 mm of it. A
+#                     plane's distance from the world origin is no measure of it: two faces 10 mm
+#                     apart, leaning 0.5° from each other 5 m out, have that distance within 4 mm.
 #   sheet(paths, out) the renders at `paths` laid out `cols` across, the first top left, as one PNG
 
 import bpy, os, math
@@ -44,31 +48,36 @@ def tree(objs):
     return Tree(objs)
 
 
-# The area two triangles share, each given as three 2D points in one plane.
-def _shared(a, b):
-    def area(p):
-        return 0.5 * abs(sum(p[i][0] * p[(i + 1) % len(p)][1] - p[(i + 1) % len(p)][0] * p[i][1] for i in range(len(p))))
+def _area(p):
+    return 0.5 * abs(sum(p[i][0] * p[(i + 1) % len(p)][1] - p[(i + 1) % len(p)][0] * p[i][1] for i in range(len(p))))
 
+
+# A convex polygon of 2D points cut to where f(point) >= 0, f linear.
+def _keep(poly, f):
+    out = []
+    for j in range(len(poly)):
+        p, q = poly[j], poly[(j + 1) % len(poly)]
+        fp, fq = f(p), f(q)
+        if fp >= 0:
+            out.append(p)
+        if (fp >= 0) != (fq >= 0):
+            t = fp / (fp - fq)
+            out.append((p[0] + t * (q[0] - p[0]), p[1] + t * (q[1] - p[1])))
+    return out
+
+
+# The polygon two triangles share, each given as three 2D points in one plane.
+def _overlap(a, b):
     def ccw(p):
         return p if sum(p[i][0] * p[(i + 1) % 3][1] - p[(i + 1) % 3][0] * p[i][1] for i in range(3)) > 0 else p[::-1]
 
     out, clip = list(ccw(list(a))), ccw(list(b))
     for i in range(3):
         e0, e1 = clip[i], clip[(i + 1) % 3]
-        side = lambda p: (e1[0] - e0[0]) * (p[1] - e0[1]) - (e1[1] - e0[1]) * (p[0] - e0[0])
-        nxt = []
-        for j in range(len(out)):
-            p, q = out[j], out[(j + 1) % len(out)]
-            sp, sq = side(p), side(q)
-            if sp >= 0:
-                nxt.append(p)
-            if (sp >= 0) != (sq >= 0):
-                t = sp / (sp - sq)
-                nxt.append((p[0] + t * (q[0] - p[0]), p[1] + t * (q[1] - p[1])))
-        out = nxt
+        out = _keep(out, lambda p: (e1[0] - e0[0]) * (p[1] - e0[1]) - (e1[1] - e0[1]) * (p[0] - e0[0]))
         if len(out) < 3:
-            return 0.0
-    return area(out)
+            return []
+    return out
 
 
 def coplanar(objs, sep=0.004, floor=0.005):
@@ -85,26 +94,38 @@ def coplanar(objs, sep=0.004, floor=0.005):
             n.normalize()
             m = me.materials[t.material_index].name if me.materials and me.materials[t.material_index] else '-'
             ts.append((f'{o.name}:{m}', p, n, n.dot(p[0])))
+    # Candidates: faces whose normals round together to 0.05 (about 3°, every neighbouring cell looked
+    # in, so two normals 0.6° apart are never in cells that are not neighbours) and whose distance from
+    # the origin rounds together to 0.1 m (two faces lying on each other within 0.6° of each other, as
+    # far as 8 m out, differ in it by under 0.09 m).
+    NC, DC = 20, 0.1
     buckets = {}
     for k, (_, p, n, d) in enumerate(ts):
-        buckets.setdefault((round(n.x * 100), round(n.y * 100), round(n.z * 100), round(d / sep)), []).append(k)
+        buckets.setdefault((round(n.x * NC), round(n.y * NC), round(n.z * NC), round(d / DC)), []).append(k)
+    steps = [(a, b, c, e) for a in (-1, 0, 1) for b in (-1, 0, 1) for c in (-1, 0, 1) for e in (-1, 0, 1)]
+    lean = math.cos(math.radians(0.6))
     pairs, places = 0, {}
-    for key, ks in buckets.items():
-        near = ks + buckets.get((key[0], key[1], key[2], key[3] + 1), [])
-        mine = set(ks)
-        for i in ks:
-            _, p, n, d = ts[i]
-            ax = (p[1] - p[0]).normalized()
-            ay = n.cross(ax)
-            flat = lambda q: (q.dot(ax), q.dot(ay))
-            for j in near:
-                if j <= i and j in mine:
+    for i, (_, p, n, d) in enumerate(ts):
+        key = (round(n.x * NC), round(n.y * NC), round(n.z * NC), round(d / DC))
+        ax = (p[1] - p[0]).normalized()
+        ay = n.cross(ax)
+        flat = lambda q: ((q - p[0]).dot(ax), (q - p[0]).dot(ay))
+        for s in steps:
+            for j in buckets.get((key[0] + s[0], key[1] + s[1], key[2] + s[2], key[3] + s[3]), ()):
+                if j <= i:
                     continue
                 _, q, m, e = ts[j]
-                if n.dot(m) < math.cos(math.radians(0.6)) or abs(d - e) > sep:
+                if n.dot(m) < lean:
                     continue
-                s = _shared([flat(x) for x in p], [flat(x) for x in q])
-                if s > floor * floor:
+                shared = _overlap([flat(x) for x in p], [flat(x) for x in q])
+                if not shared:
+                    continue
+                # How far the second face lies off the first, at a point (u, v) of the first's plane.
+                off = lambda uv: m.dot(p[0] + ax * uv[0] + ay * uv[1]) - e
+                shared = _keep(shared, lambda uv: sep - off(uv))
+                if len(shared) >= 3:
+                    shared = _keep(shared, lambda uv: sep + off(uv))
+                if len(shared) >= 3 and _area(shared) > floor * floor:
                     pairs += 1
                     c = (p[0] + p[1] + p[2]) / 3
                     k2 = (ts[i][0], ts[j][0], round(c.x / 0.05), round(c.y / 0.05), round(c.z / 0.05))

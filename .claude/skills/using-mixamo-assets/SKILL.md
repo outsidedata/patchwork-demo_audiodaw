@@ -18,7 +18,8 @@ too, loaded before any of this, and step 2b below.
 
 Every script named here is in `scripts/` beside this file. Blender is
 `/Applications/Blender.app/Contents/MacOS/Blender`, run `-b --factory-startup --python <script> -- <args>`.
-The bake's settings, `BLENDER`, `PATCHWORK_LIBRARY` and `GLTFPACK`, come from the shell, else from
+The bake's settings, `BLENDER`, `PATCHWORK_LIBRARY`, `PATCHWORK_CLIPS` (the clip collection, else
+`~/troupe-collection`) and `GLTFPACK`, come from the shell, else from
 `.env` at the repo's root, copied from `.env.example`, which lists them with their defaults. `yarn
 health` runs each one and says the fix for any that fails.
 
@@ -58,10 +59,11 @@ written by it. Then decide, each one a choice in the scene and none in code:
   differently (unarmed, a worker, a civilian) gets a rig file of its own beside its glb, with its own
   `clips`, `roles` (`still` alone for a body that never leaves the ground) and `stances`, and only
   the clips it plays: a clip in the rig is baked onto every body of it.
-- **Where its clips come from.** `~/troupe-collection/packs/` holds the packs by name (`Male
+- **Where its clips come from.** `packs/` in the clip collection (`PATCHWORK_CLIPS`, else
+  `~/troupe-collection`; the rig's clip `file`s are paths under it) holds the packs by name (`Male
   Locomotion Pack 30FPS` for an unarmed idle, walk and turns, `Gestures Pack Basic 30FPS` for
   nods and shrugs) and `packs/mixamo-motions/` single clips (`Talking*.fbx`, `Talking At
-  Watercooler.fbx`). Find them with `find ~/troupe-collection/packs -iname "*<word>*"`. A walk clip
+  Watercooler.fbx`). Find them with `find <clips>/packs -iname "*<word>*"`. A walk clip
   is a gear (`loop`, `gear: 0`); an idle or a talk played in place is a `loop` played by `play`, or
   a gesture on the upper channel over the `still` role. Beside them, `packs/mixamo-catalogue.json`
   is Mixamo's own word on every clip (its name, description, params, length, whether it loops or
@@ -75,7 +77,7 @@ written by it. Then decide, each one a choice in the scene and none in code:
 
   ```
   Blender -b --factory-startup --python scripts/measure-clips.py -- \
-      ~/troupe-collection/packs/mixamo-measures.json "<pack dir>" ["<pack dir>" ...]
+      <clips>/packs/mixamo-measures.json "<pack dir>" ["<pack dir>" ...]
   ```
 
   It holds the Great Sword, Pro Sword and Shield, Pro Melee Axe and Boxing packs.
@@ -90,7 +92,7 @@ written by it. Then decide, each one a choice in the scene and none in code:
   as `start` is for seats. Two of them never take one place: the place a row has taken is a field
   of that row, and a row chooses only among places no other row holds.
 
-Bake by hand (the editor's Export Models command runs the same script, and the editor is on hold):
+Bake by hand:
 
 ```
 Blender -b --factory-startup --python plugins/anim/anim.export.py -- \
@@ -107,9 +109,12 @@ gltfpack 1.3 or later (`GLTFPACK`, else `gltfpack` on the PATH; the npm build in
 never used), which `yarn health` checks. A game that bakes its rigs from a script of its own
 (`games/farm/assets/xbot.mjs`, `games/fighters/assets/fighter.mjs`) runs this export and
 `merge-table.mjs`, and packs nothing itself. `merge-table.mjs` writes the table into the rig in the rig's own layout (one-space
-indent, every number array on one line); a plain `JSON.stringify` rewrites the whole file. Its
-remaining arguments `<body>=<fbx>` also set `bodies` in the same write. The diff of the rig after it
-holds only the `bodies` lines and the table's numbers.
+indent, every array of plain values on one line); a plain `JSON.stringify` rewrites the whole file.
+Beside the table it writes what the export left next to `table.json`: the bodies' measured bones
+(`table.ends.json`) into `ends`, their blades' grips (`table.grips.json`) into `grips`, what each
+clip touches (`table.touches.json`) into `touches`, each body's over the one it had, and the poses
+the clips name (`table.poses.json`) as `poses`. Its remaining arguments `<body>=<fbx>` also set
+`bodies` in the same write. The diff of the rig after it holds only those keys.
 
 ## 3. Fuse and Mixamo materials
 
@@ -143,7 +148,7 @@ other. Refit each kind's props for its new body:
 
 ```
 Blender -b --factory-startup --python scripts/refit_prop.py -- \
-    "<troupe>/packs/<pack>/<clip the prop is held in>.fbx" <bone> <old body fbx> <new body fbx> <ax,ay,az> <tx,ty,tz>
+    "<clips>/packs/<pack>/<clip the prop is held in>.fbx" <bone> <old body fbx> <new body fbx> <ax,ay,az> <tx,ty,tz>
 ```
 
 It poses both bodies on the clip's first frame as the bake does and prints the `at` and `turn` that

@@ -3,5 +3,7 @@ dist
 .DS_Store
 addons/simulator/runs
 tools/dvr/out
+benchmarks/
 __pycache__
 .env
+games/

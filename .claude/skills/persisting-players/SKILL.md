@@ -94,7 +94,7 @@ where the token lives between loads of the page, `{ get(), set(token | null) }`;
 asks for the secret again. Core ships no `keep` over the browser's storage: it is built in the
 accounts addon's page side, beside `signin`, tested in `addons/accounts/accounts.addon.test.ts`. It
 is handed a name read off the scene file, as `indexeddb` is handed the persist `file`: every game
-`yarn editor` serves is on one origin, `localhost:5173`, so a key of one name would be every game's
+`yarn dev` serves is on one origin, `localhost:5173`, so a key of one name would be every game's
 token. A page given a `keep` goes with the logged-out-elsewhere plugin (above), or whatever piece
 lets the seat go cleanly, in every scene its seat can reach, and one is never added without the
 other: with a kept token a second tab of the same browser logs the account in again, the first is
@@ -167,8 +167,8 @@ child's `world` replaces the manager's key by key.
 A scene that keeps records has one `persist` row, the actors entry `{ "is": "persist" }`, and its
 sim imports the kind from `#plugins/persist/persist.sim.ts` and names it in `sim`. No file of the
 game named `persist.sim.ts` hands it out: a file in a game folder named after a plugin is that
-plugin row's (prime directive, Names and tests), and the player plugin finds a plugin kind's rule
-under `plugins/<kind>/` itself (`loadWhole` in `plugins/player/player.plugin.ts`). A game that has
+plugin row's (prime directive, Names and tests), and a game writes `<kind>.sim.ts` only for a kind
+its `sim` names that is not a plugin's (the header of `addons/scenemanager/scenemanager.addon.ts`). A game that has
 such a re-export holds old code, moved with the work that meets it. `persist` is not in the scene's
 `plugins`: it has no browser half, and its row is sent to no seat. A declared kind the sim has no
 code for is not that scene's to keep, so one declaration serves every child.
@@ -247,9 +247,7 @@ every truth of the process.
    throws unless it has exactly one `persist` row, so every page would carry a loop over the scenes,
    a rule in a page. The addon is handed the manager's row and the store and attaches itself to every
    scene with a `persist` row. Its node side, where `sqlite` runs, writes every held write and closes
-   the store when the process is stopped (SIGINT, SIGTERM) before it goes; the editor's Node panel
-   (`editor/server/servers.ts`) runs the server file from the root and stops it with SIGTERM, on Stop
-   and on every change to the files it runs. Its page side writes every held write when the tab is
+   the store when the process is stopped (SIGINT, SIGTERM) before it goes. Its page side writes every held write when the tab is
    hidden (`visibilitychange`) or let go (`pagehide`). All of it is tested in
    `addons/persist/persist.addon.test.ts`, the stop as its kill test is, in a child process.
 
@@ -286,7 +284,7 @@ every truth of the process.
 7. **The pages take them in one call, the same in every game.** Every line of a page is the same in
    every game but the file names it imports (prime directive, Page), so what `world.accounts` and
    `world.persist` ask of `<game>.server.ts`, `index.html` and `client.html` is one addon call that
-   `gameFiles` in `extensions/games/games.route.ts` writes into every game's pages. Handed the scene
+   `gameFiles` in `scripts/new-game.ts` writes into every game's pages. Handed the scene
    file, it does what those two blocks ask and nothing when a scene asks neither: it opens the store
    (`sqlite` on `world.persist`'s `file` and `busy` on node, `indexeddb` on its `file` in a tab),
    attaches the persist addon's one call on the manager, and wraps the seat's way in: `accounts` with
@@ -294,18 +292,18 @@ every truth of the process.
    accounts addon's `keep`, named off the scene file, on the pages that dial, between the dial and the
    `link` that `client.html` hands `predict` (the prime directive's The pages), so the page still runs
    its scenes ahead. Its home is an addon
-   (question 5). It is built with its test, `gameFiles` writes it, its route test
-   (`extensions/games/games.route.test.ts`) makes each page's views as the page's lines make them, and
+   (question 5). It is built with its test, `gameFiles` writes it, its test
+   (`scripts/new-game.test.ts`) makes each page's views as the page's lines make them, and
    every game in `games/` is moved to the pages `gameFiles` then writes, in the same change
    (`starting-a-game`, The pages). The server file holds no listener of its own: stopping is the
    persist addon's. Never a line of `persist`, `sqlite`, `indexeddb`, `local`, `signin`, a `keep` or
    `accounts` written into one game's pages.
 
-8. **The editor and the simulator sign their seat in.** The editor plays a game under the recorder
-   (`addons/recorder/recorder.addon.ts`), whose view holds the link the recorder builds by hand, and
-   whose truths each get `link(loopback(accept(manager(t))))`: no `signin`, no `local`, no store. In
-   `yarn editor` a login actor's `who` throws, the Console shows `frame: this link was not made on a
-   signin wire`, and the clock stops at step 1. The recorder's link gets the door, its truths are
+8. **The recorder and the simulator sign their seat in.** A scene's replay test plays the game under
+   the recorder (`addons/recorder/recorder.addon.ts`), whose view holds the link the recorder builds
+   by hand, and whose truths each get `link(loopback(accept(manager(t))))`: no `signin`, no `local`,
+   no store, so a login actor's `who` throws `this link was not made on a signin wire`. The recorder's
+   link gets the door, its truths are
    logged in as `index.html`'s are, and it attaches persist itself on a store held in memory, built in
    the persist addon beside `sqlite` and `indexeddb` with its test; since time goes back by booting
    again and replaying, a rebuilt step must load the records that step loaded, not what the live run
@@ -364,7 +362,7 @@ every truth of the process.
   every game's pages (step 7).
 - The database file and its `-wal` and `-shm` committed with the game.
 - A login screen that throws `this link was not made on a signin wire`: the page's link was made
-  without `signin`, or it is the editor's or the simulator's before step 8.
+  without `signin`, or it is the recorder's or the simulator's before step 8.
 - A test that hands the simulator a store, or attaches persist around it: `simulate` attaches persist
   itself (step 8).
 - A page that freezes on the last frame of its scene: its account logged in elsewhere, and nothing on
@@ -385,7 +383,7 @@ every truth of the process.
   store held in memory and `declared` asking a prefab only of the kinds a scene keeps
   (`addons/persist/persist.addon.test.ts`); an `owner` from another boot
   (`addons/player/player.addon.test.ts`); the text entry (`plugins/ui/ui.plugin.test.ts`); the one
-  call the pages make, through the pages `gameFiles` writes (`extensions/games/games.route.test.ts`);
+  call the pages make, through the pages `gameFiles` writes (`scripts/new-game.test.ts`);
   the recorder and the simulator signing in and attaching persist themselves
   (`addons/recorder/recorder.addon.test.ts`, `addons/simulator/simulator.addon.test.ts`). The tests
   already beside the addons run with every change to them: `addons/accounts/accounts.addon.test.ts`,
@@ -417,8 +415,7 @@ every truth of the process.
   Over `accounts` with a kept token it logs in with it and is sent on; with none it stays on the entry
   scene showing its form.
 - Run each with `yarn vitest run <file>`.
-- Played: `index.html` at `http://localhost:5173/games/<game>/index.html` with `yarn editor <game>`
+- Played: `index.html` at `http://localhost:5173/games/<game>/index.html` with `yarn dev`
   running shows the count up by one on each reload, kept in IndexedDB. `client.html` against the
   server: register, reload and be logged back in, restart the server and see the count go on, and
-  log the account in from a second window to see the first told it was logged in elsewhere. The game
-  in `yarn editor` plays past its login screen once step 8 is built.
+  log the account in from a second window to see the first told it was logged in elsewhere.

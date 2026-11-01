@@ -11,8 +11,7 @@
 // a fixed 20 ms then arrives 3⅓ ms past each step's time, 4⅔ ms before a vsync, so no vsync falls on
 // an arrival.
 import { afterAll, expect, onTestFinished, test } from 'vitest'
-import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
-import { spawnSync } from 'node:child_process'
+import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { pathToFileURL } from 'node:url'
@@ -358,22 +357,6 @@ test('summary puts every part of every page together, and report prints it', asy
   expect(text).toContain('page 1:')
   expect(() => summary([])).toThrow('the records have no run line')
 })
-
-test('the command line plays a config, writes its JSONL, and summarises any JSONL', () => {
-  const config = join(dir, 'run.json'), out = join(dir, 'run.jsonl')
-  writeFileSync(config, JSON.stringify({ game: join(dir, 'lane.scene.json'), seed: 3, ms: 2000, pages: [page()], watch: { kinds: ['mover'], fields: ['pos'], own: 'mover' } }))
-  const cli = new URL('./simulator.addon.ts', import.meta.url).pathname
-  const ran = spawnSync(process.execPath, ['--experimental-strip-types', '--no-warnings', cli, 'run', config, out], { encoding: 'utf8' })
-  expect(ran.stderr).toBe('')
-  expect(ran.stdout).toContain('sim run of 2000 ms')
-  const records = parse(readFileSync(out, 'utf8'))
-  expect(records[0]).toMatchObject({ type: 'run', seed: 3 })
-  const summed = spawnSync(process.execPath, ['--experimental-strip-types', '--no-warnings', cli, 'summary', out], { encoding: 'utf8' })
-  expect(summed.stdout.trim()).toBe(report(summary(records)))
-  const bad = spawnSync(process.execPath, ['--experimental-strip-types', '--no-warnings', cli], { encoding: 'utf8' })
-  expect(bad.status).toBe(1)
-  expect(bad.stderr).toContain('usage:')
-}, 30_000)
 
 // ------------------------------------------------------------------ real
 

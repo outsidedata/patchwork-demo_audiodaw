@@ -8,7 +8,7 @@
 // manager laid out by JSON.stringify with its points laid by hand, written in place (the same numbers
 // byte for byte), turned, added, and left alone in a file that gives no such look.
 import { expect, test } from 'vitest'
-import { catalogue, fit, listed, points, spans } from './scenes.ts'
+import { catalogue, fit, listed, points, set, spans } from './scenes.ts'
 
 const spread = JSON.stringify({
   world: {
@@ -162,4 +162,45 @@ test('spans keeps every value\'s place in the text', () => {
   expect(s.kind).toBe('object')
   const a = (s as any).entries[0][1]
   expect('{ "a": [1, "x\\"y"], "b": { "c": null } }'.slice(a.from, a.to)).toBe('[1, "x\\"y"]')
+})
+
+// A scene's `world.ui` and a definitions file as horde lays them: each style on one line, a
+// definition's places as number arrays on one line.
+const ui = `{
+  "world": {
+    "ui": {
+      "panels": {
+        "phase": { "anchor": "top", "at": [0, 24] }
+      },
+      "styles": {
+        "phase": { "fontFamily": "system-ui", "fontSize": 24, "stroke": { "color": 0, "width": 4, "join": "round" } }
+      }
+    }
+  }
+}
+`
+
+test('set writes a value in place, the rest of the file byte for byte', () => {
+  const t = set(ui, ['world', 'ui', 'styles', 'phase', 'fontSize'], 30)
+  expect(t).toBe(ui.replace('"fontSize": 24', '"fontSize": 30'))
+  expect(set(ui, ['world', 'ui', 'panels', 'phase', 'at'], [0, 40])).toBe(ui.replace('[0, 24]', '[0, 40]'))
+  expect(set(ui, ['world', 'ui', 'styles', 'phase', 'stroke', 'width'], 6)).toBe(ui.replace('"width": 4', '"width": 6'))
+  expect(set(ui, ['world', 'ui', 'styles', 'phase', 'fontFamily'], 'Phantasm Ghost')).toBe(ui.replace('"system-ui"', '"Phantasm Ghost"'))
+  expect(set(ui, ['world', 'ui', 'panels', 'phase', 'at', 1], 30)).toBe(ui.replace('[0, 24]', '[0, 30]'))
+  expect(set(ui, ['world', 'ui', 'styles', 'phase', 'fontSize'], 24)).toBe(ui)
+})
+
+test('set adds a missing key last in the deepest object the path reaches, on one line where that object is', () => {
+  const t = set(ui, ['world', 'ui', 'styles', 'phase', 'letterSpacing'], 2)
+  expect(t).toBe(ui.replace('"join": "round" } }', '"join": "round" }, "letterSpacing": 2 }'))
+  const p = set(ui, ['world', 'ui', 'panels', 'title'], { anchor: 'center', size: [800, 450] })
+  expect(parse(p).world.ui.panels).toEqual({ phase: { anchor: 'top', at: [0, 24] }, title: { anchor: 'center', size: [800, 450] } })
+  expect(p.split('\n').find(l => l.includes('"title"'))).toBe('        "title": { "anchor": "center", "size": [800, 450] }')
+  const deep = set(ui, ['world', 'ui', 'styles', 'title', 'fill'], 16777215)
+  expect(parse(deep).world.ui.styles.title).toEqual({ fill: 16777215 })
+})
+
+test('set refuses a path through a value that is not an object, or past a list', () => {
+  expect(() => set(ui, ['world', 'ui', 'styles', 'phase', 'fontSize', 'x'], 1)).toThrow(/fontSize is not an object/)
+  expect(() => set(ui, ['world', 'ui', 'panels', 'phase', 'at', 5], 1)).toThrow(/past the end/)
 })

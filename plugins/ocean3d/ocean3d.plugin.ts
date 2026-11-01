@@ -86,7 +86,16 @@
 // back 0.2 % of its distance from the camera, because polygon offset punches holes near the camera.
 // Its depth is the sea render3d's `ao` reads, waves and all.
 //
-// The colour pass: transparent, no depth write, depth LEQUAL, renderOrder 2, the front side.
+// The shadow: the colour pass casts one, through a depth material of its own, the same vertex shader
+// and uniforms with no push, on both sides, so the waves stand between the sun and what is in them
+// as the light falls: a crest shades a hull. Render3d's shadow maps keep depth alone, so its fragment
+// shader is the pre-pass's.
+//
+// The colour pass: transparent, no depth write, depth LEQUAL, renderOrder −1, the front side. Three
+// draws every opaque mesh first, the pre-pass among them, and then the see-through ones by renderOrder,
+// so the sea is the first see-through thing drawn: smoke, spray and glass in front of it, at three's
+// default 0, are drawn over it, where drawn after them it would paint over every one of them that has
+// water behind it.
 //   normal      from the summed derivatives times the shoaling, the slopes divided by the Jacobian's
 //               terms 1 + shoal·chop∂D/∂ clamped at 0.18.
 //   fresnel     mix(0.02, 0.62, (1 − N·V)⁵).
@@ -487,8 +496,9 @@ export function ocean3d() {
     }
     const geometry = disc(three, numbers.rings, numbers.segs, numbers.far)
     const colour = new three.Mesh(geometry, new three.ShaderMaterial())
-    colour.renderOrder = 2
+    colour.renderOrder = -1
     colour.frustumCulled = false
+    colour.castShadow = true
     colour.visible = false
     const prepass = new three.Mesh(geometry, new three.ShaderMaterial())
     prepass.renderOrder = 1
@@ -563,7 +573,11 @@ export function ocean3d() {
       B.colour.material.dispose()
       B.colour.material = new three.ShaderMaterial({
         name: 'ocean3d', uniforms: B.u, vertexShader, fragmentShader: surfaceFragment(count),
-        transparent: true, depthWrite: false, depthFunc: three.LessEqualDepth, side: three.FrontSide, fog: true,
+        transparent: true, depthWrite: false, depthFunc: three.LessEqualDepth, side: three.FrontSide, shadowSide: three.DoubleSide, fog: true,
+      })
+      B.colour.customDepthMaterial?.dispose()
+      B.colour.customDepthMaterial = new three.ShaderMaterial({
+        name: 'ocean3d shadow', uniforms: B.u, vertexShader, fragmentShader: PREPASS_FRAGMENT,
       })
       B.prepass.material.dispose()
       B.prepass.material = new three.ShaderMaterial({
@@ -740,6 +754,7 @@ export function ocean3d() {
       B.scene.remove(B.colour, B.prepass)
       B.geometry.dispose()
       B.colour.material.dispose()
+      B.colour.customDepthMaterial?.dispose()
       B.prepass.material.dispose()
       for (const m of Object.values(B.fft.passes)) m.dispose()
       B.fft.quad.geometry.dispose()

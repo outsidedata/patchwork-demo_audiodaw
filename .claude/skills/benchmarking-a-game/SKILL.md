@@ -16,29 +16,76 @@ is held by the GPU, and the CPU profile will not name the cost: the GPU profile 
 most often (a pixel shader over much of the screen).
 
 Four scripts beside this file do it, and a fifth, `testbed.mjs`, opens the page for the two that run in
-Chrome.
+Chrome. `owners.mjs` gives every millisecond a CPU profile sampled to the file that ran it, and
+`scripts/benchmarkPage.ts` lays out what a run wrote, and compares two runs.
 
 ## Basic and deep: `bench.mjs`
 
 ```
-node .claude/skills/benchmarking-a-game/bench.mjs <server base url> <game> [--deep] [--out <folder>] [scene]…
+node .claude/skills/benchmarking-a-game/bench.mjs <server base url> <game> [--deep] [--playtest] [--out <folder>] [scene]…
 ```
 
 "Benchmark the game" is this: every scene the manager's table names (or those given), one after
-another, each through its ticks (`rules-profile.ts`, below) and its page on the GPU
-(`gpu-profile.mjs`, below), and one table of every scene at the end. Every run's whole output is
-written to `<out>`.
+another, each through its ticks (`rules-profile.ts`, below), its page's CPU in Chrome
+(`scene-profile.mjs`) and its page on the GPU (`gpu-profile.mjs`), and one table of every scene at the
+end. Every run's whole output is written to `<out>`, each profiler's data beside it as
+`<scene>.ticks.json`, `<scene>.cpu.json` and `<scene>.gpu.json`, and `run.json` naming them: the run's
+folder, which the page reads (The page, below).
 
 Both modes run the GPU profile whole: the page as it is, then each pass, the shadows and each
-material taken away in turn. The table gives each scene's frame as it is and the thing whose taking
-away saved the most.
+material taken away in turn. The table gives each scene's frame as it is, its CPU's work and biggest
+owner, and the thing whose taking away saved the most.
 
 - **Basic, the default**: it just runs the GPU profile, once, as it runs by itself: 3 s a window, one
-  run.
+  run; the page's CPU for 10 s.
 - **`--deep`**: the GPU profile with `--each 4 --runs 2`: each window 4 s, the whole of it twice, the
-  medians and each row's least and most saved. Mech's title, 23 materials, took 385 s.
+  medians and each row's least and most saved; the page's CPU for 20 s. Mech's title, 23 materials,
+  took 385 s.
+- **`--playtest`**, with either: the page played by the game's playtester while it is measured
+  (Played, not sitting still, below).
+
+## The page: `scripts/benchmarkPage.ts`
+
+```
+node --experimental-strip-types scripts/benchmarkPage.ts [--port <port>] [<run folder>]…
+```
+
+Every run is kept in `benchmarks/<game>/<when>` at the repo's root (kept out of git), unless `--out`
+names another folder: `bench.mjs`'s, and each profiler's run alone (`<when>-cpu`, `-gpu`, `-ticks`).
+The script serves them on this machine (5190, or the next port free, printed): its first page lists
+every run, newest first, each game's runs together, each scene's frames a second and what holds it,
+with a link to compare each run with the one before it and a picker for any one run, or any two. The
+folders are read on every request, so a run made while it serves is there on the next. A run's page,
+for each scene: what holds its frame (at 60, the CPU when its work is
+three quarters of the frame or more, else the GPU); who eats the CPU, every owner a bar, each opening
+to its rules and page half or look, the libraries it spent time in, its costliest functions, and a
+kind's rows and cost a row; each frame's CPU work as a line against 16.67 ms; the slowest frames; each
+system as timed where it is called; what the GPU saves with each thing taken away, a saving under one
+frame of its window greyed; the rules alone on node.
+
+Given two folders, the first is before and the second after. Every row shows the change, the page
+opens with every change over every scene past what one run differs from the next by, biggest first,
+and a change inside that is shown grey. So two runs, before a change and after it, are compared from
+their folders, with nothing run again and nothing undone in git.
+
+## Played, not sitting still: `<game>.playtest.ts`
+
+A scene sitting still is one measure; the scene played is another. `--playtest` (on `bench.mjs`,
+`scene-profile.mjs` or `gpu-profile.mjs`) has the game's playtester play the seat, once the page has
+settled and for `--settle` seconds more before anything is measured, and on through every window.
+The playtester is `games/<game>/<game>.playtest.ts`, written by whoever makes the game, when asked
+for: it exports `playtest`, a think for each scene by its name, the playtester plugin's `Think`
+(`plugins/playtester`): it is handed the rows the page holds each frame and names one of the seat's
+acts, `[act, ...args]`, or nothing, and the act goes through the player plugin as a key's would. A
+think that plays the game: it finds its own `player` row (`mine`), picks a place or a thing in the
+scene, turns to it and goes there, and does what a player does there (fires, jumps, picks up).
+`games/demo_box3d/demo_box3d.playtest.ts` is one: it flies the eye from body to body, firing on the
+way in and blasting each once near. A scene the file has no think for stops the run and names those
+it has. The playtester's own time is its own owner, `playtester`, on the page.
 
 ## What the game's `dev.html` has to add first
+
+The basic page in `using-the-dev-page` has all three already.
 
 Both Chrome profilers open `games/<game>/dev.html?scene=<scene>` and read the page and its truths off
 `window`. A game's page does not keep them on its own: before the first run, the game's `dev.html` (made
@@ -117,7 +164,8 @@ so a timed-out run leaves nothing drawing.
 
 ```
 node .claude/skills/benchmarking-a-game/scene-profile.mjs <server base url> <game> <scene> <seconds> \
-  [--press <key>]… [--settle <s>] [--loading] [--ready "<page expression>"] [--after <steps>] [--still] [--out <folder>]
+  [--dpr <n>] [--press <key>]… [--settle <s>] [--loading] [--ready "<page expression>"] [--after <steps>] [--still] \
+  [--playtest] [--out <folder>]
 ```
 
 The page, opened, loaded, pressed and settled by `testbed.mjs`, timed for `seconds`:
@@ -127,12 +175,24 @@ The page, opened, loaded, pressed and settled by `testbed.mjs`, timed for `secon
   share of the step (messages, seats, packets) is what is left of it;
 - **page**: each plugin's page half, its `input`, `tick` and `afterTick` (render3d's draw is its
   `afterTick`);
-- **the frame**: each animation frame's work whole; what is left after the rules and the page plugins is
-  the rows' looks (`<kind>.client.ts`) and the engine's own page work.
+- **looks**: each kind's look, `<kind>.client.ts`'s `tick`, every row's added up under its kind, with
+  how many rows of it the page drew, so its cost a row is read too;
+- **the frame**: each animation frame's work whole; what is left after the rules, the page plugins and
+  the looks is the engine's own page work.
+
+Chrome's CPU profiler samples the same seconds, and `owners.mjs` gives each millisecond to the file
+that ran it, read off its path as core names its files: each kind (its rules, its look), each plugin
+(its rules, its page half), each addon, the engine, the playtester; time in a library (three, pixi, a
+wasm) to whoever of ours called it, and kept beside it. The game pages are a bundle the dev server
+builds, and its source map gives each sample its own file. So the whole frame is laid out by who owns
+it, with each owner's costliest functions, and nothing left over as "the rest".
 
 It prints the frames counted and their rate, the mean milliseconds of a frame's work, each system's mean
-milliseconds a frame and share, and the five slowest frames with their biggest systems. It needs the
-game's server (`yarn editor`, its port) and the game's `dev.html` with the three changes above. If the
+milliseconds a frame and share (a look with its rows and its cost a row), each owner's milliseconds a
+frame, and the five slowest frames with their biggest systems; and writes all of it, with each frame's
+work, to `<out>/<scene>.cpu.json`, and Chrome's profile to `<out>/<scene>.cpu.cpuprofile` for
+`cpu-hot.mjs`. It needs the
+repo served (`yarn dev`, at the address given first) and the game's `dev.html` with the three changes above. If the
 page threw while it was
 timed, it says how often and the first error above the numbers and ends with 1: a frame that throws
 stops part way, and reads less work than it is.
@@ -146,7 +206,7 @@ shader, say), is a hitch, not the rate.
 
 ```
 node --experimental-strip-types [--cpu-prof --cpu-prof-dir=<folder>] \
-  .claude/skills/benchmarking-a-game/rules-profile.ts <game> <scene> <seconds> [--act <act>]…
+  .claude/skills/benchmarking-a-game/rules-profile.ts <game> <scene> <seconds> [--act <act>]… [--out <folder>]
 ```
 
 The game's business logic, timed: the scene booted alone in memory, as `load` boots each child, with
@@ -155,8 +215,10 @@ names one), each `--act` sent on the seat's `player` row (the acts its page woul
 `auto`), stepped for `seconds` of game time, as fast as node goes. Every kind's `before`, `tick`,
 `after` and each act is timed for its own time, each kind name apart, so the rows add up to the step
 and what is left is the engine's own. It prints the steps' mean, 95% and most milliseconds, and each
-kind's pass's milliseconds a step and share, most first. With `--cpu-prof`, node's CPU profiler writes
-a `.cpuprofile` into `<folder>` for `cpu-hot.mjs`. No page, no draw, no wire: what the scene's own
+kind's pass's milliseconds a step and share, most first, then node's own profile of the steps laid out
+by owner as the page's is. With `--out`, all of it goes to `<out>/<scene>.ticks.json` and the steps'
+profile to `<out>/<scene>.ticks.cpuprofile`. With `--cpu-prof`, node writes the whole run's profile,
+the boot with it, into `<folder>` for `cpu-hot.mjs`. No page, no draw, no wire: what the scene's own
 rules cost a step.
 
 "Profile the scenes" starts here: every scene of the game through this, one table each.
@@ -175,8 +237,8 @@ after 1 has named a system, to find the function inside it.
 
 ```
 node .claude/skills/benchmarking-a-game/gpu-profile.mjs <server base url> <game> <scene> \
-  [--each <s>] [--runs <n>] [--press <key>]… [--settle <s>] [--loading] [--ready "<page expression>"] \
-  [--after <steps>] [--still] [--out <folder>]
+  [--each <s>] [--runs <n>] [--dpr <n>] [--press <key>]… [--settle <s>] [--loading] \
+  [--ready "<page expression>"] [--after <steps>] [--still] [--playtest] [--out <folder>]
 ```
 
 The same page, opened, loaded, pressed and settled by `testbed.mjs`. It counts the frames over `--each`
@@ -191,6 +253,14 @@ put back before the next:
   cost over every pixel and vertex it draws: its pixel shader, most often, where it covers much of the
   screen. Materials of one label (each pod's own, each particle sheet's) are taken away together;
 - **every material flat** at once.
+
+A 2D page, render2d's pixi stage, has no passes and no shadows: each thing drawn is grouped by its kind
+of display object, its texture and the render2d layer it is on (`Sprite smoke.png (layer effects)`), a
+group taken away is left out of the draw (`renderable` false) while its updates run, and **every thing
+hidden** is the last row.
+
+It writes it all, with a frame's triangles and draw calls as it is and each material's meshes, to
+`<out>/<scene>.gpu.json`.
 
 The whole of it is done `--runs` times (1 when left out). Each run measures the page as it is at its
 start and at its end, and each thing's saving in that run is against the mean of the two, so a page that

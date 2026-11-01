@@ -1,6 +1,6 @@
 ---
 name: bringing-in-art
-description: Use in core, or any clone of it, when getting a picture, sprite sheet, tileset, model, animation, font or any other file into a game and drawn. That covers a PNG, an Aseprite or TexturePacker sheet, a .glb or a bitmap font in `games/<game>/assets/`, its entry in the scene's loader catalogue (`world.loader.assets`, the `texture`, `sheet`, `model`, `bitmapfont`, `palette`, `pixels`, `binary` and `json` types), and drawing it from a kind's `<kind>.client.ts` through `plugins.loader` (`get`, `load`, `on`, `model`) or through a plugin's table (`sprite2d`, `sprite3d`, `anim`, `particle2d`). It also covers an image the HUD shows (`"for": "ui"`), a file the loader has no type for, and the editor's Files, Assets, Sheets and Sprites panels. Also use it when art does not show, the page stays blank, art is blurred, too big or off the point it stands on, or a test says `loader <name>: document is not defined`.
+description: Use in core, or any clone of it, when getting a picture, sprite sheet, tileset, model, animation, font or any other file into a game and drawn. That covers a PNG, an Aseprite or TexturePacker sheet, a .glb or a bitmap font in `games/<game>/assets/`, its entry in the scene's loader catalogue (`world.loader.assets`, the `texture`, `sheet`, `model`, `bitmapfont`, `font`, `palette`, `pixels`, `binary` and `json` types), and drawing it from a kind's `<kind>.client.ts` through `plugins.loader` (`get`, `load`, `on`, `model`) or through a plugin's table (`sprite2d`, `sprite3d`, `anim`, `particle2d`). It also covers an image the HUD shows (`"for": "ui"`) and a file the loader has no type for. Also use it when art does not show, the page stays blank, art is blurred, too big or off the point it stands on, or a test says `loader <name>: document is not defined`.
 ---
 
 # Bringing in art
@@ -17,7 +17,7 @@ The loader is `plugins/loader/`. The header of `loader.sim.ts`, the server half,
 the types a rule reads and every sheet and map format. The header of `loader.plugin.ts`, the browser
 half, is what each type is decoded to on a page. The engine is frozen and is never touched for any of
 this. `addons/scenemanager/scenemanager.addon.ts` says where a game keeps its files (`assets/`), and
-the game `yarn new-game` writes (`extensions/games/games.route.ts`) already has a catalogue of one
+the game `yarn new-game` writes (`scripts/new-game.ts`) already has a catalogue of one
 entry, its definitions, and a `loader` row, prefab and plugin.
 
 ## When it applies
@@ -48,7 +48,9 @@ cover:
   full-size texture sets, packs) live in the library, `PATCHWORK_LIBRARY`, never in the game.
   `games/<game>/assets/<game>.bake.ts` makes every built file from the library and the scripts beside
   the art, and `yarn bake <game>` runs it (`scripts/bake.ts`: its tools `blender`, `pack`, `webp`,
-  `scratch`, `library`; `pack` is `-cc -kn -km -ke -vpf -tw`, so node and material names, extras and
+  `scratch`, `library` and `texture`, a cc0-textures set's maps out of the library, downloaded
+  first when it is not there; the cc0-textures.com sets a game draws as they are are listed in
+  `assets/cc0-textures.json`, which the bake cuts into maps before it runs the bake file; `pack` is `-cc -kn -km -ke -vpf -tw`, so node and material names, extras and
   float positions survive for a look that instances a mesh's geometry; a glTF mesh's own name does
   not, so a mesh found by name is a node of one primitive). What of it is committed, and the check
   run before every commit, is `committing-a-game`. `yarn health` checks the machine first. The
@@ -107,6 +109,11 @@ cover:
   skeleton on every call, so each row that draws it has its own.
 - `bitmapfont`: an AngelCode `.fnt` and the pages it names, installed as the PixiJS bitmap font of
   the entry's name, for render2d or for the ui.
+- `font`: a `.ttf`, `.otf`, `.woff` or `.woff2`, installed in the page as the font of the entry's
+  name, so any text whose style's `fontFamily` is that name draws with it: the ui's, render2d's and
+  the DOM's alike. Every font is preloaded, whatever its entry says, and the ui draws nothing until
+  `plugins.loader.fonts()` says every font has landed or failed, so no text is drawn in a fallback
+  and kept. In node there is no `FontFace`, and a font is `{ family }`, its name.
 - `palette`: a GIMP `.gpl`, its colours as 0xRRGGBB. sprite2d draws a row in another palette than
   its sheet's.
 - `pixels`: a PNG a rule reads as data, never drawn. `binary`: bytes in a format of the game's own.
@@ -116,8 +123,9 @@ Six types are files a rule reads: `json`, `sheet`, `palette`, `tilemap`, `pixels
 server half decodes each once per process. One marked `preload` is there before the first step and
 before the page's first frame, because the scenemanager awaits the loader's `prepare`, so a rule
 reads it on any step and an actor in its `setup`. A preloaded file of these six that cannot be
-fetched or decoded stops the scene before its first step. `texture`, `model`, `bitmapfont` and
-`sound` are the browser half's alone: `preload` starts them on the loader's first tick, they land
+fetched or decoded stops the scene before its first step. `texture`, `model`, `bitmapfont`, `font`
+and `sound` are the browser half's alone (a `font` starts on the first tick whether or not it is
+`preload`): `preload` starts them on the loader's first tick, they land
 some frames later, and no rule reads them. A sheet's data is there from the first frame, but its
 pages land later, and `plugins.loader.get` hands nothing until they have.
 
@@ -145,8 +153,10 @@ with no client file has no actor (`engine/browser.ts`). Each plugin's header giv
 - `anim` draws a `model` per row, posed by skeletal clips from a rig file, a `json` entry. Its table
   is `world.anim.kinds.<kind>: { rig, model, ... }` (`plugins/anim/anim.sim.ts`).
 - Others draw from the entries their tables name. `particle2d` and `particle3d` draw sheets named in
-  an effects file. `grid` and `volley2d` draw sheets. `terrain3d` draws textures. `scatter3d` and
-  `flight3d` draw models.
+  an effects file. `grid` and `volley2d` draw sheets. `terrain3d` draws textures. `scatter3d`,
+  `flight3d`, `crowd3d`, `motion3d` and `box3dvehicle` draw models. `solids` draws a model of its
+  own, a `json` entry `world.solids.kinds` names, and a paint of it that gives `map` lays a
+  `texture` entry on its faces, `scale` metres to one span of the picture.
 
 A rule that plays a clip on a sprite2d kind reads the look where sprite2d reads it:
 
@@ -171,8 +181,7 @@ sheet on its first step.
 the loader for the thing. The thing a seat plays as is its `player` row (`designing-a-seat`), so its
 look is `player.client.ts`, which the page loads once for every `player` row it is sent and which
 draws the thing for every one of them, so each seat sees the others. `yarn new-game` still writes a
-`body.client.ts` that the `player` row's spawned `body` draws with; that is the editor's template,
-never the model, and it is folded into `player.client.ts` first, with the rest of the `body`. Its
+`body.client.ts` that the `player` row's spawned `body` draws with; that is never the model, and it is folded into `player.client.ts` first, with the rest of the `body`. Its
 square of the definition's colour, drawn from a picture instead, is:
 
 ```ts
@@ -257,55 +266,13 @@ type touches, as the types there now touch them:
   `binary` hands its bytes), and an `…At` for tests, as `binaryAt`.
 - `plugins/loader/loader.plugin.ts`: the header's paragraph, the type in `begin`'s list, a refusal
   in `begin` when the scene names nothing that can decode it (as a `model` with no render3d, a
-  `sound` with no audio), its branch in `decodeEntry`, and `file`'s list when the editor reads it off
-  the running game.
-- `plugins/loader/loader.extension.tsx`: the type in `TYPES`, which the `loader.type` field and
-  `entryEdits` hold entries to; any field of its own in `ENTRY`; its branch in `tried`, how the
-  Assets panel checks it through its files; and the header's paragraph on how each type is tried.
-- `extensions/datafiles/datafiles.extension.tsx`, when the running game should read an edit of it
-  at once: a text file the editor writes is refilled for the types in its list (`json`, `sheet`,
-  `palette`, `tilemap`), and a file a route writes as bytes, such as a `pixels` or `binary` file, is
-  refilled once the process holds it.
-- A test beside each file it changes: `loader.sim.test.ts`, `loader.plugin.test.ts`,
-  `loader.extension.test.ts`, and one written beside `datafiles.extension.tsx`, which has none yet.
-
-## The editor
-
-- The Files panel (`extensions/files/files.extension.tsx`) lists the open game's scene files and
-  every JSON file in its folder, `assets/` among them. Selecting one shows all of it in the
-  inspector, every value editable. A picture or a model is not listed there. Its command is
-  `files.list`.
-- The loader's extension (`plugins/loader/loader.extension.tsx`) is on while a scene names
-  `loader`. Its Assets panel is the catalogue: each entry's type, url, preload and drawing fields,
-  and whether it loads, tried through its files or through the running game. An edit there writes
-  one value of `world.loader.assets.<name>` in the file that gives the scene's `world.loader`. The
-  fields it will write are `ENTRY`'s in `loader.extension.tsx`, checked by `strictFields`
-  (`editor/editor.ts`), and `space`, `wrap` and `anisotropy` are not among them, nor in
-  `loader.entry`'s input: the panel and the command refuse the three as fields the loader does not
-  read, though the loader reads all three. That is old code disagreeing with the loader. Meeting it,
-  the job includes adding the three to `ENTRY` and to `loader.entry`'s input, each held to what
-  `begin` takes, with a test in `loader.extension.test.ts`. Add,
-  Swap and Slice bring a sheet in from elsewhere on the machine or cut a rip into one, the files and
-  the entry as one undo (`plugins/loader/loader.route.ts`). The Sheets panel plays a clip as the
-  game plays it, with the onionskin, and sets where frames stand, how long they show and how a clip
-  plays. The Sprites panel touches up a sheet's pixels. Each is a command on the editor's MCP
-  endpoint too: `loader.assets`, `loader.try`, `loader.entry`, `loader.travel`, `loader.look`,
-  `loader.add`, `loader.swap` and `loader.slice`; `sheets.clips`, `sheets.shot`,
-  `sheets.duration`, `sheets.tag`, `sheets.anchor`, `sheets.pivot`, `sheets.settle` and
-  `sheets.slice`; and the `sprites.` commands.
-- Whether an entry loads is tried two ways. Through its files, Check again or `loader.try`, reads
-  each file as far as the editor can tell without the game. Through the game, Try every entry or
-  `loader.try` with `"by": "game"`, asks the game view's own loader while it shows the scene, and is
-  what the game will do.
-- A `json`, `sheet`, `palette` or `tilemap` file the editor writes is read by the running game at
-  once. The process's copy and the game view's client's copy are refilled in place, and the plugins
-  build again what they built from the file (`extensions/datafiles/datafiles.extension.tsx`,
-  `editor/session.ts`). A sheet's page written is fetched anew and the sheet drawn again.
+  `sound` with no audio), and its branch in `decodeEntry`.
+- A test beside each file it changes: `loader.sim.test.ts` and `loader.plugin.test.ts`.
 
 ## The work in order
 
-1. Get the file. Make it (`making-game-assets`, `onionskinning-sprite-sheets`), bring a sheet in
-   with the Assets panel's Add or Slice, or write it with a script, kept beside it in `assets/`. Put
+1. Get the file. Make it (`making-game-assets`, `onionskinning-sprite-sheets`), or write it with a
+   script, kept beside it in `assets/`. Put
    it in `games/<game>/assets/`.
 2. Pick its type by what draws it and whether a rule reads it (The types).
 3. Write its entry in `world.loader.assets`: the type, the url with its leading `/`, `preload` when a
@@ -330,7 +297,7 @@ type touches, as the types there now touch them:
 - A url with no leading `/`. Node reads it from the working directory either way, so a node test
   that reads the file passes. The page asks for it beside the page itself and it fails. A preloaded
   `json`, `sheet`, `palette`, `tilemap`, `pixels` or `binary` entry then stops the scene before its
-  first step, and the page stays blank. A `texture`, `model`, `bitmapfont` or `sound` entry leaves
+  first step, and the page stays blank. A `texture`, `model`, `bitmapfont`, `font` or `sound` entry leaves
   the page running with the art missing, and `loader <name>: …` in the browser's console.
 - A page test of a 2D scene that draws a picture: node decodes no picture for render2d or the ui,
   so the entry fails with `loader <name>: document is not defined`. `load` never throws: the
@@ -343,17 +310,12 @@ type touches, as the types there now touch them:
   (`decode`). The header and the code disagree. Meeting it, the job includes the fix: the header
   made to say what the code does, or the code made to do what the header says, with a test in
   `loader.plugin.test.ts`.
-- The Assets panel's check through the files reads a path with its leading slashes taken off
-  (`pathOf`), so a `json`, `palette`, `model`, `sound` or `bitmapfont` entry with no leading `/` is
-  still said to load. Try every entry, or `loader.try` with `"by": "game"`, tries it as the game
-  does.
 - sprite2d in a scene with no `world.render2d`, which throws `render2d was asked for the layer
   <layer>, and the scene gives no world.render2d` on the next frame.
 - An Aseprite or TexturePacker sheet whose frames have no `pivot` and no `anchor`, so each frame's
-  top-left corner stands on `pos` and the thing is drawn below and to the right of where it is. The
-  Sheets panel's pivot and anchor (`sheets.pivot` for a whole clip, `sheets.anchor` for one frame),
-  or `pivot` on each frame in the file, set it. A Tiled tileset is refused there, since its tiles
-  stand on its `objectalignment` and `tileoffset`: those are set in Tiled.
+  top-left corner stands on `pos` and the thing is drawn below and to the right of where it is.
+  `pivot` on each frame in the file sets it. A Tiled tileset's tiles stand on its `objectalignment`
+  and `tileoffset`: those are set in Tiled.
 - `nearest: true` written on a `texture` entry for pixel art, which the loader does not read, so the
   picture is filtered smooth. Pixel art that must stay sharp is a `sheet` with `nearest`.
 - `setSize` on a sprite before its texture lands, which draws it at the empty texture's scale.
@@ -442,12 +404,12 @@ Once the tests pass, break the drawing on purpose and see them fail: leave the t
 size the sprite with `setSize`, take the leading `/` off the entry's url, which the literal path
 check fails on. Run `yarn tsc`, which checks the game's files.
 
-Then play it: `yarn editor <game>`, and open `http://localhost:5173/games/<game>/index.html`. The
+Then play it: `yarn dev`, and open `http://localhost:5173/games/<game>/index.html`. The
 picture is drawn where its row says, at its size, sharp where it should be, and a clip plays at its
 pace. A blank page is a preloaded file a rule reads that failed, so the scene never booted: the
 page's `load` rejects with `loader <name>: …`, which the browser's console shows. Art missing on a
-running page is a picture, model or font that failed: Try every entry on the Assets panel, or
-`loader.try` with `"by": "game"`, says which entry and why, in the loader's own words.
+running page is a picture, model or font that failed: the console's `loader <name>: …` says which
+entry and why, in the loader's own words.
 
 ## Questions never asked
 

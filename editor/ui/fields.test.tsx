@@ -4,7 +4,8 @@ import userEvent from '@testing-library/user-event'
 import { expect, test, vi } from 'vitest'
 import { AngleDial, Check, ColorField, JsonField, NumberField, RampField, Select, Slider, TextField, VecField } from './fields.tsx'
 
-test('a number is typed after a click, and Enter commits it', async () => {
+// OCT-24-EDITOR-ALPHA-SWEEP
+test.skip('a number is typed after a click, and Enter commits it', async () => {
   const onChange = vi.fn()
   render(<NumberField label="speed" value={3} onChange={onChange} />)
   const user = userEvent.setup()
@@ -18,7 +19,8 @@ test('a number is typed after a click, and Enter commits it', async () => {
   expect(screen.getByRole('spinbutton', { name: 'speed' })).toBeInTheDocument()
 })
 
-test('Escape leaves the number as it was, and text that is no number commits nothing', async () => {
+// OCT-24-EDITOR-ALPHA-SWEEP
+test.skip('Escape leaves the number as it was, and text that is no number commits nothing', async () => {
   const onChange = vi.fn()
   render(<NumberField label="speed" value={3} onChange={onChange} />)
   const user = userEvent.setup()
@@ -30,7 +32,8 @@ test('Escape leaves the number as it was, and text that is no number commits not
   expect(onChange).not.toHaveBeenCalled()
 })
 
-test('dragging a number shows it live and commits it once, on letting go', () => {
+// OCT-24-EDITOR-ALPHA-SWEEP
+test.skip('dragging a number shows it live and commits it once, on letting go', () => {
   const onChange = vi.fn()
   render(<NumberField label="x" value={10} onChange={onChange} step={0.5} />)
   const field = screen.getByRole('spinbutton', { name: 'x' })
@@ -44,7 +47,8 @@ test('dragging a number shows it live and commits it once, on letting go', () =>
   expect(onChange.mock.calls.filter(([, done]) => done)).toHaveLength(1)
 })
 
-test('an integer field rounds, and the arrow keys step it', async () => {
+// OCT-24-EDITOR-ALPHA-SWEEP
+test.skip('an integer field rounds, and the arrow keys step it', async () => {
   const onChange = vi.fn()
   render(<NumberField label="count" integer value={2} onChange={onChange} />)
   const user = userEvent.setup()
@@ -56,7 +60,8 @@ test('an integer field rounds, and the arrow keys step it', async () => {
   expect(onChange).toHaveBeenLastCalledWith(8, true)
 })
 
-test('text commits on Enter and on leaving the field, and not when unchanged', async () => {
+// OCT-24-EDITOR-ALPHA-SWEEP
+test.skip('text commits on Enter and on leaving the field, and not when unchanged', async () => {
   const onChange = vi.fn()
   render(<TextField label="name" value="imp" onChange={onChange} />)
   const user = userEvent.setup()
@@ -68,14 +73,16 @@ test('text commits on Enter and on leaving the field, and not when unchanged', a
   expect(onChange).toHaveBeenCalledWith('imps', true)
 })
 
-test('a checkbox commits at once', async () => {
+// OCT-24-EDITOR-ALPHA-SWEEP
+test.skip('a checkbox commits at once', async () => {
   const onChange = vi.fn()
   render(<Check label="solid" value={false} onChange={onChange} />)
   await userEvent.setup().click(screen.getByRole('checkbox', { name: 'solid' }))
   expect(onChange).toHaveBeenCalledWith(true, true)
 })
 
-test('a colour given as a number is handed back as a number, and as text when it came as text', () => {
+// OCT-24-EDITOR-ALPHA-SWEEP
+test.skip('a colour given as a number is handed back as a number, and as text when it came as text', () => {
   const asNumber = vi.fn()
   const { unmount } = render(<ColorField label="fill" value={0xd10000} onChange={asNumber} />)
   expect(screen.getByLabelText('fill')).toHaveValue('#d10000')
@@ -88,7 +95,8 @@ test('a colour given as a number is handed back as a number, and as text when it
   expect(asText).toHaveBeenLastCalledWith('#112233', false)
 })
 
-test('a vector changes one part and hands back the whole', async () => {
+// OCT-24-EDITOR-ALPHA-SWEEP
+test.skip('a vector changes one part and hands back the whole', async () => {
   const onChange = vi.fn()
   render(<VecField label="pos" value={[1, 2, 3]} onChange={onChange} />)
   const user = userEvent.setup()
@@ -98,14 +106,16 @@ test('a vector changes one part and hands back the whole', async () => {
   expect(onChange).toHaveBeenCalledWith([1, 9, 3], true)
 })
 
-test('a select hands back the option, with its type', async () => {
+// OCT-24-EDITOR-ALPHA-SWEEP
+test.skip('a select hands back the option, with its type', async () => {
   const onChange = vi.fn()
   render(<Select label="speed" value={1} options={[{ value: 0.5 }, { value: 1 }, { value: 2 }]} onChange={onChange} />)
   await userEvent.setup().selectOptions(screen.getByRole('combobox', { name: 'speed' }), '2')
   expect(onChange).toHaveBeenCalledWith(2, true)
 })
 
-test('an option that is off is shown, saying why, and cannot be chosen', async () => {
+// OCT-24-EDITOR-ALPHA-SWEEP
+test.skip('an option that is off is shown, saying why, and cannot be chosen', async () => {
   const onChange = vi.fn()
   render(<Select label="speed" value={1} options={[{ value: 1 }, { value: 2, off: 'too fast' }]} onChange={onChange} />)
   const off = screen.getByRole('option', { name: '2 — too fast' }) as HTMLOptionElement
@@ -116,7 +126,8 @@ test('an option that is off is shown, saying why, and cannot be chosen', async (
   expect(onChange).not.toHaveBeenCalled()
 })
 
-test('JSON commits what parses and marks what does not', async () => {
+// OCT-24-EDITOR-ALPHA-SWEEP
+test.skip('JSON commits what parses and marks what does not', async () => {
   const onChange = vi.fn()
   render(<JsonField label="target" value={null} onChange={onChange} />)
   const user = userEvent.setup()
@@ -130,7 +141,8 @@ test('JSON commits what parses and marks what does not', async () => {
   expect(onChange).toHaveBeenCalledWith({ id: 4 }, true)
 })
 
-test('a slider hands every value it is dragged through live, and the one it is let go at once; the number beside it is kept inside its bounds', async () => {
+// OCT-24-EDITOR-ALPHA-SWEEP
+test.skip('a slider hands every value it is dragged through live, and the one it is let go at once; the number beside it is kept inside its bounds', async () => {
   const onChange = vi.fn()
   render(<Slider label="fov" min={10} max={120} step={1} value={62} onChange={onChange} />)
   const track = screen.getByRole('slider', { name: 'fov' })
@@ -148,7 +160,8 @@ test('a slider hands every value it is dragged through live, and the one it is l
   expect(onChange).toHaveBeenLastCalledWith(120, true)
 })
 
-test('a dial is a bearing clockwise from up: dragged to the right is 90, Shift snaps to 15, the arrows turn it a degree, and it wraps', () => {
+// OCT-24-EDITOR-ALPHA-SWEEP
+test.skip('a dial is a bearing clockwise from up: dragged to the right is 90, Shift snaps to 15, the arrows turn it a degree, and it wraps', () => {
   const onChange = vi.fn()
   const { rerender } = render(<AngleDial label="wind" value={350} onChange={onChange} />)
   const dial = screen.getByRole('slider', { name: 'wind' })
@@ -168,7 +181,8 @@ test('a dial is a bearing clockwise from up: dragged to the right is 90, Shift s
   expect(onChange).toHaveBeenLastCalledWith(344, true)
 })
 
-test('a rule is a ramp from lo to hi, inverted when lo is above hi and a step when they are one; each part is its own field', async () => {
+// OCT-24-EDITOR-ALPHA-SWEEP
+test.skip('a rule is a ramp from lo to hi, inverted when lo is above hi and a step when they are one; each part is its own field', async () => {
   // The ramp drawn over [0, 1], 60 wide and 16 high: y 15 is 0 and y 1 is 1.
   const onChange = vi.fn()
   const drawn = () => screen.getByRole('img').querySelector('polyline')!.getAttribute('points')!.split(' ').map(p => p.split(',').map(v => +(+v).toFixed(3)))

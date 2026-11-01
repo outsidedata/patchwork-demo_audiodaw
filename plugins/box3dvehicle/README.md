@@ -19,19 +19,22 @@ part is a box3d row, so the car is predicted, rewound and sent like any other bo
 **Server half (`box3dvehicle.sim.ts`).** There is one `box3dvehicle` row per car. It holds
 `vehicle` (the name of its Vehicle in `world.box3dvehicle.vehicles`), `throttle` (−1 to 1), `brake`
 (0 to 1), `steer` (−1 to 1, positive left), `gear`, and the ids of its `chassis`, `wheels` and
-`joints`. On its first step it spawns the parts where its actor entry put it; a rule making a car
-mid-step calls `vehicle(w, name, pos, rot)` and gets it whole. `scrap(w, car)` ends a car and every
-part.
+`joints`. On its first step it spawns the parts where its actor entry put it, moving at the entry's
+`initialVelocity` when it has one (`[x, y, z]` m/s in the car's own axes, +x forward); a rule making
+a car mid-step calls `vehicle(w, name, pos, rot, initialVelocity?)` and gets it whole. `scrap(w, car)`
+ends a car and every part.
 
 Each step, in `before`, the throttle, brake and steer become each wheel joint's `spinSpeed`,
-`maxSpinTorque` and `targetSteeringAngle`, and each corner's suspension is set on Box3D's own spring
+`maxSpinTorque` and `targetSteeringAngle` (a wheel on an axle that is not `steered` has its
+steering off, so it is held straight and never toes in under drive), and each corner's suspension is set on Box3D's own spring
 on the wheel joint, solved inside the step with the contacts, so it never overshoots however stiff.
 Springs are preloaded to carry their share of the chassis at `sag` in the scene's gravity. The row
 writes `compression`, `load` and `grounded` per wheel, and a petrol or electric car writes `rpm` and
 `torque`.
 
-A seat drives a car through its acts, `pedal(v)`, `throttle(v)`, `steer(v)`, `brake(v)` and
-`shift(by)`, passed on by the `player` row that holds the car (`relay` in `plugins/player`). None is
+A seat drives a car through its acts, `pedal(v)`, `throttle(v)`, `steer(v)`, `brake(v)`,
+`shift(by)` and `lights(on)` (true or false, kept on the row as `lights`, the headlights on or off),
+passed on by the `player` row that holds the car (`relay` in `plugins/player`). None is
 `open`. `pedal` is the arcade one-pedal: on a car with an automatic box, held back it brakes and,
 below `pedal.stop`, reverses.
 
@@ -46,14 +49,33 @@ dished rims, and at each corner a coil spring, damper and arms that squash with 
 axle (`solid`) with links, shocks and a driveshaft. With `model` a baked glb is drawn on the chassis
 instead, its lamps and steering wheel found by node name. `points` are named empties (a seat, the
 grips on the wheel) for a body to sit at and hold. Parts that never move against each other are
-merged into one mesh per material. `exhaust` and `dust` throw particle3d effects, `tracks` lays
-fading tyre ribbons on the land, and `sound` plays the engine as layered loops crossfaded by `rpm`
-and throttle.
+merged into one mesh per material.
+
+The lamps, `look.lights`: the headlight beams aim `beam.dip` radians down and `beam.toe` radians out
+to each side; with `beam.at` `[x, y, z]` the two beams stand there on the chassis (the left at −z,
+the right at +z) instead of in the lamps. `tail.lens` is the tail lens's own colour under its glow,
+so a dark lens with no `glow` stays near black until the brake lights it. With
+`world.box3dvehicle.lightsOff: true` no car of the scene makes a brake or reverse light (the lenses
+still glow as it brakes and backs), and its headlight beams are dark until the car row's `lights` is
+on. Every light is made with the car and kept, so switching one never changes how many lights a
+frame draws.
+
+`exhaust`, `dust`, `sprays` and `skid` throw particle3d effects. An exhaust runs at the rate its `rpm`
+curve (`[[rpm, rate], …]`) gives for the car's rpm. Dust is thrown from under each wheel on the
+ground going faster than `speed`, or the effect the ground there sprays instead. Each of `sprays`,
+`{ effect, clear, speed: [from, to], rpm? }`, is thrown beside the dust while the tread goes faster
+than `from` and the wheel slower than `to`, so only a car pulling away throws it. `skid`,
+`{ effect, clear, speed, rate?, force? }`, is thrown from each wheel sliding sideways faster than
+`speed`, on any ground, more often (`rate`, `[[m/s, rate], …]`) and harder (`force` per m/s) the harder
+it slides. Dust, sprays and skid are thrown with the ground under the wheel as their floor, so their
+particles rest on it. `tracks` lays fading tyre ribbons on the land, and `sound` plays the engine as
+layered loops crossfaded by `rpm` and throttle.
 
 ## Using it
 
 1. List `box3d`, `box3dvehicle` and `render3d` in that order in `plugins` (with `particle3d` after
-   box3dvehicle for exhaust or dust, and the land's plugin before it for dust or tracks).
+   box3dvehicle for exhaust, dust, sprays or skid, and the land's plugin before it for dust, sprays,
+   skid or tracks).
 2. Give `world.box3d.mods.kinds: ['box3dvehicle']`, so box3d is handed the parts' kinds, and
    `world.box3dvehicle`:
    - `chassis`, `wheel`, `joint`: the kinds of the parts' rows.
@@ -61,14 +83,16 @@ and throttle.
      `cabin`), `bodies`, `axles` (each `at`, `track`, `mount`, `wheel`, `spring`, `damper`,
      `bumpStop`, `antiRoll`, `driven`, `steered`), `engine` (direct, petrol or electric), `steering`,
      `pedal`, `look`, `hit`.
+   - `lightsOff`: true for no brake or reverse lights, and headlights lit only by the `lights` act.
    - `mods`: `{ gravity, land, grip, drag, bodies, strike, sound }`. `gravity` is required.
-3. Put a `box3dvehicle` row in `actors` with `vehicle`, `pos` and `rot`, or call
-   `vehicle(w, name, pos, rot)` from a rule.
+3. Put a `box3dvehicle` row in `actors` with `vehicle`, `pos`, `rot` and, if it starts moving,
+   `initialVelocity`, or call `vehicle(w, name, pos, rot, initialVelocity?)` from a rule.
 4. Drive it by writing `throttle`, `brake`, `steer` on the row, or have the seat's `player` row hold
    the car and relay its presses to the car's acts.
 
 Helpers: `design(world, row)` (a car's Vehicle), `pointOf(v, name)`, `corners(v)`, `wheelAt`,
-`loads(v, g)`, `ride(v, g)`, `torqueAt(curve, rpm)`, `automatic(v)`, `pedals(v, car)`,
+`loads(v, g)`, `ride(v, g)`, `torqueAt(curve, rpm)`, `along(points, x)` (a curve of `[x, y]` points
+read at `x`), `automatic(v)`, `pedals(v, car)`,
 `shift(me, v, by)`, `solidParts`. On the page, `plugins.box3dvehicle.point(id, name)` is a point's
 empty as drawn this frame.
 

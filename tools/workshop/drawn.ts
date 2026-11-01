@@ -17,7 +17,10 @@
 //   `vel` [0, 0, 0] (walker's), `heading` 0, the way a turret or a torso faces in the world, and
 //   `kneel` 0, a mech standing up (legs3d's).
 // `standScene(game, key, stand, home, size)` is that stand-in scene: `{ scene, plugins }`, the plugins
-//   the page makes besides the loader and render3d: `solids`, and each drawer by name.
+//   the page makes besides the loader and render3d: `solids`, and each drawer by name. Its `plugins`
+//   list `shipped` among the plugins the stand carries for its drawers in the game scene's order
+//   (`stand.order`: audio a drawer hears through, and the store), and its prefabs the scene's store
+//   prefab when the store is carried.
 //
 // How its pieces are found in a drawing, whoever drew it. Every plugin that draws a solids model with
 // nodes makes a group for each node in the order the model lists them, each added to its parent's
@@ -29,11 +32,16 @@
 // `assemble(THREE, solids, dress, model)` is the page's own drawing: `{ root, owned }`, `owned` every
 //   geometry, material and light to dispose.
 // `rootOf(o, scene)` is the drawing a mesh is part of: its ancestor that is a child of the scene.
+// `unbloomed(render3d)` is a game's render3d prefab without its `bloom`: every stand-in scene the
+//   workshop draws is drawn through it, so the workshop never blooms, even for a game that does. A
+//   game's threshold is set for its own light; under the studio's key, fill and rim a white hull
+//   passes it everywhere and the model is drawn as a glow.
 
 import type { Paint, Part, Lamp } from '../../plugins/solids/solids.plugin.ts'
+import type { Prefab } from '../../plugins/render3d/render3d.plugin.ts'
 
 export type Named = { by: 'solids' | 'defs'; kind: string; path: string; scenes: string[] }
-export type Stand = { scene: string; kind: string; by: 'solids' | 'defs'; defs?: string; drawers: string[]; world: Record<string, any> }
+export type Stand = { scene: string; kind: string; by: 'solids' | 'defs'; defs?: string; drawers: string[]; world: Record<string, any>; order?: string[]; store?: Record<string, unknown> }
 // An empty: a point, or a point that rides a part, which mech's mount3d turns with the part.
 export type Empty = number[] | { at: number[]; part?: string; turn?: number[] }
 export type Model = { paints: Record<string, Paint>; nodes?: Record<string, { parent?: string; at: number[]; turn?: number[]; mirror?: boolean }>; parts: Part[]; lights?: Lamp[]; empties?: Record<string, Empty> }
@@ -43,6 +51,11 @@ type Obj = { children: Obj[]; parent: Obj | null; isMesh?: boolean; material?: u
 export const pointOf = (e: Empty): number[] => (Array.isArray(e) ? e : e.at)
 // An empty moved to `at`, riding the part it rode.
 export const movedTo = (e: Empty | undefined, at: number[]): Empty => (e && !Array.isArray(e) ? { ...e, at } : at)
+
+export function unbloomed(render3d: Partial<Prefab> | undefined): Omit<Partial<Prefab>, 'bloom'> {
+  const { bloom: _, ...rest } = render3d ?? {}
+  return rest
+}
 
 export const stillRow = (kind: string) => ({ id: 1, kind, data: { pos: [0, 0, 0], yaw: 0, vel: [0, 0, 0], heading: 0, kneel: 0 } as Record<string, unknown> })
 
@@ -57,11 +70,12 @@ export function standScene(game: { world: any; engine: { dt?: number }; render3d
     ...structuredClone(stand?.by === 'defs' ? stand.world : {}),
   }
   const scene = {
-    plugins: ['loader', 'solids', ...(drawers.length ? ['shipped'] : []), 'render3d'],
+    plugins: ['loader', 'solids', ...(drawers.length ? stand?.order ?? ['shipped'] : []), 'render3d'],
     world,
     prefabs: {
       engine: { width: size.width, height: size.height, dt: game.engine.dt ?? 1 / 60 },
-      render3d: { ...(game.render3d ?? {}), camera: { fov: 40, near: 0.01, far: 500, at: [4, 4, 6], look: [0, 1, 0] } },
+      render3d: { ...unbloomed(game.render3d), camera: { fov: 40, near: 0.01, far: 500, at: [4, 4, 6], look: [0, 1, 0] } },
+      ...(stand?.store ? { store: structuredClone(stand.store) } : {}),
     },
   }
   return { scene, drawers }

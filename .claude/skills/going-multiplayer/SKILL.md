@@ -1,13 +1,13 @@
 ---
 name: going-multiplayer
-description: Use in core, or any clone of it, when a game is played by more than one person over a network - running `<game>.server.ts` on node and opening `client.html`, the port, raising a scene's `seats` for a second player, what a player who finds the game full gets, sending each seat only what it needs (`interest`, `vision` and its fog of war, a `security` block), what a seat may send and what is dropped, a press against lag, jitter and packet loss, a scene run ahead on the page (`world.predict`, `client.html` wrapping its link in `predict`, every row drawn from the copy on the frame after the key, the server putting a late press back on its step with `addons/rewind`, a jump eased by `halflife`, `snap` and `below`), the press test `<game>.predict.test.ts`, trying a bad network before shipping (the loopback's network shape, the simulator, `?tap=`), chat and parties, and a new way to travel such as WebRTC as a transport addon. Also when someone says multiplayer, online, netcode, server and client, two players, a second seat, play with friends, latency, rubber-banding, "the second tab is blank", or fog of war.
+description: Use in core, or any clone of it, when a game is played by more than one person over a network - running `<game>.server.ts` on node and opening `client.html`, the port, raising a scene's `seats` for a second player, what a player who finds the game full gets, sending each seat only what it needs (`interest`, `vision` and its fog of war, a `security` block), what a seat may send and what is dropped, a press against lag, jitter and packet loss, a scene run ahead on the page (`world.predict`, `client.html` wrapping its link in `predict`, every row drawn from the copy on the frame after the key, the server putting a late press back on its step with `addons/rewind`, a jump eased by `halflife`, `snap` and `below`), the press test `<game>.predict.test.ts`, trying a bad network before shipping (the loopback's network shape, the simulator), chat and parties, and a new way to travel such as WebRTC as a transport addon. Also when someone says multiplayer, online, netcode, server and client, two players, a second seat, play with friends, latency, rubber-banding, "the second tab is blank", or fog of war.
 ---
 
 # Going multiplayer
 
 A game in core is played by more than one person when its manager runs on node behind a socket and
 each person opens `client.html`. Every game `yarn new-game` writes already has both files (the list
-is the header of `extensions/games/games.route.ts`), so nothing new carries a packet. The template
+is the header of `scripts/new-game.ts`), so nothing new carries a packet. The template
 still writes `client.html` without `predict` and the seat's square as a `body` row its `player` row
 spawns; both are folded before anything else (`starting-a-game`, Fold the body into the player row).
 The work is the scene's seats, what each seat is sent, what each seat may send, the seat's own thing
@@ -70,15 +70,14 @@ tests included, that opens a WebSocket or imports `ws`, other than the socket ad
   directive, The pages). On a scene that gives `world.predict` the page boots its own copy and runs
   it ahead (step 7, A scene run ahead); on one that gives none, a title or a menu, every envelope goes
   to the view as it came and the page steps nothing. For the scene its seat is on it loads the browser
-  half of each plugin the scene lists and each row's `<kind>.client.ts`. `tap` wraps the dial: with
-  `?tap=<name>` in the address it records the page, and without it the page is the predicting page,
-  untouched. A panel, a readout, a second pane or a network shape on the page is `dev.html`'s, never
+  half of each plugin the scene lists and each row's `<kind>.client.ts`. `tap` wraps the dial: without
+  `?tap=` in the address the page is the predicting page, untouched. A panel, a readout, a second pane or a network shape on the page is `dev.html`'s, never
   `client.html`'s.
 - `index.html`: the manager and the page in one tab, over a loopback, stepped by the page's clock, with
   no prediction and no lag: a press lands on the next step in the same tab. It is one seat on a truth
   of its own. A second tab of it is a second game, not a second player.
-- `dev.html`: the game's own testbed, any readout, any number of seats, any network (`starting-a-game`,
-  The testbed).
+- `dev.html`: the game's own testbed, any readout, any number of seats, any network (`using-the-dev-page`,
+  Networks, the server and running ahead).
 
 ## The work
 
@@ -96,7 +95,7 @@ tests included, that opens a WebSocket or imports `ws`, other than the socket ad
    and `dial` calls its `gone`. `client.html` hands `dial` no `gone`, so today that player's page
    draws nothing at all. That is what core does now, not how it must stay. A game that must tell a
    refused player it is full builds that in core: the page `make` writes (`client.html` in
-   `extensions/games/games.route.ts`), with every game's `client.html` moved over to it, since every
+   `scripts/new-game.ts`), with every game's `client.html` moved over to it, since every
    line of a page is the same in every game. Never a `gone` listener written into one game's page.
 
    On a loopback nothing is refused: `loopback` calls `accept` with nothing around it. So a page past
@@ -112,24 +111,22 @@ tests included, that opens a WebSocket or imports `ws`, other than the socket ad
    number, and it may get the same slot, so a rule about who is who reads the slot off the `player`
    row, never the seat number.
 
-2. **Run the server.** From the repo root:
-   `node --experimental-strip-types games/<game>/<game>.server.ts`. It must be the root because on
-   node the loader reads a catalogue url such as `/games/<game>/assets/<game>.json` as a path under
-   the working directory (`plugins/loader/loader.sim.ts`). Or from the editor, `yarn editor <game>`:
-   the Node panel's Run on node starts the same file in a child process from the root, shows what it
-   prints and when it exits, and starts it again whenever a file it runs changes. Open a seat opens
-   `client.html` in a new tab (`extensions/servers/servers.extension.tsx`; its commands are
-   `servers.start`, `servers.seat`, `servers.state` and `servers.stop`). One server per port: a second
-   one, started by hand beside the panel's or left over from earlier, dies with `EADDRINUSE`.
+2. **Run the server.** `yarn serve <game>` runs `games/<game>/<game>.server.ts` on node from the
+   repo root, and serves the pages as `yarn dev` does; a change to a file the server runs starts it
+   again on its new code. Run by hand, `node --experimental-strip-types games/<game>/<game>.server.ts`
+   must be run from the root too, because on node the loader reads a catalogue url such as
+   `/games/<game>/assets/<game>.json` as a path under the working directory
+   (`plugins/loader/loader.sim.ts`). One server per port: a second one, or one left over from earlier,
+   dies with `EADDRINUSE`.
 
    The port is the manager's `scenemanager.port`. `yarn new-game` gives each game the port after the
    highest one the games in `games/` use, or 9001 when there are none, so no two games share a port.
    `serve` listens on every interface of the machine.
 
-3. **Open the seats.** With `yarn editor <game>` running, open
+3. **Open the seats.** With `yarn serve <game>` running, open
    `http://localhost:5173/games/<game>/client.html` once per player, each in a window of its own.
    Chrome pauses `requestAnimationFrame` in a tab that is not in front, so of two tabs in one window
-   only the front one plays, while the server keeps stepping. The editor's server answers only on
+   only the front one plays, while the server keeps stepping. The pages are answered only on
    `localhost`, so this puts every player on one machine. Players on other machines are
    `publishing-a-game`'s.
 
@@ -176,9 +173,7 @@ tests included, that opens a WebSocket or imports `ws`, other than the socket ad
      `render2d.ground()`, and the headers that say pixels say units (`writing-the-look`, render2d or
      render3d).
 
-     A rule that must act only on what a team sees asks `sees(w.world, slot, row)`. The editor's
-     Vision panel shows, for each slot, which rows are sent and which are not
-     (`addons/vision/vision.extension.tsx`).
+     A rule that must act only on what a team sees asks `sees(w.world, slot, row)`.
    - Area of interest. A top-level `interest` block, `{ "radius": r, "always": [kinds], "at": field }`,
      is read by `interest(truth, possessed)` (`addons/interest/interest.addon.ts`). A row with a `pos`
      farther than `radius` from the seat's centre, measured on x and y, is not sent. A row that walks
@@ -369,12 +364,7 @@ tests included, that opens a WebSocket or imports `ws`, other than the socket ad
      `node --experimental-strip-types addons/simulator/simulator.addon.ts run <config.json> [out.jsonl]`.
      A config is a run as JSON, with `game`, the path of the manager scene file from the root, in
      place of `file`, `sim` and `base`. It prints the summary.
-   - In the editor, the simulator's Runs panel plays a config and keeps it as a recording (`sim.run`,
-     `sim.read`, `sim.runs`).
-   - In a real browser, `client.html?tap=<name>` records every frame through the editor's server into
-     `addons/simulator/runs/<name>.jsonl`, a folder the first recording makes. `timing(records)` gives
-     a simulation a recording's own timing, and `real(run)` plays pages over the real socket on real
-     clocks.
+   - `real(run)` plays pages over the real socket on real clocks.
 
    A simulation boots the manager and loads its scenes itself. It never runs `<game>.server.ts`, so
    anything only that file did is missing from a simulation.
@@ -462,7 +452,7 @@ is told once that its server has gone.
   windows.
 - Two players tried as two tabs of `index.html`: that is two games. Use `client.html` against the
   server.
-- The server dies with `EADDRINUSE`: one is already on that port, the Node panel's or a leftover one.
+- The server dies with `EADDRINUSE`: one is already on that port, a leftover one.
   Stop one of them.
 - The server run from inside the game's folder cannot read its files. Run it from the root.
 - A level won or stuck on the server stays won or stuck for every seat that enters it after, until
@@ -659,5 +649,4 @@ is told once that its server has gone.
   `plugins/player/player.plugin.test.ts`. For the network: `addons/loopback/loopback.addon.test.ts`
   and `addons/simulator/simulator.addon.test.ts`.
 - Played: the server running and `client.html` in two windows, each player's thing moving on the frame
-  after its key and each seeing the other move. For vision, the Vision panel. For a real session, a
-  `?tap=` recording read in the Runs panel.
+  after its key and each seeing the other move.

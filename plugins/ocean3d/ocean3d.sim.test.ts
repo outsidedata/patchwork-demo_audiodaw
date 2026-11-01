@@ -1,22 +1,9 @@
 // The sea's server half on scenes this test writes, each with one ocean3d row: the spectrum against
 // the formulas, the bands, the stream and the kept pairs, and `waveAt` against a full 256² inverse
 // transform of the cascade 0 the GPU draws, computed here in plain JS.
-//
-// A scene that names no mod is booted alone (`sea`). One that names skydome3d's `wind` is a child of
-// a manager, loaded by scenemanager's `load` as a game's is, which imports the mod (`windy`, and the
-// storm's): `air`, the sea under a stand-in sky row of kind skydome3d whose `mix.wind` the manager's
-// prefab gives, `still`, the sea with no sky row, and `storm`, the sea under skydome3d itself.
-import { afterAll, expect, test } from 'vitest'
-import { mkdtempSync, rmSync, writeFileSync } from 'node:fs'
-import { tmpdir } from 'node:os'
-import { join } from 'node:path'
-import { pathToFileURL } from 'node:url'
-import { boot, seeded, type Row, type Scene, type Truth, type W } from '#engine/engine.ts'
-import { load } from '#addons/scenemanager/scenemanager.addon.ts'
-import { scenemanager } from '#plugins/scenemanager/scenemanager.sim.ts'
-import { written } from '#plugins/loader/loader.sim.ts'
-import type { Weather } from '#plugins/skydome3d/skydome3d.sim.ts'
-import { ampAt, ampOf, bands, floatAt, grid, KEPT, mirror, ocean3d, RES, shoal, spectrum, spectrumOf, waveAt, type Sea, type Spectrum } from './ocean3d.sim.ts'
+import { expect, test } from 'vitest'
+import { boot, seeded, type Row, type Truth, type W } from '#engine/engine.ts'
+import { bands, floatAt, grid, KEPT, mirror, ocean3d, RES, shoal, spectrum, spectrumOf, waveAt, type Sea, type Spectrum } from './ocean3d.sim.ts'
 
 const SEA: Sea = {
   windSpeed: 9, windDeg: 30, fetchKm: 300, swellScale: 0.4, swellDeg: 65, amp: 0.35, chop: 1.1, foamRecovery: 0.35, seed: 731,
@@ -24,7 +11,6 @@ const SEA: Sea = {
   weather: { windRef: 9, floor: 0.5 },
 }
 const DEEP = { depth: () => 1000 }
-const DT = 1 / 60
 
 // A truth whose `world.ocean3d` is SEA with `over` written over it and whose one ocean3d row's `t` is
 // `t0`, stepped once by 0 s so a probe row hands over the truth's `w`.
@@ -42,68 +28,6 @@ function sea(over: Partial<Sea> = {}, t0 = 0) {
   return held(t, w!)
 }
 const held = (t: Truth, w: W) => ({ t, w, row: () => t.rows.find(r => r.kind === 'ocean3d') as Row & { data: { t: number } }, numbers: t.world.ocean3d as Sea })
-
-// ---------------------------------------------------------------- the scenes of a manager
-
-const weather = (over: Partial<Weather>): Weather => ({ cloud: 0, cirrus: 0.1, base: 1400, top: 2000, dense: 1, rain: 0, snow: 0, fog: 0, haze: 1, wind: 2, gust: 0, thunder: 0, dust: 0, ...over })
-const WEATHERS = 'test/ocean3d/weathers.json'
-written(WEATHERS, JSON.stringify({ clear: weather({}), storm: weather({ cloud: 0.97, rain: 1, wind: 14, gust: 0 }) }))
-const dir = mkdtempSync(join(tmpdir(), 'ocean3d-sim-'))
-const path = (p: string) => JSON.stringify(new URL(p, import.meta.url).pathname)
-const files: Record<string, { scene: object; sim: string }> = {
-  air: { scene: { prefabs: {}, actors: [{ is: 'ocean3d' }, { is: 'probe' }, { is: 'skydome3d' }] }, sim: 'ocean3d, skydome3d: {}' },
-  still: { scene: { prefabs: {}, actors: [{ is: 'ocean3d' }, { is: 'probe' }] }, sim: 'ocean3d' },
-  storm: {
-    scene: {
-      world: {
-        skydome3d: { day: 1200, weathers: 'weathers', soak: 6, dry: 45, lay: 55, melt: 90, gusts: [3, 7, 11], bolt: { lasts: [0.1, 0.2], out: [300, 900] } },
-        loader: { assets: { weathers: { type: 'json', url: WEATHERS, preload: true } } },
-      },
-      prefabs: {
-        loader: {},
-        skydome3d: {
-          t: 600, rate: 1, doy: 172, lat: 46, phase: 0.25, to: 'clear', from: weather({}), mix: weather({}), blend: 1, fade: 0,
-          wet: 0, pack: 0, windDeg: 90, flash: 0, strike: [0, 0], drift: [0, 0],
-        },
-      },
-      actors: [{ is: 'loader' }, { is: 'skydome3d' }, { is: 'ocean3d' }, { is: 'probe' }],
-    },
-    sim: 'loader, skydome3d, ocean3d',
-  },
-}
-for (const [name, { scene, sim }] of Object.entries(files)) {
-  writeFileSync(join(dir, `${name}.scene.json`), JSON.stringify(scene))
-  writeFileSync(join(dir, `${name}.sim.ts`), `
-import { loader } from ${path('../loader/loader.sim.ts')}
-import { skydome3d } from ${path('../skydome3d/skydome3d.sim.ts')}
-import { ocean3d } from ${path('./ocean3d.sim.ts')}
-import file from './${name}.scene.json' with { type: 'json' }
-export const sim = { ${sim}, probe: { before(_me, _dt, w) { globalThis.ocean3dSimSea = w } } }
-export const scene = file
-`)
-}
-afterAll(() => rmSync(dir, { recursive: true }))
-
-// Scene `name` of a manager whose `world.ocean3d` is SEA naming skydome3d's wind, with `over` written
-// over it, and whose skydome3d prefab's `mix.wind` is `wind`: loaded, and stepped once by 0 s so its
-// probe hands over its `w`.
-async function child(name: string, over: Partial<Sea> & { mods?: Record<string, string> } = {}, wind?: number) {
-  const top: Scene = {
-    world: { ocean3d: { ...SEA, mods: { wind: 'skydome3d' }, ...over } },
-    prefabs: {
-      engine: { dt: DT },
-      scenemanager: { scenes: { [name]: { file: `${name}.scene.json`, suspend: false } }, dt: DT, entry: name, port: 0 },
-      ocean3d: { t: 0 }, probe: {}, skydome3d: { mix: { wind } },
-    },
-    actors: [{ is: 'scenemanager' }],
-    plugins: ['scenemanager'],
-  }
-  const t = (await load(boot(top, { scenemanager }), pathToFileURL(dir + '/').href)).get(name)!
-  t.step(0)
-  return held(t, (globalThis as any).ocean3dSimSea)
-}
-// The sea under a sky row whose `mix.wind` is `wind`, or under none when it is undefined.
-const windy = (over: Partial<Sea> & { mods?: Record<string, string> } = {}, wind?: number) => child(wind === undefined ? 'still' : 'air', over, wind)
 
 // ---------------------------------------------------------------- a reference transform
 
@@ -465,52 +389,3 @@ test('a float over a short ripple moves less than one sample does', () => {
   expect(spread(float)).toBeLessThan(0.5 * spread(one))
 })
 
-// ---------------------------------------------------------------- the weather
-
-test('the sea follows the weather: amp·(floor + (1 − floor)·min(1, wind/windRef)) off the wind the scene\'s wind mod hands it, amp itself with no mod or no wind', async () => {
-  const weather = { windRef: 12, floor: 0.25 }
-  // No wind mod: amp, a sky row there or not, and with no weather at all.
-  expect(ampAt(sea({ weather }).w)).toBe(0.35)
-  expect(ampAt((await windy({ weather, mods: {} }, 6)).w)).toBe(0.35)
-  expect(ampAt(sea({ weather: undefined }).w)).toBe(0.35)
-  // A wind mod and no sky row: no wind, so amp.
-  expect(ampAt((await windy({ weather })).w)).toBe(0.35)
-  for (const wind of [0, 3, 6, 12, 30]) {
-    const { w } = await windy({ weather }, wind)
-    expect(ampAt(w)).toBeCloseTo(0.35 * (0.25 + 0.75 * Math.min(1, wind / 12)), 15)
-    expect(ampAt(w)).toBe(ampOf({ amp: 0.35, weather }, wind))
-  }
-  // A wind and no weather to raise the sea by is the scene's mistake, said.
-  const bare = await windy({ weather: undefined }, 6)
-  expect(() => ampAt(bare.w)).toThrow('ocean3d is handed a wind, and world.ocean3d gives no weather { windRef, floor } to raise the sea by')
-  // waveAt and floatAt draw at that amplitude: the sea under a wind of 6 is a sea of amp 0.35·0.625.
-  const under = await windy({ weather }, 6), plain = sea({ amp: 0.35 * 0.625, weather })
-  under.row().data.t = plain.row().data.t = 41
-  expect(waveAt(under.w, 12, -30, DEEP)).toBeCloseTo(waveAt(plain.w, 12, -30, DEEP), 12)
-  expect(floatAt(under.w, 12, -30, 2, DEEP).y).toBeCloseTo(floatAt(plain.w, 12, -30, 2, DEEP).y, 12)
-  // The amplitude is not in the spectrum's key.
-  expect(spectrumOf(under.w).key).toBe(spectrumOf(plain.w).key)
-})
-
-test('through a fade from fair weather to a storm on skydome3d, whose wind the scene\'s mod hands the sea, the sea swells step by step, and a storm\'s waves are bigger than fair weather\'s', async () => {
-  const { t, w, row } = await child('storm', { weather: { windRef: 12, floor: 0.2 } })
-  const rms = () => {
-    row().data.t = 77
-    const at = Array.from({ length: 60 }, (_, n) => waveAt(w, n * 7.3 - 200, n * 3.1 - 90, DEEP))
-    return Math.sqrt(at.reduce((a, v) => a + v * v, 0) / at.length)
-  }
-  const fair = rms()
-  expect(ampAt(w)).toBeCloseTo(0.35 * (0.2 + 0.8 * (2 / 12)), 12)
-  w.call(t.rows.find(r => r.kind === 'skydome3d')!, 'weather', 0, 'storm', 10)
-  let was = ampAt(w)
-  for (let n = 0; n < 40; n++) {
-    t.step(0.25)
-    const now = ampAt(w)
-    expect(now).toBeGreaterThanOrEqual(was)
-    expect(now - was).toBeLessThan(0.02)
-    was = now
-  }
-  expect(was).toBeCloseTo(0.35, 12)
-  // Three times the amplitude; the chop's inversion is not linear in it.
-  expect(rms()).toBeGreaterThan(2.5 * fair)
-})

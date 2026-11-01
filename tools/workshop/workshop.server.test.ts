@@ -6,11 +6,13 @@
 // game read from its files, its models, bodies, what they hold and where they drift; its solids models,
 // how it finds each and how the page draws it; notes on a glb and on a solids model; a solids model's
 // frames written in place; notes added, read and patched; points written
-// into a glb and read back; a fit written into every scene that draws the body; a model brought from
+// into a glb and read back; a glb's points file beside it, written and read back; a fit written into every scene that draws the body; a model brought from
 // one game to another; `hangar`'s interaction summarised, written into its file and refused out of
 // shape; `motor`'s cars, each vehicle of its fleet a machine with the interactions of the kind
 // box3dvehicle, and a vehicle's look points read and written into the manager in place; a pack clip
-// baked into a rig through a Blender the test writes; a refused path of every kind;
+// baked into a rig through a Blender the test writes; `arcade`'s UI summarised and its edits written in
+// place (the UI workshop); `fireworks`' effects summarised and an effect saved in place (the particle
+// workshop); a refused path of every kind;
 // a `.ts` served stripped; the packs; and a `changed` event after a file of a game is written.
 import { afterAll, beforeAll, expect, test } from 'vitest'
 import fs from 'node:fs'
@@ -212,6 +214,69 @@ beforeAll(async () => {
   write('games/motor/shed.sim.ts', simOf('shed'))
   write('games/motor/assets/box3dvehicle.enter.interaction.json', JSON.stringify(ENTER, null, 2) + '\n')
   write('games/motor/assets/van.glb', glb())
+  // arcade: a game with a UI. Its manager gives a `world.ui`; `hall` gives its own and its definitions
+  // (`cards`), laid by hand, a style and a place on one line; `lobby` gives none of its own, so it
+  // draws the manager's. It has a screens file.
+  write('games/arcade/arcade.scene.json', JSON.stringify({
+    world: { ui: { panels: { hud: { anchor: 'top' } }, styles: { line: { fontSize: 12 } } } },
+    prefabs: { scenemanager: { scenes: { hall: { file: 'hall.scene.json', suspend: true }, lobby: { file: 'lobby.scene.json', suspend: true } } }, store: { volume: 1 } },
+  }, null, 2) + '\n')
+  write('games/arcade/hall.scene.json', `{
+  "world": {
+    "defs": "cards",
+    "loader": { "assets": { "cards": { "type": "json", "url": "/games/arcade/assets/cards.json" } } },
+    "ui": {
+      "panels": { "title": { "anchor": "center", "size": [640, 360] } },
+      "styles": { "name": { "fontFamily": "system-ui", "fontSize": 40 } }
+    }
+  },
+  "prefabs": { "engine": { "dt": 0.02, "width": 640, "height": 360 } },
+  "plugins": ["loader", "ui"],
+  "actors": []
+}
+`)
+  write('games/arcade/lobby.scene.json', JSON.stringify({ world: {}, prefabs: {}, plugins: ['loader'], actors: [] }, null, 2) + '\n')
+  write('games/arcade/hall.sim.ts', simOf('hall'))
+  write('games/arcade/lobby.sim.ts', simOf('lobby'))
+  write('games/arcade/assets/cards.json', '{\n  "title": { "name": { "at": [320, 120], "text": "ARCADE" } }\n}\n')
+  write('games/arcade/arcade.screens.ts', 'export const scene = \'hall\'\nexport const screens = {}\n')
+  // fireworks: a game of particles. `show` lists particle3d, lights3d and render3d and catalogues its
+  // effects file, a sheet and a texture; `yard` names the same effects file and no lights3d; `hall` lists
+  // no particle3d. The effects file is laid by hand, a layer a line.
+  write('games/fireworks/fireworks.scene.json', JSON.stringify({
+    prefabs: { scenemanager: { scenes: { show: { file: 'show.scene.json', suspend: true }, yard: { file: 'yard.scene.json', suspend: true }, hall: { file: 'hall.scene.json', suspend: true } } } },
+  }, null, 2) + '\n')
+  const SPARKS = {
+    effects: 'fx',
+    loader: { assets: {
+      fx: { type: 'json', url: '/games/fireworks/assets/effects.json' },
+      puff: { type: 'sheet', url: '/games/fireworks/assets/puff.json' },
+      ground: { type: 'texture', url: '/games/fireworks/assets/ground.png' },
+    } },
+  }
+  write('games/fireworks/show.scene.json', JSON.stringify({
+    world: { particle3d: { effects: 'fx', hold: 0.1 }, loader: SPARKS.loader, lights3d: { grid: [8, 4], slices: 8 } },
+    prefabs: { engine: { dt: 0.02 }, render3d: { tone: 'neutral', bloom: { strength: 1 } } },
+    plugins: ['loader', 'particle3d', 'lights3d', 'render3d'], actors: [],
+  }, null, 2) + '\n')
+  write('games/fireworks/yard.scene.json', JSON.stringify({
+    world: { particle3d: { effects: 'fx', hold: 0.1 }, loader: SPARKS.loader },
+    prefabs: {}, plugins: ['loader', 'particle3d', 'render3d'], actors: [],
+  }, null, 2) + '\n')
+  write('games/fireworks/hall.scene.json', JSON.stringify({ world: {}, prefabs: {}, plugins: ['loader'], actors: [] }, null, 2) + '\n')
+  for (const s of ['show', 'yard', 'hall']) write(`games/fireworks/${s}.sim.ts`, simOf(s))
+  write('games/fireworks/assets/effects.json', `{
+  "cap": 500,
+  "effects": {
+    "pop": [
+      { "n": [10, 20], "life": [0.5, 1], "speed": [2, 4] }
+    ],
+    "smoke": [
+      { "life": [2, 2], "g": -1 }
+    ]
+  }
+}
+`)
   write('games/notagame/readme.txt', 'no manager scene here')
   write('tools/workshop/workshop.html', '<!doctype html><title>workshop</title>')
   write('tools/workshop/page.ts', 'const n: number = 1\nexport default n\n')
@@ -233,7 +298,7 @@ const post = (p: string, body: unknown, method = 'POST') => json(p, { method, he
 const GUN = encodeURIComponent('games/range/assets/gun.glb')
 
 test('the games: each folder of games/ with its manager scene', async () => {
-  expect((await json('/api/games')).body).toEqual(['camp', 'hangar', 'motor', 'pass', 'range', 'ridge', 'works'])
+  expect((await json('/api/games')).body).toEqual(['arcade', 'camp', 'fireworks', 'hangar', 'motor', 'pass', 'range', 'ridge', 'works'])
 })
 
 test('scenes on a partial are read as the game loads them: what each has from its partial, under its own', async () => {
@@ -331,6 +396,30 @@ test('points: written into the glb, an empty made where there was none, and read
   expect((await post(`/api/points?file=${GUN}`, { points: { grip: { at: [0, 0, 0], turn: [0, 0, 1] } } })).status).toBe(400)
 })
 
+test('a glb\'s points file: read as empty before it is made, written beside the glb a point a line, each set merged, the glb left as it was', async () => {
+  const glbBytes = fs.readFileSync(path.join(root, 'games/range/assets/gun.glb'))
+  const file = path.join(root, 'games/range/assets/gun.points.json')
+  expect((await json(`/api/beside?file=${GUN}`)).body).toEqual({ points: {}, sizes: {} })
+  const first = await post(`/api/beside?file=${GUN}`, { points: { 'exhaust.L': { at: [1.2, 0, -3], turn: [0, 0, 0, 1] } }, sizes: { 'engine.radius': 0.8 } })
+  expect(first.body).toEqual({ points: { 'exhaust.L': { at: [1.2, 0, -3], turn: [0, 0, 0, 1] } }, sizes: { 'engine.radius': 0.8 } })
+  const again = await post(`/api/beside?file=${GUN}`, { points: { 'exhaust.L': { at: [1.25, 0, -3.1], turn: [0, 0, 0, 1] }, fire: { at: [1, 0.5, -1], turn: [0, 0, 0, 1] } }, sizes: { 'engine.length': 6 } })
+  expect(again.body.sizes).toEqual({ 'engine.radius': 0.8, 'engine.length': 6 })
+  expect(fs.readFileSync(file, 'utf8')).toBe(
+    '{\n  "points": {\n    "exhaust.L": {"at":[1.25,0,-3.1],"turn":[0,0,0,1]},\n    "fire": {"at":[1,0.5,-1],"turn":[0,0,0,1]}\n  },\n  "sizes": {\n    "engine.radius": 0.8,\n    "engine.length": 6\n  }\n}\n')
+  expect(fs.readFileSync(path.join(root, 'games/range/assets/gun.glb')).equals(glbBytes)).toBe(true)
+  // a point dropped is taken out, the rest kept
+  expect((await post(`/api/beside?file=${GUN}`, { drop: ['fire'] })).body.points).toEqual({ 'exhaust.L': { at: [1.25, 0, -3.1], turn: [0, 0, 0, 1] } })
+  expect((await post(`/api/beside?file=${GUN}`, { drop: 'fire' })).status).toBe(400)
+  expect((await post(`/api/beside?file=${GUN}`, { points: { 'a b': { at: [0, 0, 0], turn: [0, 0, 0, 1] } } })).status).toBe(400)
+  expect((await post(`/api/beside?file=${GUN}`, { points: { fire: { at: [0, 0], turn: [0, 0, 0, 1] } } })).status).toBe(400)
+  expect((await post(`/api/beside?file=${GUN}`, { points: { fire: { at: [0, 0, 0], turn: [0, 0, 1] } } })).status).toBe(400)
+  expect((await post(`/api/beside?file=${GUN}`, { sizes: { 'engine.length': 'long' } })).status).toBe(400)
+  expect((await post(`/api/beside?file=${GUN}`, { sizes: 3 })).status).toBe(400)
+  expect((await json(`/api/beside?file=${encodeURIComponent('games/works/assets/walker.model.json')}`)).status).toBe(404)
+  expect((await json(`/api/beside?file=${encodeURIComponent('games/range/assets/missing.glb')}`)).status).toBe(404)
+  fs.rmSync(file)
+})
+
 test('solids models: listed beside the glbs, each with how the game finds it and how the page draws it', async () => {
   const g = (await json('/api/game/works')).body
   const by = Object.fromEntries(g.models.map((m: any) => [m.key, m]))
@@ -341,7 +430,7 @@ test('solids models: listed beside the glbs, each with how the game finds it and
   expect(by['crate-model'].stand).toEqual({ scene: 'shop', kind: 'crate', by: 'solids', drawers: [], world: {} })
   expect(by['walker-model'].named).toEqual([{ by: 'defs', kind: 'walker', path: 'walker.model', scenes: ['shop'] }])
   // Drawn as the game draws it: by the plugins that draw solids, each mod kept only where its provider draws too.
-  expect(by['walker-model'].stand).toEqual({ scene: 'shop', kind: 'walker', by: 'defs', defs: 'table', drawers: ['rig3d', 'hang3d'], world: { rig3d: { mods: {} }, hang3d: { mods: { node: 'rig3d', both: 'rig3d' } } } })
+  expect(by['walker-model'].stand).toEqual({ scene: 'shop', kind: 'walker', by: 'defs', defs: 'table', drawers: ['rig3d', 'hang3d'], order: ['shipped'], world: { rig3d: { mods: {} }, hang3d: { mods: { node: 'rig3d', both: 'rig3d' } } } })
   // A cabin is found through its definition, but no plugin draws a lone row of it: no stand.
   expect(by['cab-model'].named).toEqual([{ by: 'defs', kind: 'walker', path: 'walker.cabin.model', scenes: ['shop'] }])
   expect(by['cab-model'].stand).toBeUndefined()
@@ -395,7 +484,7 @@ test('interactions: each with its file, its body, and the fit and poses of the s
   expect(g.interactions).toEqual([{
     scene: 'sortie', machine: 'walker', name: 'board', key: 'walker-board', url: '/games/hangar/assets/walker.board.interaction.json',
     file: 'games/hangar/assets/walker.board.interaction.json', body: 'worker', fit: { S1: 'chair', B1: null },
-    poses: { climb: { kneel: 1 }, seated: { kneel: 0 } }, mods: { point: 'mount3d', object: 'mount3d' },
+    poses: { climb: { kneel: 1 }, seated: { kneel: 0 } }, defs: 'games/hangar/assets/table.json', mods: { point: 'mount3d', object: 'mount3d' },
   }])
   // A game with no interaction lists none.
   expect((await json('/api/game/range')).body.interactions).toEqual([])
@@ -418,7 +507,7 @@ test('vehicles: every vehicle of the fleet a scene has interactions for, a machi
   // Its interactions are of the kind box3dvehicle, every vehicle's, on the points box3dvehicle hands.
   expect(g.interactions).toEqual([{
     scene: 'lot', machine: 'box3dvehicle', name: 'enter', key: 'box3dvehicle-enter', url: '/games/motor/assets/box3dvehicle.enter.interaction.json',
-    file: 'games/motor/assets/box3dvehicle.enter.interaction.json', body: 'driver', fit: {}, poses: {},
+    file: 'games/motor/assets/box3dvehicle.enter.interaction.json', body: 'driver', fit: {}, poses: {}, defs: null,
     mods: { point: 'box3dvehicle', object: 'box3dvehicle', body: 'anim' },
   }])
   // A game with no fleet has none.
@@ -480,6 +569,19 @@ test('an interaction written into its file, each step on lines of its own, and r
   expect((await post(`/api/interaction?file=${encodeURIComponent('games/hangar/assets/table.json')}`, BOARD)).status).toBe(404)
   expect((await post(`/api/interaction?file=${encodeURIComponent('games/hangar/assets/none.interaction.json')}`, BOARD)).status).toBe(404)
   await post(`/api/interaction?file=${FILE}`, BOARD)
+})
+
+test('a machine\'s poses written into its definition in place, a step it lacks added, and refused out of shape', async () => {
+  const TABLE = path.join(root, 'games/hangar/assets/table.json'), was = fs.readFileSync(TABLE, 'utf8')
+  const FILE = encodeURIComponent('games/hangar/assets/table.json')
+  const r = await post(`/api/machine?file=${FILE}`, { machine: 'walker', name: 'board', poses: { climb: { kneel: 0.5 }, sit: { kneel: 0.8 } } })
+  expect(r.status).toBe(200)
+  expect(r.body).toEqual({ climb: { kneel: 0.5 }, seated: { kneel: 0 }, sit: { kneel: 0.8 } })
+  expect(fs.readFileSync(TABLE, 'utf8')).toBe('{"walker":{"interact":{"board":{"climb":{"kneel":0.5},"seated":{"kneel":0}, "sit": { "kneel": 0.8 }}}}}')
+  expect((await post(`/api/machine?file=${FILE}`, { machine: 'walker', name: 'board', poses: { climb: { kneel: 'low' } } })).status).toBe(400)
+  expect((await post(`/api/machine?file=${FILE}`, { machine: 'strider', name: 'board', poses: { climb: { kneel: 1 } } })).status).toBe(404)
+  expect((await post(`/api/machine?file=${encodeURIComponent('games/hangar/assets/none.json')}`, { machine: 'walker', name: 'board', poses: {} })).status).toBe(404)
+  fs.writeFileSync(TABLE, was)
 })
 
 test('a pack clip baked into a body\'s rig: the clip added under its name, every body baked, the table merged in the rig\'s layout', async () => {
@@ -570,6 +672,101 @@ test('every served path stays inside its folder, and a .ts is served with its ty
 test('the packs: each folder with its clips, and a clip served', async () => {
   expect((await json('/api/packs')).body).toEqual([{ pack: 'Rifle Pack', clips: ['idle.fbx'] }, { pack: 'Sitting Pack', clips: ['Sit To Stand.fbx', 'Stand To Sit.fbx'] }])
   expect((await get('/packs/Rifle%20Pack/idle.fbx')).body).toBe('fbx')
+})
+
+test('a game\'s UI: its screens file, and each scene with a ui, the file giving it and its definitions file', async () => {
+  const r = await json('/api/ui/arcade')
+  expect(r.status).toBe(200)
+  expect(r.body.screens).toBe('/games/arcade/arcade.screens.ts')
+  const hall = r.body.scenes.find((s: any) => s.name === 'hall')
+  expect(hall).toMatchObject({ ui: 'games/arcade/hall.scene.json', defs: 'games/arcade/assets/cards.json', engine: { width: 640, height: 360 }, store: { volume: 1 } })
+  expect(hall.world.ui.styles.name).toEqual({ fontFamily: 'system-ui', fontSize: 40 })
+  const lobby = r.body.scenes.find((s: any) => s.name === 'lobby')
+  expect(lobby).toMatchObject({ ui: 'games/arcade/arcade.scene.json', defs: null })
+  expect((await json('/api/ui/range')).body).toEqual({ screens: null, scenes: [] })
+  expect((await json('/api/ui/nowhere')).status).toBe(404)
+})
+
+test('the UI\'s edits written in place into the ui file and the definitions, the rest byte for byte, and refused out of shape', async () => {
+  const hallFile = path.join(root, 'games/arcade/hall.scene.json'), cardsFile = path.join(root, 'games/arcade/assets/cards.json')
+  const hallWas = fs.readFileSync(hallFile, 'utf8'), cardsWas = fs.readFileSync(cardsFile, 'utf8')
+  const r = await post('/api/ui/arcade', { edits: [
+    { file: 'games/arcade/hall.scene.json', path: ['world', 'ui', 'styles', 'name', 'fontSize'], value: 56 },
+    { file: 'games/arcade/hall.scene.json', path: ['world', 'ui', 'styles', 'name', 'letterSpacing'], value: 2 },
+    { file: 'games/arcade/assets/cards.json', path: ['title', 'name', 'at'], value: [320, 100] },
+  ] })
+  expect(r).toEqual({ status: 200, body: { written: ['games/arcade/hall.scene.json', 'games/arcade/assets/cards.json'] } })
+  expect(fs.readFileSync(hallFile, 'utf8')).toBe(hallWas.replace('"fontSize": 40 }', '"fontSize": 56, "letterSpacing": 2 }'))
+  expect(fs.readFileSync(cardsFile, 'utf8')).toBe(cardsWas.replace('[320, 120]', '[320, 100]'))
+  // The same values again write nothing.
+  expect((await post('/api/ui/arcade', { edits: [{ file: 'games/arcade/assets/cards.json', path: ['title', 'name', 'at'], value: [320, 100] }] })).body).toEqual({ written: [] })
+  // A file the game's ui does not name, a bad path, an edit that fails: refused, and nothing written.
+  const before = fs.readFileSync(hallFile, 'utf8')
+  expect((await post('/api/ui/arcade', { edits: [{ file: 'games/arcade/lobby.scene.json', path: ['world'], value: 1 }] })).status).toBe(400)
+  expect((await post('/api/ui/arcade', { edits: [{ file: 'games/arcade/hall.scene.json', path: [], value: 1 }] })).status).toBe(400)
+  expect((await post('/api/ui/arcade', { edits: [
+    { file: 'games/arcade/hall.scene.json', path: ['world', 'ui', 'styles', 'name', 'fontSize'], value: 70 },
+    { file: 'games/arcade/hall.scene.json', path: ['world', 'ui', 'styles', 'name', 'fontSize', 'deeper'], value: 1 },
+  ] })).status).toBe(400)
+  expect(fs.readFileSync(hallFile, 'utf8')).toBe(before)
+  expect((await post('/api/ui/arcade', { edits: [] })).status).toBe(400)
+})
+
+test('the UI workshop\'s page is served', async () => {
+  write('tools/workshop/ui.html', '<!doctype html><title>UI workshop</title>')
+  expect((await get('/ui')).body).toContain('UI workshop')
+})
+
+test('a game\'s particles: each effects file once, the scenes that name it, and the stage of the first, its catalogue cut to the sheets', async () => {
+  const r = await json('/api/particles/fireworks')
+  expect(r.status).toBe(200)
+  expect(r.body.files).toHaveLength(1)
+  const [f] = r.body.files
+  expect(f).toMatchObject({
+    file: 'games/fireworks/assets/effects.json', key: 'fx', scenes: ['show', 'yard'],
+    plugins: ['particle3d', 'lights3d', 'render3d'], render3d: { tone: 'neutral', bloom: { strength: 1 } }, dt: 0.02,
+  })
+  expect(f.effects.effects.pop).toEqual([{ n: [10, 20], life: [0.5, 1], speed: [2, 4] }])
+  expect(f.world).toEqual({
+    particle3d: { effects: 'fx', hold: 0.1 },
+    loader: { assets: { puff: { type: 'sheet', url: '/games/fireworks/assets/puff.json' } } },
+    lights3d: { grid: [8, 4], slices: 8 },
+  })
+  expect((await json('/api/particles/range')).body).toEqual({ files: [] })
+  expect((await json('/api/particles/nowhere')).status).toBe(404)
+})
+
+test('an effect\'s layers saved in place into the effects file, the rest byte for byte, a new effect added, and refused when particle3d would refuse it', async () => {
+  const file = path.join(root, 'games/fireworks/assets/effects.json')
+  const was = fs.readFileSync(file, 'utf8')
+  const pop = [{ n: [30, 40], life: [0.5, 1], speed: [2, 4], swirl: 3, axis: [0, 0, 1] }]
+  const r = await post('/api/particles/fireworks', { file: 'games/fireworks/assets/effects.json', effects: { pop } })
+  expect(r).toEqual({ status: 200, body: { written: true } })
+  const now = fs.readFileSync(file, 'utf8')
+  expect(JSON.parse(now).effects.pop).toEqual(pop)
+  // smoke's lines as they were, byte for byte
+  expect(now.slice(now.indexOf('"smoke"'))).toBe(was.slice(was.indexOf('"smoke"')))
+  expect(now.startsWith('{\n  "cap": 500,\n  "effects": {\n')).toBe(true)
+  // the same again writes nothing
+  expect((await post('/api/particles/fireworks', { file: 'games/fireworks/assets/effects.json', effects: { pop } })).body).toEqual({ written: false })
+  // a new effect is added after the rest
+  expect((await post('/api/particles/fireworks', { file: 'games/fireworks/assets/effects.json', effects: { rift: [{ lasts: true, swirl: -2 }] } })).body).toEqual({ written: true })
+  expect(Object.keys(JSON.parse(fs.readFileSync(file, 'utf8')).effects)).toEqual(['pop', 'smoke', 'rift'])
+  const before = fs.readFileSync(file, 'utf8')
+  // refused, and nothing written: a field particle3d does not know, a layer with both a life and lasts,
+  // an axis of no length, a file the game does not name, and no effects
+  for (const effects of [{ pop: [{ life: [1, 1], wobble: 1 }] }, { pop: [{ life: [1, 1], lasts: true }] }, { pop: [{ life: [1, 1], swirl: 1, axis: [0, 0, 0] }] }, { pop: [1] }]) {
+    expect((await post('/api/particles/fireworks', { file: 'games/fireworks/assets/effects.json', effects })).status).toBe(400)
+  }
+  expect((await post('/api/particles/fireworks', { file: 'games/fireworks/show.scene.json', effects: { pop } })).status).toBe(400)
+  expect((await post('/api/particles/fireworks', { file: 'games/fireworks/assets/effects.json', effects: {} })).status).toBe(400)
+  expect(fs.readFileSync(file, 'utf8')).toBe(before)
+  fs.writeFileSync(file, was)
+})
+
+test('the particle workshop\'s page is served', async () => {
+  write('tools/workshop/particles.html', '<!doctype html><title>Particle workshop</title>')
+  expect((await get('/particles')).body).toContain('Particle workshop')
 })
 
 test('a file of a game written is sent as changed, once, 150 ms after its last write', async () => {

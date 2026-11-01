@@ -7,7 +7,7 @@
 import { expect, test } from 'vitest'
 import { boot, type Row, type Scene, type W } from '#engine/engine.ts'
 import { loader, written } from '#plugins/loader/loader.sim.ts'
-import { animate, at, clipOf, committed, gesture, momentOf, play, readsOf, rest, rigOf, roleOf, stop, type Measure, type Numbers, type Rig } from './anim.sim.ts'
+import { animate, at, clipOf, committed, gesture, momentOf, play, pose, readsOf, rest, rigOf, roleOf, stop, type Measure, type Numbers, type Rig } from './anim.sim.ts'
 
 // A table row: `path(u)` is [fwd, left, yawDeg] at u = t/dur, sampled every tenth and at dur.
 function measure(dur: number, path: (u: number) => number[], more: Partial<Measure> = {}): Measure {
@@ -86,6 +86,27 @@ function world(body: Record<string, unknown> = {}, rig: Rig = RIG, numbers: Numb
   return { w, row, d: row.data, step: (dt = 1 / 60) => animate(row, w, dt) }
 }
 const DEG = Math.PI / 180
+
+test('a pose is its clip held at its frame: the playhead at its time, not moving, holding, faded into as a clip is', () => {
+  const rig = { ...RIG, poses: { lean: { clip: 'strike', frame: 15, at: 0.5 }, crouch: { clip: 'strike', frame: 3, at: 0.1 } } }
+  const { w, row, d, step } = world({}, rig)
+  step()
+  step()
+  pose(row, w, 'lean')
+  expect([d.clip, d.clipT, d.rate, d.state, d.holds, committed(row)]).toEqual(['strike', 0.5, 0, 'act', true, true])
+  // Faded into from the clip it had, frozen where it stood.
+  expect([d.from, d.blend]).toEqual(['idle', 0])
+  for (let i = 0; i < 120; i++) step()
+  expect([d.clip, d.clipT, d.state, d.blend]).toEqual(['strike', 0.5, 'act', 1])
+  // A pose of the same clip fades from the one before it, at its own time.
+  pose(row, w, 'crouch')
+  expect([d.clip, d.clipT, d.from, d.fromT, d.blend]).toEqual(['strike', 0.1, 'strike', 0.5, 0])
+  // `stop` lets it go, back to the gears.
+  stop(row, w)
+  step()
+  expect([d.state, d.clip]).toEqual(['loco', 'idle'])
+  expect(() => pose(row, w, 'dab')).toThrow('anim: body\'s rig has no pose dab')
+})
 
 test('a row that gives no anim fields stands in the first stance\'s still role, at full weight', () => {
   const { d, step } = world()
@@ -405,6 +426,38 @@ test('leaving the ground rising plays leap faster than leap over the ground, jum
   expect(j.clip).toBe('fall')
   expect(j.from).toBe('jump')
   expect(j.state).toBe('fall')
+})
+
+test('a kind with falls plays on through a short drop, and up its bands, never down, through a long one', () => {
+  const FALLS: Numbers = { ...ANIM, kinds: { body: { ...ANIM.kinds.body, falls: [{ above: 4.3, role: 'fall' }, { above: 9, role: 'dash' }] } } }
+  const { d, step } = world({ vel: [0, 0, 1.5] }, RIG, FALLS)
+  step()
+  // A step down a stair: in the air, falling at most 4.2 m/s, it walks on, and lands walking.
+  d.grounded = false
+  for (const v of [1, 3, 4.2]) {
+    d.vel = [0, -v, 1.5]
+    step()
+    expect([d.state, d.clip]).toEqual(['loco', 'walk'])
+  }
+  d.grounded = true
+  d.vel = [0, 0, 1.5]
+  step()
+  expect([d.state, d.clip, d.band]).toEqual(['loco', 'walk', -1])
+  // Off a ledge: past 4.3 it falls, past 9 it plays the next band, and slowing never takes it back.
+  d.grounded = false
+  d.vel = [0, -5, 1.5]
+  step()
+  expect([d.state, d.clip, d.band]).toEqual(['fall', 'fall', 0])
+  d.vel = [0, -10, 1.5]
+  step()
+  expect([d.clip, d.band]).toEqual(['dash', 1])
+  d.vel = [0, -5, 1.5]
+  step()
+  expect([d.clip, d.band]).toEqual(['dash', 1])
+  d.grounded = true
+  d.vel = [0, 0, 1.5]
+  step()
+  expect([d.state, d.clip, d.band]).toEqual(['loco', 'walk', -1])
 })
 
 test('airborne overrides an act and drops the gesture as `was`', () => {

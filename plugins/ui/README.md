@@ -31,7 +31,9 @@ gives its own) holds:
 runs the first time, the same object comes back after, and a frame nobody shows it destroys it.
 `show` is the only way onto a panel. `panel(name)` is the container, `boundsArea` its size.
 
-**Pieces.** `button(options)` (a menu button drawn alike everywhere, with focus fill), `bar(options)`
+**Pieces.** `button(options)` (a menu button drawn alike everywhere, with focus fill; `bitmap`
+draws its label as a `BitmapText`, and `baselineOffset`, 0 when left out, is pixels added to the
+label's y, down positive, for a font that draws its words high or low in the button), `bar(options)`
 (fills to a fraction: health, progress), `iris(options)` (a circle a screen change closes on a point,
 cut a pixel row at a time as a SNES did), and `PIXI` itself.
 
@@ -53,7 +55,20 @@ put up stays until a row takes it down.
 game, handing back `{ canvas, box }` for a 3D renderer to use as a texture: a screen in a cockpit.
 
 `hit(x, y)`, `took(e)`, `keyDown(key)` and `keyUp(key)` are how the player plugin asks the UI first.
-Everything on the stage is drawn between steps, so a dial turned from a row turns smoothly. A client
+Everything on the stage is drawn between steps, so a dial turned from a row turns smoothly. A frame
+draws a moment before the newest step, so a thing first shown on the newest step is not drawn until
+the clock reaches it, and a thing nobody showed on the newest step is drawn, where it was last set,
+until the clock reaches that step, and destroyed then: a screen handed from one thing to another on
+one step, a cover to a cutscene's veil, draws one or the other on every frame.
+
+**Fonts and the first frame.** A style's `fontFamily` names a font the page has, or a `font` entry of
+the loader's catalogue. The UI draws nothing, its canvas still hidden, until the loader says every
+font has landed or failed, so no text is drawn in a stand-in font and kept in it. In a scene that
+names render3d, the UI covers the world in black (`ui.cover` in render3d's overlay) from its first
+tick until the frame it first draws, so the world never shows bare before the HUD's own cover or
+veil is up.
+
+A client
 with no page shows, destroys, places and hit-tests the same and draws nothing, so HUDs are tested in
 node; no layout measures text, so columns are numbers in the scene file.
 
@@ -75,7 +90,8 @@ node; no layout measures text, so columns are numbers in the scene file.
 
 - **player**: asks the UI first for every click and key; lets go of the game's keys under a modal.
 - **render2d** / **render3d**: the canvas it lies over, its `size` and `scale`, and `project`.
-- **loader**: images and bitmap fonts with `for: "ui"`.
+- **loader**: images and bitmap fonts with `for: "ui"`, and `font` entries, which it waits on
+  before it draws.
 - **chat**, **party**, **cutscene**: draw on its panels with its styles.
 - **store**: the settings menus write.
 - **renderdom** is the HTML layer.

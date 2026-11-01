@@ -33,7 +33,9 @@ Keys are named by their place on the keyboard (`a`, `1`, `' '`, `Shift`, `ArrowL
 same four keys under the left hand on every layout. Mouse buttons are `Mouse0`, `Mouse1`, `Mouse2`.
 Gamepad buttons are `Pad0` to `Pad16` in the standard mapping (A/cross, B/circle, X/square,
 Y/triangle, shoulders, triggers, select, start, sticks, d-pad, home); the sticks are
-`PadStickLeft/Right/Up/Down` and `PadRightStickLeft/Right/Up/Down` past `world.player.deadzone`.
+`PadStickLeft/Right/Up/Down` and `PadRightStickLeft/Right/Up/Down` past `world.player.deadzone`. A button is down only while the
+browser calls it pressed and its value is past `world.player.deadzone` too, so a trigger resting a
+little in is not down.
 `rumble({ strong, weak, seconds })` shakes the pad last used.
 
 The ui plugin is asked first: a click on the UI is the UI's, every key goes while a modal has the

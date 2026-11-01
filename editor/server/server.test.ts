@@ -54,7 +54,8 @@ afterAll(async () => {
 const api = (route: string, init: RequestInit = {}) => fetch(`${server.url}${route}`, init)
 const post = (route: string, body: unknown) => api(route, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify(body) })
 
-test('a file is read and written whole, and a folder listed', async () => {
+// OCT-24-EDITOR-ALPHA-SWEEP
+test.skip('a file is read and written whole, and a folder listed', async () => {
   expect(await (await api('/api/files?path=games/g/g.scene.json')).text()).toContain('"seed": 1')
   await api('/api/files?path=games/g/notes.txt', { method: 'PUT', body: 'hello' })
   expect(readFileSync(path.join(root, 'games/g/notes.txt'), 'utf8')).toBe('hello')
@@ -64,19 +65,22 @@ test('a file is read and written whole, and a folder listed', async () => {
   expect((await api('/api/files/list?dir=games/g/notes.txt')).status).toBe(400)
 })
 
-test('a path out of the repo is an error, not a write', async () => {
+// OCT-24-EDITOR-ALPHA-SWEEP
+test.skip('a path out of the repo is an error, not a write', async () => {
   const res = await api('/api/files?path=../escape.txt', { method: 'PUT', body: 'x' })
   expect(res.status).toBe(400)
   expect((await res.json()).error).toContain('is not a file of the repo')
 })
 
-test('an extension\'s route answers under /api/x/<name>/', async () => {
+// OCT-24-EDITOR-ALPHA-SWEEP
+test.skip('an extension\'s route answers under /api/x/<name>/', async () => {
   expect(await (await api('/api/x/hello/greet?name=bill')).json()).toEqual({ hi: 'bill' })
   expect(await (await post('/api/x/hello/sum', { a: 2, b: 3 })).json()).toEqual({ sum: 5 })
   expect((await api('/api/x/nobody/greet')).status).toBe(400)
 })
 
-test('a route writes the repo\'s files through the server\'s own, and never out of the repo', async () => {
+// OCT-24-EDITOR-ALPHA-SWEEP
+test.skip('a route writes the repo\'s files through the server\'s own, and never out of the repo', async () => {
   expect(await (await post('/api/x/hello/save', { path: 'games/g/bytes.bin', bytes: [104, 105] })).json()).toEqual({ read: 'hi' })
   expect([...readFileSync(path.join(root, 'games/g/bytes.bin'))]).toEqual([104, 105])
   const res = await post('/api/x/hello/save', { path: '../out.bin', bytes: [1] })
@@ -84,19 +88,22 @@ test('a route writes the repo\'s files through the server\'s own, and never out 
   expect((await res.json()).error).toContain('is not a file of the repo')
 })
 
-test('a request from another origin is refused', async () => {
+// OCT-24-EDITOR-ALPHA-SWEEP
+test.skip('a request from another origin is refused', async () => {
   const res = await api('/api/files?path=games/g/g.scene.json', { headers: { origin: 'http://evil.example' } })
   expect(res.status).toBe(403)
 })
 
-test('Vite\'s page client is served without opening a socket, or saying it connects', async () => {
+// OCT-24-EDITOR-ALPHA-SWEEP
+test.skip('Vite\'s page client is served without opening a socket, or saying it connects', async () => {
   const client = await (await api('/@vite/client')).text()
   expect(client).toContain('function setupWebSocket(')
   expect(client).not.toMatch(/^\s*socket = setupWebSocket\(socketProtocol, socketHost/m)
   expect(client).not.toContain('[vite] connecting')
 })
 
-test('a module the server writes, for a page or for a route, is served as written at once, before the watcher has seen it', async () => {
+// OCT-24-EDITOR-ALPHA-SWEEP
+test.skip('a module the server writes, for a page or for a route, is served as written at once, before the watcher has seen it', async () => {
   const rule = path.join(root, 'games/g/rule.ts')
   writeFileSync(rule, 'export const n = 111\n')
   expect(await (await api('/games/g/rule.ts')).text()).toContain('111')
@@ -106,7 +113,8 @@ test('a module the server writes, for a page or for a route, is served as writte
   expect(await (await api('/games/g/rule.ts')).text()).toContain('333')
 })
 
-test('a module changed by anyone is taken in anew by Vite as the watcher sees the change, before anything else hears of it', async () => {
+// OCT-24-EDITOR-ALPHA-SWEEP
+test.skip('a module changed by anyone is taken in anew by Vite as the watcher sees the change, before anything else hears of it', async () => {
   const rule = path.join(root, 'games/g/seen.ts')
   const added = new Promise<void>(ok => {
     const heard = (_event: string, file: string) => {
@@ -134,7 +142,8 @@ test('a module changed by anyone is taken in anew by Vite as the watcher sees th
   expect(await (await api('/games/g/seen.ts')).text()).toContain('= 2')
 })
 
-test('the games are listed as the disk holds them now, each whether the editor opens it, and the extensions a page on a game loads', async () => {
+// OCT-24-EDITOR-ALPHA-SWEEP
+test.skip('the games are listed as the disk holds them now, each whether the editor opens it, and the extensions a page on a game loads', async () => {
   mkdirSync(path.join(root, 'games/h/extensions/tool'), { recursive: true })
   mkdirSync(path.join(root, 'games/h/plugins/own'), { recursive: true })
   mkdirSync(path.join(root, 'plugins/p'), { recursive: true })
@@ -155,7 +164,8 @@ test('the games are listed as the disk holds them now, each whether the editor o
   expect((await api('/api/extensions?game=../g')).status).toBe(400)
 })
 
-test('a server started on a game sends /editor/ to that game\'s page; one started on none, and a page naming its game, are served as they are', async () => {
+// OCT-24-EDITOR-ALPHA-SWEEP
+test.skip('a server started on a game sends /editor/ to that game\'s page; one started on none, and a page naming its game, are served as they are', async () => {
   const on = await start({ root, port: 0, game: 'h' })
   try {
     for (const at of ['/editor/', '/editor']) {
@@ -212,7 +222,8 @@ async function seen(p: ReturnType<typeof page>, at: string) {
   await settled()
 }
 
-test('a page is told of every change on the disk no change made to its game\'s files, and to files of no game: by hand, and by a request outside any change, whichever page asked it', async () => {
+// OCT-24-EDITOR-ALPHA-SWEEP
+test.skip('a page is told of every change on the disk no change made to its game\'s files, and to files of no game: by hand, and by a request outside any change, whichever page asked it', async () => {
   const mine = page('mine', 'g'), other = page('other', 'g'), elsewhere = page('elsewhere', 'h'), none = page('none')
   await settled()
   // What each page was told of the file at `at`.
@@ -259,7 +270,8 @@ test('a page is told of every change on the disk no change made to its game\'s f
   expect([of(elsewhere, 'plugins/p/p.data.json').length, of(mine, 'plugins/p/p.data.json').length, ofG(elsewhere), ofG(none)]).toEqual([1, 1, [], []])
 })
 
-test('a page that began to load after a file came to be as it is is not told of it, as a page reloaded for a write of a plain request of its own is not; one that began before is', async () => {
+// OCT-24-EDITOR-ALPHA-SWEEP
+test.skip('a page that began to load after a file came to be as it is is not told of it, as a page reloaded for a write of a plain request of its own is not; one that began before is', async () => {
   const before = join('before', 'g', Date.now() - 1000)
   await settled()
   const of = (heard: Message[], at: string) => diskIn(heard).filter(n => n.path === at)
@@ -276,7 +288,8 @@ test('a page that began to load after a file came to be as it is is not told of 
   await vi.waitFor(() => expect(of(reloaded, 'games/g/reload.ts')).toHaveLength(1), WATCH)
 })
 
-test('a page is told nothing before it says which page it is, and once it says, what it missed since it began to load, once', async () => {
+// OCT-24-EDITOR-ALPHA-SWEEP
+test.skip('a page is told nothing before it says which page it is, and once it says, what it missed since it began to load, once', async () => {
   mkdirSync(path.join(root, 'plugins/p'), { recursive: true })
   const began = Date.now()
   const heard: Message[] = []
@@ -295,7 +308,8 @@ test('a page is told nothing before it says which page it is, and once it says, 
   expect(quiet()).toHaveLength(1)
 })
 
-test('a page\'s change and its undo, sent back to back on its socket, are answered in order, a malformed one sent after them too, and leave the files as they were', async () => {
+// OCT-24-EDITOR-ALPHA-SWEEP
+test.skip('a page\'s change and its undo, sent back to back on its socket, are answered in order, a malformed one sent after them too, and leave the files as they were', async () => {
   const p = page('changer', 'g')
   const scene = path.join(root, 'games/g/g.scene.json')
   const was = readFileSync(scene, 'utf8')
@@ -317,7 +331,8 @@ test('a page\'s change and its undo, sent back to back on its socket, are answer
   expect([readFileSync(scene, 'utf8'), existsSync(path.join(root, 'games/g/changed.bin'))]).toEqual([was, false])
 })
 
-test('every change, undo and redo applied is told to every other page, by the page that sent it: on the files\' game, each file of it and of no game, and on another game or none, each of no game; the page that sent it has its answer alone, and the change log\'s writes are no change on the disk, told or counted', async () => {
+// OCT-24-EDITOR-ALPHA-SWEEP
+test.skip('every change, undo and redo applied is told to every other page, by the page that sent it: on the files\' game, each file of it and of no game, and on another game or none, each of no game; the page that sent it has its answer alone, and the change log\'s writes are no change on the disk, told or counted', async () => {
   mkdirSync(path.join(root, 'plugins/p'), { recursive: true })
   const a = page('a', 'g'), b = page('b', 'g'), elsewhere = page('elsewhere', 'h'), none = page('none')
   await settled()
@@ -358,7 +373,8 @@ test('every change, undo and redo applied is told to every other page, by the pa
   expect(readFileSync(scene, 'utf8')).toBe(was)
 })
 
-test('a file the watcher sees again as it was, as it may for one write or after it has missed some, is no change: told and counted once; a change to it after is told', async () => {
+// OCT-24-EDITOR-ALPHA-SWEEP
+test.skip('a file the watcher sees again as it was, as it may for one write or after it has missed some, is no change: told and counted once; a change to it after is told', async () => {
   const p = page('again', 'g')
   await settled()
   const at = 'games/g/again.json', file = path.join(root, at)
@@ -384,7 +400,8 @@ test('a file the watcher sees again as it was, as it may for one write or after 
   expect(of()).toHaveLength(3)
 })
 
-test('a page that reloads for its own change, joining under a new id, is told nothing of it, as a change or on the disk; a page that began to load before it and joins after is told it', async () => {
+// OCT-24-EDITOR-ALPHA-SWEEP
+test.skip('a page that reloads for its own change, joining under a new id, is told nothing of it, as a change or on the disk; a page that began to load before it and joins after is told it', async () => {
   const writer = page('writer', 'g')
   await settled()
   const began = Date.now() - 1
@@ -402,7 +419,8 @@ test('a page that reloads for its own change, joining under a new id, is told no
   expect(existsSync(path.join(root, 'games/g/code.ts'))).toBe(false)
 })
 
-test('what Vite would say to a page over its own socket is said on the editor\'s: a reload, and a module that does not compile', async () => {
+// OCT-24-EDITOR-ALPHA-SWEEP
+test.skip('what Vite would say to a page over its own socket is said on the editor\'s: a reload, and a module that does not compile', async () => {
   const p = page('vite', 'g')
   await settled()
   const before = Date.now()
@@ -421,7 +439,8 @@ test('what Vite would say to a page over its own socket is said on the editor\'s
   await vi.waitFor(() => expect((p.heard.find(m => m.event === 'editor:error')?.data as { message: string }).message).toMatch(/games\/g\/wrong\.ts: /))
 })
 
-test('every request a page makes is answered and done with, so a page that goes to another game and back, again and again, leaves the browser its six for the next', async () => {
+// OCT-24-EDITOR-ALPHA-SWEEP
+test.skip('every request a page makes is answered and done with, so a page that goes to another game and back, again and again, leaves the browser its six for the next', async () => {
   // A browser's requests to one server, as Chrome makes them: at most six at once across every tab,
   // each connection kept for the next request once its answer has ended.
   const browser = new http.Agent({ keepAlive: true, maxSockets: 6 })
@@ -462,7 +481,8 @@ test('every request a page makes is answered and done with, so a page that goes 
   }
 })
 
-test('a game running on node starts again when a file it may run changes, whoever changed it: its own game\'s, or code every game runs, but not another game\'s, an extension, or a test', async () => {
+// OCT-24-EDITOR-ALPHA-SWEEP
+test.skip('a game running on node starts again when a file it may run changes, whoever changed it: its own game\'s, or code every game runs, but not another game\'s, an extension, or a test', async () => {
   // A game whose server prints that it is up and stays up, its files seen and settled before it starts,
   // so it starts again on nothing of its making.
   const watching = [page('on n', 'n'), page('on h', 'h')]

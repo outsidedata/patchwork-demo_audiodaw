@@ -23,6 +23,8 @@ const file: Effects = {
     late: [{ sheet: 'puff', clip: 'tail', life: [0.4, 0.4] }],
     spray: [{ n: [3, 5], life: [0.5, 0.9], speed: [1, 3], g: 9.8, drag: 0.5, spin: 2, jitter: [0.1, 0.1, 0.1], size: [0.5, 1.5] }],
     hose: [{ every: 0.05, life: [0.075, 0.075] }],
+    drip: [{ every: 0.1, life: [10, 10] }],
+    climb: [{ every: 0.05, life: [1, 1], dir: [0, 1, 0], spread: 0, speed: [1, 1] }],
     blood: [{ life: [2, 2], dir: [0, 1, 0], spread: 0, speed: [2, 2], g: 38.3, origin: [0.5, 1] }],
     cool: [{ life: [1, 1], tint: 0xffffff, tint1: 0x000000, a0: 1, a1: 0 }, { life: [1, 1] }],
     pop: [{ life: [0.7, 0.7], a0: 1, a1: 0, fade: 0.25 }],
@@ -163,6 +165,57 @@ test('a lit layer\'s every particle carries a point light where it is drawn, of 
   expect(plugins.render3d.scene.children.filter((o: any) => o.isPointLight)).toEqual([])
 })
 
+test('a swirling particle is carried round the point it was thrown from about its axis, its way of going turned with it; with no axis it turns about its dir, then straight up', () => {
+  const { me, frame, own, plugins } = page()
+  const mine = own()
+  // Thrown 1 m off the point along x, standing still, a quarter turn a second about +y: after one second
+  // it stands 1 m off along −z (the right-hand way about +y carries +x to −z).
+  mine.effects.orbit = [{ life: [2, 2], box: [1, 0, 0, 1, 0, 0], swirl: Math.PI / 2, axis: [0, 1, 0] }]
+  me.emit('orbit', [5, 0, 0])
+  frame()
+  for (let f = 0; f < 60; f++) frame()
+  const [q] = quads(plugins)
+  expect(q.centre[0]).toBeCloseTo(5, 3)
+  expect(q.centre[1]).toBeCloseTo(0, 6)
+  expect(q.centre[2]).toBeCloseTo(-1, 3)
+  me.close(plugins)
+
+  // Thrown out along +x at 1 m/s with half a turn a second about +z: its way of going turns with it, so
+  // it runs out along an arm that turns, a spiral. A second on, it is 1 m out and half a turn round,
+  // along −x; half a second on, 0.5 m out a quarter turn round, along +y; never off the z = 0 plane.
+  const arm = (frames: number) => {
+    const round = page()
+    round.own().effects.arm = [{ life: [3, 3], dir: [1, 0, 0], spread: 0, speed: [1, 1], swirl: Math.PI, axis: [0, 0, 1] }]
+    round.me.emit('arm', [0, 0, 0])
+    round.frame()
+    for (let f = 0; f < frames; f++) round.frame()
+    return quads(round.plugins)[0].centre
+  }
+  const half = arm(30), whole = arm(60)
+  expect(half[0]).toBeCloseTo(0, 4)
+  expect(half[1]).toBeCloseTo(0.5, 4)
+  expect(whole[0]).toBeCloseTo(-1, 4)
+  expect(whole[1]).toBeCloseTo(0, 4)
+  expect(half[2]).toBeCloseTo(0, 6)
+  expect(whole[2]).toBeCloseTo(0, 6)
+
+  // No axis: about the layer's dir, here +z, so a particle off along +x goes to +y.
+  const bydir = page()
+  bydir.own().effects.spin = [{ life: [2, 2], box: [1, 0, 0, 1, 0, 0], dir: [0, 0, 1], spread: 0, swirl: Math.PI / 2 }]
+  bydir.me.emit('spin', [0, 0, 0])
+  bydir.frame()
+  for (let f = 0; f < 60; f++) bydir.frame()
+  const [d] = quads(bydir.plugins)
+  expect(d.centre[0]).toBeCloseTo(0, 3)
+  expect(d.centre[1]).toBeCloseTo(1, 3)
+})
+
+test('an axis of no length throws, naming the layer', () => {
+  const p = page()
+  p.own().effects.flat = [{ life: [1, 1], swirl: 1, axis: [0, 0, 0] }]
+  expect(() => p.frame()).toThrow('particle3d effect flat layer 0 has an axis of no length, and particle3d swirls about a line')
+})
+
 test('a lit layer in a scene without lights3d throws, naming the effect; a light of the wrong shape throws, naming the layer', () => {
   const bare = page()
   bare.own().effects.glow = [{ life: [1, 1], light: { intensity: 1, distance: 1, decay: 2 } }]
@@ -236,6 +289,80 @@ test('the page follows a rule\'s entry while the row holds it; a page\'s own eff
   expect(me.count).toBeLessThanOrEqual(left)
   for (let f = 0; f < 10; f++) frame()
   expect(me.effects.includes(own)).toBe(false)
+})
+
+// drip bursts every 0.1 s and each particle lives 10 s, so the particles alive are the bursts thrown.
+test('a page\'s own effect handed back runs at rate 1, and its rate written runs its bursts that many times as often; at 0 it throws nothing new until it is written again', () => {
+  const run = (rate: number, frames: number) => {
+    const p = page()
+    const fx = p.me.emit('drip', [0, 0, 0], { life: Infinity })
+    expect(fx.rate).toBe(1)
+    fx.rate = rate
+    for (let f = 0; f < frames; f++) p.frame()
+    return { ...p, fx }
+  }
+  // 59 steps of age is 0.983 s: bursts at 0, 0.1, … 0.9 on the clock at rate 1, ten; at rate 3 the
+  // clock reads 2.95 s, bursts at 0 … 2.9, thirty.
+  expect(run(1, 60).me.count).toBe(10)
+  expect(run(3, 60).me.count).toBe(30)
+  expect(run(0.5, 60).me.count).toBe(5)
+  // At 0 only the burst at its start, and none while it stands; written back to 1 it goes on from
+  // where its clock stood.
+  const still = run(0, 60)
+  expect(still.me.count).toBe(1)
+  expect(still.me.effects.includes(still.fx)).toBe(true)
+  still.fx.rate = 1
+  for (let f = 0; f < 11; f++) still.frame()
+  expect(still.me.count).toBe(2)
+})
+
+test('a page\'s own effect handed back throws at force 1, and its force written throws each particle thrown from then on that many times as hard, along the same way; one already thrown keeps its speed', () => {
+  // rise throws one particle straight up at 1 m/s and lives 1 s; hose bursts every 0.05 s.
+  const height = (force: number) => {
+    const { plugins, me, frame } = page()
+    const fx = me.emit('rise', [0, 0, 0])
+    expect(fx.force).toBe(1)
+    fx.force = force
+    frame()
+    frame()
+    const [q] = quads(plugins)
+    return q.centre
+  }
+  // A step after it is thrown: up by the speed times the force times one step.
+  expect(height(1)[1]).toBeCloseTo(DT, 6)
+  expect(height(3)[1]).toBeCloseTo(3 * DT, 6)
+  expect(height(0)[1]).toBeCloseTo(0, 6)
+  for (const k of [0, 2]) expect(height(3)[k]).toBeCloseTo(0, 6)
+  // Written while it runs: the particle thrown before goes on at 1 m/s, the next at 2.
+  const { plugins, me, frame } = page()
+  const fx = me.emit('climb', [0, 0, 0], { life: 1 })
+  frame()
+  fx.force = 2
+  for (let f = 0; f < 3; f++) frame()
+  const ys = quads(plugins).map((q: any) => q.centre[1]).sort((a: number, b: number) => b - a)
+  // The first, thrown at 0 and 3 steps old at 1 m/s; the second, thrown at 0.05 s and aged 0 at 2 m/s.
+  expect(ys[0]).toBeCloseTo(3 * DT, 6)
+  expect(ys[1]).toBeCloseTo(0, 6)
+  for (let f = 0; f < 2; f++) frame()
+  const now = quads(plugins).map((q: any) => q.centre[1]).sort((a: number, b: number) => b - a)
+  expect(now[0]).toBeCloseTo(5 * DT, 6)
+  expect(now[1]).toBeCloseTo(2 * 2 * DT, 6)
+})
+
+test('a force that is not a finite number no less than 0 throws, naming the effect', () => {
+  for (const bad of [-1, NaN, Infinity]) {
+    const { me, frame } = page()
+    me.emit('rise', [0, 0, 0]).force = bad
+    expect(frame).toThrow(`particle3d effect rise has a force of ${bad}, and a force is a finite number no less than 0`)
+  }
+})
+
+test('a rate that is not a finite number no less than 0 throws, naming the effect', () => {
+  for (const bad of [-1, NaN, Infinity]) {
+    const { me, frame } = page()
+    me.emit('drip', [0, 0, 0], { life: 1 }).rate = bad
+    expect(frame).toThrow(`particle3d effect drip has a rate of ${bad}, and a rate is a finite number no less than 0`)
+  }
 })
 
 test('a clip\'s frames play evenly over a particle\'s life, each its box / ppm metres cut from its page; nothing of it is drawn before its sheet lands', () => {

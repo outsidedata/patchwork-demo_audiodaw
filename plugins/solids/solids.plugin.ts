@@ -7,13 +7,19 @@
 //     from its model, standing at the row's `pos` on the ground and facing its `yaw`.
 // Its numbers are the scene's `world.solids`, which a scene that draws no row of its own leaves out:
 //   kinds   `{ <kind>: <model> }`: each row of the kind is drawn from the model, a `json` entry of the
-//           scene's loader catalogue, read with the loader's `json`.
+//           scene's loader catalogue, read with the loader's `json`; left out, none.
+// More models come from the plugins `world.solids.mods.models` names, each exporting `models(plugins)`,
+// `{ <kind>: <model> }`, the model itself, laid over `kinds` in the list's order: a kind one hands a
+// model for is drawn from it in place of the one `kinds` names, and a later one's takes the place of
+// an earlier one's (`plugins/shapes3d`'s plain shapes).
 // A model stands on the land a mod hands it, `world.solids.mods: { land: '<a>' }` (terrain3d's,
 // `terrain3d.solids.ts`): `land(plugins)` is an object whose `height(x, z)` is the ground there, or
 // undefined until it has one; until then, or with no mod named, it stands at the row's own height.
 // The plugin the mod is is listed before this one, so the land it asks in its `afterTick` is this
 // frame's, and a scene that lists it after, or does not list it, throws (`ahead`).
-// A row is read for its `pos` [x, y, z] and `yaw`, and nothing else. A drawn model is `paints`,
+// A row is read for its `pos` [x, y, z] and its turn, and nothing else: its `rot` [x, y, z, w], a unit
+// quaternion, where it carries one (shapes3d's hyperplanes), else its `yaw` about up; its model's whole
+// turn is set from it every frame, since render3d turns it between the steps by its quaternion. A drawn model is `paints`,
 // `nodes` `{ <name>: { parent?, at, turn?, mirror? } }`, the frames its parts hang in, listed parent
 // first: each `at` metres from its parent's origin (the row's `pos` for a node with none), turned by
 // its `turn` [rx, ry] about x and then about y in its parent's frame, its x flipped when `mirror` is
@@ -34,21 +40,30 @@
 // does not matter. `triangles` fans every face into triangles wound so each one's normal points out:
 // a flat-shaded mesh of them shows every facet.
 //
-// Paints. A model's `paints` are `{ <name>: { colour, roughness?, metalness?, glow?, blink?, opacity? } }`: a
-// standard material, flat-shaded so every facet shows, dressed by render3d so the sky's light, wet
-// and snow reach it, with three's own roughness and metalness where the paint gives none. `glow` is
-// the emissive strength in the paint's own colour; `blink` `[hz, on]` lights it only the first `on`
-// of each of `hz` cycles a second, at the glow, or 1 where the paint gives none. `opacity` below 1
-// makes it see-through, glass: it lets that share of what is behind it through, writes no depth, so
-// what is behind it is drawn whatever order the two are drawn in, and casts no shadow, so light
-// comes through it.
+// Paints. A model's `paints` are `{ <name>: { colour, roughness?, metalness?, glow?, blink?, opacity?,
+// map?, scale? } }`: a standard material, flat-shaded so every facet shows, dressed by render3d so the
+// sky's light, wet and snow reach it, with three's own roughness and metalness where the paint gives
+// none. `glow` is the emissive strength in the paint's own colour; `blink` `[hz, on]` lights it only
+// the first `on` of each of `hz` cycles a second, at the glow, or 1 where the paint gives none.
+// `opacity` below 1 makes it see-through, glass: it lets that share of what is behind it through,
+// writes no depth, so what is behind it is drawn whatever order the two are drawn in, and casts no
+// shadow, so light comes through it. `map` names a texture entry of the scene's loader catalogue: the
+// picture laid on every face of every part in the paint, its `colour` tinting it, `scale` metres of a
+// face to one span of the picture, the same on every face whatever its size, so a checker's squares
+// are one size on a long wall and on a post. Each face takes the picture across the two axes of its
+// node's frame it lies most nearly along (`uvs`), upright and unmirrored as it is seen from outside;
+// an entry that repeats (`wrap: 'repeat'`) repeats it past one span. A paint with a `map` and no
+// `scale` throws, naming it.
 //
-// `meshes(THREE, dress, paints, parts, whose)` makes every part: one mesh for each node and paint,
-// every part of that node in that paint in it, casting and taking shadows, keyed by the node. It
-// throws naming `whose` for a paint `paints` does not hold. `materials` is each paint's material by
-// its name, for a caller that lights or darkens a paint as it draws; `owned` is every geometry and
-// material it made, for the caller to dispose; `blinks` each blinking paint's material, which `blink(blinks, now)`
-// lights or darkens as the page's clock `now`, in milliseconds, says.
+// `meshes(THREE, dress, paints, parts, whose, maps?)` makes every part: one mesh for each node and
+// paint, every part of that node in that paint in it, casting and taking shadows, keyed by the node.
+// A mesh whose paint has a `map` carries its faces' places on the picture; no other does. `maps(name)`
+// is the picture of a catalogue entry, decoded, which a caller whose paints name a `map` hands it. It
+// throws naming `whose` for a paint `paints` does not hold, and for a paint with a `map` when it is
+// handed no `maps`. `materials` is each paint's material by its name, for a caller that lights or
+// darkens a paint as it draws; `owned` is every geometry and material it made, for the caller to
+// dispose; `blinks` each blinking paint's material, which `blink(blinks, now)` lights or darkens as
+// the page's clock `now`, in milliseconds, says. The pictures are the loader's and are not owned.
 //
 // Lights. A model's `lights` are real lights, lighting whatever is round them, each hung in a node as
 // a part is: `[{ node, colour, intensity, at, distance?, decay?, spot?, shadow?, paint? }]`, a point
@@ -62,8 +77,13 @@
 // `lights(THREE, lights)` makes them, keyed by the node as `meshes` keys its meshes, each spot's aim a child of the
 // node beside it so it moves with it, and `owned` what it made, for the caller to dispose. A drawn
 // row whose model hangs a light from a node it does not list throws naming the model and the node.
+//
+// Pictures. A row whose model's paints name a `map` is drawn once the loader (`plugins.loader`) holds
+// every picture they name, which solids asks it for the first frame it meets them; until then the row
+// is not drawn. A `map` that names no texture entry of the catalogue throws, naming the model, the
+// paint and the entry.
 import type { Plugins } from '#engine/browser.ts'
-import { ahead, mod } from '#addons/scenemanager/scenemanager.addon.ts'
+import { ahead, mod, modsOf } from '#addons/scenemanager/scenemanager.addon.ts'
 import { json } from '#plugins/loader/loader.sim.ts'
 
 export type Axis = 'x' | 'y' | 'z'
@@ -73,7 +93,7 @@ export type Prism = { axis: Axis; from: number; to: number; at: number[]; r: num
 export type Part = { node: string; paint: string; loft?: Loft; prism?: Prism; frame?: Frame }
 export type Face = { ix: number[]; n: number[] }
 export type Solid = { v: number[][]; faces: Face[] }
-export type Paint = { colour: string; roughness?: number; metalness?: number; glow?: number; blink?: number[]; opacity?: number }
+export type Paint = { colour: string; roughness?: number; metalness?: number; glow?: number; blink?: number[]; opacity?: number; map?: string; scale?: number }
 export type Blink = { mat: any; paint: Paint }
 export type Lamp = {
   node: string
@@ -142,27 +162,55 @@ export function solid(part: Part): Solid {
   throw new Error(`a part of node ${part.node} is neither a loft nor a prism`)
 }
 
-// Every face fanned into triangles, as flat [x, y, z, …], each wound so its normal points out.
-export function triangles(s: Solid): number[] {
-  const out: number[] = []
+// Every face fanned into triangles, each wound so its normal points out, handed with the face's normal.
+function fans(s: Solid, each: (t: number[][], n: number[]) => void) {
   for (const f of s.faces) for (let i = 1; i < f.ix.length - 1; i++) {
     let t = [s.v[f.ix[0]], s.v[f.ix[i]], s.v[f.ix[i + 1]]]
     if (dot(cross(sub(t[1], t[0]), sub(t[2], t[0])), f.n) < 0) t = [t[0], t[2], t[1]]
-    for (const p of t) out.push(p[0], p[1], p[2])
+    each(t, f.n)
   }
+}
+
+// Every face fanned into triangles, as flat [x, y, z, …], each wound so its normal points out.
+export function triangles(s: Solid): number[] {
+  const out: number[] = []
+  fans(s, t => { for (const p of t) out.push(p[0], p[1], p[2]) })
   return out
 }
 
-export function meshes(THREE: any, dress: (m: any) => any, paints: Record<string, Paint>, parts: Part[], whose: string) {
+// Where each corner of `triangles`, in its order, lies on a picture one span of which is `scale`
+// metres, as flat [u, v, …]: a face's own across the two axes it lies most nearly along, upright and
+// unmirrored seen from outside it, u to the right and v up (on a floor or a roof, v toward −z).
+export function uvs(s: Solid, scale: number): number[] {
+  const out: number[] = []
+  fans(s, (t, n) => {
+    const [ax, ay, az] = n.map(Math.abs)
+    for (const [x, y, z] of t) {
+      if (ay >= ax && ay >= az) out.push(x / scale, (n[1] > 0 ? -z : z) / scale)
+      else if (ax >= az) out.push((n[0] > 0 ? -z : z) / scale, y / scale)
+      else out.push((n[2] > 0 ? x : -x) / scale, y / scale)
+    }
+  })
+  return out
+}
+
+export function meshes(THREE: any, dress: (m: any) => any, paints: Record<string, Paint>, parts: Part[], whose: string, maps?: (name: string) => any) {
   const owned: { dispose(): void }[] = [], blinks: Blink[] = []
   const mats = new Map<string, any>()
+  const paintOf = (name: string) => {
+    const p = paints[name]
+    if (!p) throw new Error(`${whose} has no paint ${name}`)
+    if (p.map !== undefined && !(Number.isFinite(p.scale) && p.scale! > 0)) throw new Error(`${whose}: paint ${name} lays the picture ${p.map}, and gives no scale above 0`)
+    if (p.map !== undefined && !maps) throw new Error(`${whose}: paint ${name} lays the picture ${p.map}, and meshes was handed no maps`)
+    return p
+  }
   const mat = (name: string) => {
     if (!mats.has(name)) {
-      const p = paints[name]
-      if (!p) throw new Error(`${whose} has no paint ${name}`)
+      const p = paintOf(name)
       const colour = new THREE.Color(p.colour)
       const made = dress(new THREE.MeshStandardMaterial({
         color: colour, flatShading: true,
+        ...(p.map === undefined ? {} : { map: maps!(p.map) }),
         ...(p.roughness === undefined ? {} : { roughness: p.roughness }),
         ...(p.metalness === undefined ? {} : { metalness: p.metalness }),
         ...(p.glow === undefined ? {} : { emissive: colour, emissiveIntensity: p.glow }),
@@ -174,18 +222,23 @@ export function meshes(THREE: any, dress: (m: any) => any, paints: Record<string
     }
     return mats.get(name)
   }
-  const batches = new Map<string, Map<string, number[]>>()
+  const batches = new Map<string, Map<string, { tris: number[]; uv?: number[] }>>()
   for (const part of parts) {
     if (!batches.has(part.node)) batches.set(part.node, new Map())
     const byPaint = batches.get(part.node)!
-    if (!byPaint.has(part.paint)) byPaint.set(part.paint, [])
-    byPaint.get(part.paint)!.push(...triangles(solid(part)))
+    const p = paintOf(part.paint)
+    if (!byPaint.has(part.paint)) byPaint.set(part.paint, { tris: [], ...(p.map === undefined ? {} : { uv: [] }) })
+    const batch = byPaint.get(part.paint)!
+    const s = solid(part)
+    batch.tris.push(...triangles(s))
+    batch.uv?.push(...uvs(s, p.scale!))
   }
   const made = new Map<string, any[]>()
   for (const [node, byPaint] of batches)
-    made.set(node, [...byPaint].map(([paint, tris]) => {
+    made.set(node, [...byPaint].map(([paint, { tris, uv }]) => {
       const geo = new THREE.BufferGeometry()
       geo.setAttribute('position', new THREE.Float32BufferAttribute(tris, 3))
+      if (uv) geo.setAttribute('uv', new THREE.Float32BufferAttribute(uv, 2))
       geo.computeVertexNormals()
       owned.push(geo)
       const out = new THREE.Mesh(geo, mat(paint))
@@ -235,14 +288,16 @@ export function blink(blinks: Blink[], now: number) {
 }
 
 type Node = { parent?: string; at: number[]; turn?: number[]; mirror?: boolean }
-type Model = { paints: Record<string, Paint>; nodes: Record<string, Node>; parts: Part[]; lights?: Lamp[] }
+export type Model = { paints: Record<string, Paint>; nodes: Record<string, Node>; parts: Part[]; lights?: Lamp[] }
 type Drawn = { kind: string; root: any; owned: { dispose(): void }[]; blinks: Blink[] }
-type Fixed = { kinds: Record<string, string> }
+type Fixed = { kinds?: Record<string, string> }
 type Land = (plugins: Plugins) => { height(x: number, z: number): number } | undefined
+type Models = (plugins: Plugins) => Record<string, Model>
 
 export function solids() {
   const drawn = new Map<number, Drawn>()
   const seen = new Map<string, string>()
+  const asked = new Set<string>()
 
   function make(plugins: Plugins, m: Model, kind: string): Drawn {
     const { THREE, scene, dress } = plugins.render3d
@@ -259,7 +314,7 @@ export function solids() {
       parent.add(o)
       nodes.set(name, o)
     }
-    const { meshes: made, owned, blinks } = meshes(THREE, dress, m.paints, m.parts, `solids: model of ${kind}`)
+    const { meshes: made, owned, blinks } = meshes(THREE, dress, m.paints, m.parts, `solids: model of ${kind}`, name => plugins.loader.get(name))
     for (const [node, list] of made) {
       if (!nodes.has(node)) throw new Error(`solids: a part of ${kind}'s model hangs from node ${node}, which the model does not list`)
       nodes.get(node).add(...list)
@@ -271,6 +326,20 @@ export function solids() {
     }
     scene.add(root)
     return { kind, root, owned: [...owned, ...lit.owned], blinks }
+  }
+
+  // Whether the loader holds every picture the model's paints lay, asking it for any it has not got.
+  function pictured(plugins: Plugins, m: Model, kind: string) {
+    let all = true
+    for (const [name, p] of Object.entries(m.paints)) {
+      if (p.map === undefined) continue
+      if (plugins.loader.catalogued(p.map)?.type !== 'texture') throw new Error(`solids: paint ${name} of ${kind}'s model lays ${p.map}, which is no texture entry of the loader's catalogue`)
+      if (plugins.loader.ready(p.map)) continue
+      all = false
+      // The loader writes a failure to the console once itself.
+      if (!asked.has(p.map)) { asked.add(p.map); plugins.loader.load(p.map).catch(() => {}) }
+    }
+    return all
   }
 
   function drop(id: number) {
@@ -293,23 +362,32 @@ export function solids() {
       const ground = mod<Land>(plugins.wire.scene.world!, 'solids', 'land')?.(plugins)
       const now = performance.now()
       const models = new Map<string, Model>()
-      for (const [kind, name] of Object.entries(k.kinds)) {
-        const m = json(plugins.wire, name) as Model
+      for (const [kind, name] of Object.entries(k.kinds ?? {})) models.set(kind, json(plugins.wire, name) as Model)
+      for (const given of modsOf<Models>(plugins.wire.scene.world!, 'solids', 'models')) {
+        for (const [kind, m] of Object.entries(given(plugins))) models.set(kind, m)
+      }
+      for (const [kind, m] of models) {
         const text = JSON.stringify(m)
         if (seen.has(kind) && seen.get(kind) !== text) for (const [id, d] of [...drawn]) if (d.kind === kind) drop(id)
         seen.set(kind, text)
-        models.set(kind, m)
       }
+      const ready = new Map<string, boolean>()
+      for (const [kind, m] of models) ready.set(kind, pictured(plugins, m, kind))
       const here = new Set<number>()
       for (const row of plugins.wire.rows) {
         const m = models.get(row.kind)
-        if (!m) continue
+        if (!m || !ready.get(row.kind)) continue
         here.add(row.id)
         if (!drawn.has(row.id)) drawn.set(row.id, make(plugins, m, row.kind))
         const d = drawn.get(row.id)!
         const [x, y, z] = row.data.pos as number[]
         d.root.position.set(x, ground?.height(x, z) ?? y, z)
-        d.root.rotation.y = row.data.yaw
+        // The whole turn: render3d turns the model between the steps by writing its quaternion, and
+        // three reads a turn past a quarter back as a half turn on x and z, so a model given its y
+        // alone would be drawn upside down.
+        const rot = row.data.rot as number[] | undefined
+        if (rot) d.root.quaternion.set(rot[0], rot[1], rot[2], rot[3])
+        else d.root.rotation.set(0, row.data.yaw, 0)
         blink(d.blinks, now)
         d.root.updateMatrixWorld(true)
       }
@@ -321,6 +399,7 @@ export function solids() {
     close() {
       for (const id of [...drawn.keys()]) drop(id)
       seen.clear()
+      asked.clear()
     },
   }
 }

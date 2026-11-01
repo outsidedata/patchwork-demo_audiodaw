@@ -1,11 +1,11 @@
 ---
 name: publishing-a-game
-description: Use in core, or any clone of it, when a finished game goes to other people or its repo is kept alongside core. That covers publishing, shipping, deploying, hosting, exporting, putting it online, a static host, GitHub Pages or itch.io, `vite build`, sharing it with friends, playing it from another machine or over the LAN, serving `index.html` or `client.html` outside the editor, and running `<game>.server.ts` for others (its port, TLS and `wss://`, what stops it). It also covers taking core's updates (`git fetch upstream`, a merge on a branch, `yarn install`, `yarn tsc`, the tests beside what changed), merge conflicts and a `yarn.lock` conflict, the `upstream` and `origin` remotes, and giving a plugin, an addon, an extension, a script or an edit to a core file back to core as a pull request from a fork.
+description: Use in core, or any clone of it, when a finished game goes to other people or its repo is kept alongside core. That covers publishing, shipping, deploying, hosting, exporting, putting it online, a static host, GitHub Pages or itch.io, `vite build`, sharing it with friends, playing it from another machine or over the LAN, serving `index.html` or `client.html`, and running `<game>.server.ts` for others (its port, TLS and `wss://`, what stops it). It also covers taking core's updates (`git fetch upstream`, a merge on a branch, `yarn install`, `yarn tsc`, the tests beside what changed), merge conflicts and a `yarn.lock` conflict, the `upstream` and `origin` remotes, and giving a plugin, an addon, a script or an edit to a core file back to core as a pull request from a fork.
 ---
 
 # Publishing a game
 
-A game made in core leaves the editor as the files `yarn new-game` wrote and the ones added since,
+A game made in core is the files `yarn new-game` wrote and the ones added since,
 in `games/<game>/`, inside a clone of core. This skill is how it gets to other people, how its repo
 keeps taking core's updates, and how what was built for it goes back to core. A line that would
 tell a game to add a guard, keep a layout, or never hand an addon a copy, so that core does not
@@ -25,13 +25,12 @@ It does not cover:
 - making the game and what each of its first files is for: `starting-a-game`.
 - which of the game's files are committed, its source and its baked art and never the raw parts the
   bake reads from the library: `committing-a-game`, before every commit of the game.
-- a kind's rules: `designing-a-kind`. An editor extension in general: `building-an-extension`.
-  Where anything new goes: `prime-directive`.
+- a kind's rules: `designing-a-kind`. Where anything new goes: `prime-directive`.
 
-## What a game is when it leaves the editor
+## What a game is
 
 Two ways to play, each a page that is the same in every game but for the file names it imports.
-`gameFiles` in `extensions/games/games.route.ts` writes both, and the header of
+`gameFiles` in `scripts/new-game.ts` writes both, and the header of
 `addons/scenemanager/scenemanager.addon.ts` says what each does:
 
 - `index.html`: the whole game in one tab over a loopback. The manager, every scene, every rule and
@@ -47,8 +46,7 @@ Two ways to play, each a page that is the same in every game but for the file na
   `world.predict`, so the page runs it ahead of the server and draws every row from its copy, on the
   frame after the key (`addons/predict/predict.addon.ts`). Without the wrap, or without `world.predict`, every press is
   drawn a round trip after the key. `yarn new-game`'s template still writes `client.html` with
-  `view(link(wire), …)` in place of `predict`; the editor that writes it is on hold, so a game's
-  `client.html` is put in the shape above, the line the same as every other game's, before it ships.
+  `view(link(wire), …)` in place of `predict`, so a game's `client.html` is put in the shape above, the line the same as every other game's, before it ships.
 
 Neither page is a bundle. Each is an inline module that imports `#engine/…` and `#addons/…`, names
 that `package.json`'s `imports` maps to the repo's folders. Of the game's own files, `index.html`
@@ -57,8 +55,7 @@ without an import attribute. Everything else the game is, the pages reach while 
 built at run time.
 
 A browser cannot do this by itself. It cannot resolve `#engine/engine.ts`, run a `.ts` file, or import
-a `.json` file without an import attribute. Vite's dev server does all three, and so does the editor's
-server, which holds a Vite.
+a `.json` file without an import attribute. Vite's dev server does all three.
 
 ## Which way out
 
@@ -66,14 +63,17 @@ server, which holds a Vite.
   repo, and node runs the server beside it. That is the next section, and it serves the whole repo to
   that network.
 - **Online**: `yarn publish_gh_pages_game <game>`, in Going online below.
+- **Any other static host**, itch.io among them: `yarn produce_static_site <game> [--base /<path>/]`
+  writes the one-tab game to `dist/`, its `index.html` at the site's root, its code one minified
+  bundle, and leaves out `dev.html`, `client.html`, every `.ts` and `.md`. `--base` is the path the
+  host serves it under, `/` at a host's root. How the site is laid out is the header of
+  `scripts/produce_static_site.ts`.
 
 ## Playing it from your machine
 
 1. **Prove the game where it stands.** Run `yarn tsc`, which checks every `.ts` and `.tsx` in the
    repo, the game's included (`tsconfig.json`). It does not check a page's inline script, because a
-   page is HTML. Run each test file of the game: `yarn vitest run <file>` for a `.test.ts` or
-   `.test.tsx`, and `yarn test:view <file>` for a `.view.test.tsx`, which `yarn vitest run` leaves out
-   (`vitest.workspace.ts`). That is the `<game>.sim.test.ts` that `yarn new-game` wrote,
+   page is HTML. Run each test file of the game: `yarn vitest run <file>`. That is the `<game>.sim.test.ts` that `yarn new-game` wrote,
    `<game>.server.test.ts` (`going-multiplayer`), `<game>.predict.test.ts`, which presses on pages run
    ahead over the network panel's bad wires and holds the seat's own `player` row to every press by the
    next frame (`designing-a-seat`, The proof), and every test beside what you wrote. Play
@@ -83,7 +83,7 @@ server, which holds a Vite.
 2. **Serve the pages**, from the repo root:
 
    ```
-   yarn vite --host --port <port> --strictPort
+   yarn dev --host --port <port> --strictPort
    ```
 
    Vite prints its `Local` and `Network` addresses. The pages are
@@ -94,11 +94,8 @@ server, which holds a Vite.
      read the repo, `dev.html` and every test included. Use it on a network whose people may.
    - Run it from the root, because a catalogue url is a path from the folder served.
    - Without `--host`, Vite answers on `localhost` alone and says `Network: use --host to expose`.
-   - Vite's default port, 5173, is the editor's. Give Vite a port of its own. `--strictPort` makes it
-     stop when that port is taken, so it never moves to another port without a word.
-   - `yarn editor <game>` serves both pages too, but its server listens on `localhost` alone
-     (`editor/server/server.ts`). At the network address it refused the connection. The editor is the
-     maker's tool, never the players' address.
+   - Give Vite a port of its own, apart from the 5173 a maker's `yarn dev` takes. `--strictPort`
+     makes it stop when that port is taken, so it never moves to another port without a word.
 
 3. **Run the server**, on the same machine, from the repo root:
 
@@ -114,8 +111,7 @@ server, which holds a Vite.
      machine. That port and Vite's must both be open to the players' machines.
    - On Node 22.22 it printed nothing while it ran. A Node 22 before 22.18 prints an
      `ExperimentalWarning` for type stripping as it starts. A throw prints its stack trace, and the
-     process ends (What stops the server, below). Nothing in core starts it again. The editor's Node
-     panel (`editor/server/servers.ts`) starts it again only when a file it runs changes.
+     process ends (What stops the server, below). Nothing in core starts it again.
    - The game `yarn new-game` writes takes one seat. A second player's page draws nothing: the socket
      closes with `1013 Error: no seat free: 1 declared`. Raising `seats` and adding a `start` actor per
      slot is `going-multiplayer`'s step 1.
@@ -210,7 +206,7 @@ Page). Shipping meets that rule here:
 Testbed). Vite's dev server serves it like every other file of the folder, so with `--host` anyone on
 the network can open it. It still never ships into anything else, and `yarn publish_gh_pages_game` never takes it.
 `index.html`, `client.html` and `<game>.server.ts` are written as if it did not exist. No scene file,
-rule, actor, plugin, addon, extension or test imports it, reads what it set, or asks whether it is
+rule, actor, plugin, addon or test imports it, reads what it set, or asks whether it is
 running. The game plays the same with it deleted. What it found out that the game needs is built in
 its home and reaches `index.html` through the files, never as a line copied out of `dev.html`. Before
 a game is handed out, nothing of the game but `dev.html` itself names `dev.html`.
@@ -226,11 +222,11 @@ From `README.md`: a game's repo is a clone of core made with
 
 Everything you change is a commit in your repo and is pushed to `origin`: the game, a new plugin, an
 edit to one of core's own files. Core's `.gitignore` names `node_modules`, `dist`, `.DS_Store`,
-`addons/simulator/runs`, `tools/dvr/out` and `__pycache__`, and not `games/`, so in a clone `games/<game>/` is
-committed like any other folder. Core's own checkout keeps `games/` out with a line in its
-`.git/info/exclude`, which no clone copies. Core ships no games: `git ls-files games` in core lists
-nothing. Of `games/<game>/`, only its source and its baked art are committed, never the raw parts
-its bake reads from the library: `committing-a-game`.
+`addons/simulator/runs`, `tools/dvr/out`, `benchmarks/`, `__pycache__`, `.env` and `games/`, and a
+clone copies it, so git sees nothing of `games/<game>/` until the `games/` line is taken out of your
+repo's `.gitignore`. Core ships no games: `git ls-files games` in core lists nothing. Of
+`games/<game>/`, only its source and its baked art are committed, never the raw parts its bake reads
+from the library: `committing-a-game`.
 
 ## Taking core's updates
 
@@ -242,9 +238,9 @@ its bake reads from the library: `committing-a-game`.
    - `yarn install`, since core may have changed `package.json`.
    - `yarn tsc`. It names every call in a `.ts` file that no longer matches what core changed.
    - The tests beside what core changed. `git diff --name-only master update-core` lists every file
-     the merge changed. Run the test beside each one with `yarn vitest run <file>`, or
-     `yarn test:view <file>` for a `.view.test.tsx`, then each test file of the game the same way.
-   - The pages. If `git diff master update-core -- extensions/games/games.route.ts
+     the merge changed. Run the test beside each one with `yarn vitest run <file>`, then each test
+     file of the game the same way.
+   - The pages. If `git diff master update-core -- scripts/new-game.ts
      addons/scenemanager/scenemanager.addon.ts` shows the pages changed, write every page `gameFiles`
      now writes into the game again in the shape it now writes, with the game's names: each of them,
      a page core added included, not only the ones the game had, `client.html` keeping `predict`
@@ -267,31 +263,22 @@ lines never touched. Step 4 finds it.
 
 ## Giving back
 
-What was built in a top-level home for a game, and is worth having in core, goes to core as a pull
-request from a fork of core on GitHub. Once it is merged, the next update brings it back as core's.
-Your `origin` is not a fork of core, so the pull request goes from a fork made for it.
+Everything a game needs is the game's: its plugins, addons and mods stay in
+`games/<game>/` and are never given to core (prime directive, Core is not touched). The one thing a
+game's work changes in core is a plugin core already has, expanded for every game that uses it (a new
+built-in behavior, a new mod key, a new setting, a fix), with the yes of the person you are working
+for. That expansion goes to core as a pull request from a fork of core on GitHub. Once it is merged,
+the next update brings it back as core's. Your `origin` is not a fork of core, so the pull request
+goes from a fork made for it.
 
-What each is before it goes, by the prime directive:
+What it is before it goes, by the prime directive:
 
-- A plugin, `plugins/<name>/`. Its code names no game and no game kind. Every fixed number it reads is
-  `world.<name>`. A plugin it is built on is handed to it, and another plugin's knowledge reaches it
-  through a mod, `plugins/<a>/<a>.<p>.ts`. Its editor panel, when it has one, is
-  `plugins/<name>/<name>.extension.tsx`. A game's own plugin in `games/<game>/plugins/<name>/` may name
-  that game's kinds and reads its numbers off their definitions. It goes to core only once it names no
-  game, as a top-level plugin.
-- An addon, `addons/<name>/`. It knows no game and no kind, runs where its truth is, and imports from
-  `engine/` and other addons, never from `games/`. Its editor panel, when it has one, is
-  `addons/<name>/<name>.extension.tsx`.
-- An extension of the editor's own, `extensions/<name>/`: `<name>.extension.tsx`, its components in
-  `<name>.components.tsx`, and `<name>.route.ts` when it needs the machine. It names no game, kind,
-  plugin or field, and builds its panels from `editor/ui/`.
-- A script, `scripts/<name>.ts`, with its script in `package.json` and its test, `scripts/<name>.test.ts`,
-  on a root of its own, as `scripts/new-game.ts` and `scripts/new-game.test.ts` are.
-- An edit to a core file. It goes with every file that uses what it changed and every test of them
-  (prime directive, When old code disagrees), and with the header of the file when what the header
-  says has changed (When a doc disagrees). `git diff upstream/master master -- <file>` shows how your
-  file differs from core's. Only the general edit goes. Anything in a core file that names your game
-  was in the wrong home and is moved to the game first.
+- The edit to the plugin. Its code still names no game and no game kind; every fixed number it reads
+  is `world.<p>`; another plugin's knowledge reaches it through a mod. It goes with every file that
+  uses what it changed and every test of them (prime directive, When old code disagrees), and with the
+  header of the file and the plugin's README when what they say has changed (When a doc disagrees).
+  `git diff upstream/master master -- <file>` shows how your file differs from core's. Only the general
+  edit goes. Anything in it that names your game was in the wrong home and is moved to the game first.
 - The engine is never a pull request. A feature that could not work outside it is an issue on core's
   GitHub repo, with the attempt and the one general fact the engine would hand out (prime directive,
   The engine is frozen).
@@ -306,12 +293,10 @@ The steps:
    `git remote add fork <the fork's url>`.
 2. `git fetch upstream`, then `git switch -c give-<name> upstream/master`. The branch holds core and
    nothing of yours. Your game is not in its tree, because core does not track `games/`.
-3. `git checkout master -- <path>` for each folder and file that goes: the plugin, addon, extension
-   or script with its tests, each mod of it in another plugin's folder, and each core file it changed.
-   Where a core file of yours holds more than the general edit, edit it here to that edit alone.
-   Commit it.
-4. Prove it: `yarn install`, `yarn tsc`, and each of its tests with `yarn vitest run <file>`, or
-   `yarn test:view <file>` for a `.view.test.tsx`, and the tests beside each core file it changed. No
+3. `git checkout master -- <path>` for each core file the expansion changed, with its tests. Where a
+   core file of yours holds more than the general edit, edit it here to that edit alone. Commit it.
+4. Prove it: `yarn install`, `yarn tsc`, and each of its tests with `yarn vitest run <file>`, and the
+   tests beside each core file it changed. No
    game is in the tree here, so a test that leaned on one fails here, as it would in any clone of core.
 5. `git push fork give-<name>`, then
    `gh pr create --repo outsidedata/patchwork --base master --head <you>:give-<name>`.
@@ -324,10 +309,11 @@ The steps:
 
 - A static host fed the repo, or `vite build`'s `dist/`: the page is blank. `python3 -m http.server`
   over the repo failed on `Failed to resolve module specifier '#engine/engine.ts'`. A built page asked
-  for `assets/<scene>.sim.ts` and got a 404. The game goes online with `yarn publish_gh_pages_game`.
+  for `assets/<scene>.sim.ts` and got a 404. The game goes online with `yarn publish_gh_pages_game`,
+  or `yarn produce_static_site` for another host.
+- A game committed in your repo that git never sees: the `games/` line of `.gitignore` is still in.
 - Vite started without `--host`: players on other machines get no answer.
 - Vite's dev server handed to the internet: it serves the whole repo.
-- The players sent the editor's address: it answers on `localhost` alone.
 - The server started from the game's folder, or from anywhere but the root: it exits on its first
   catalogue file.
 - The server gone for everyone: one rule threw, or one client sent a malformed message. Each is
@@ -352,8 +338,8 @@ The steps:
 
 ## How it is proven
 
-- Before it goes out: `yarn tsc`, and each test file of the game with `yarn vitest run <file>`, or
-  `yarn test:view <file>` for a `.view.test.tsx`. That includes `games/<game>/<game>.sim.test.ts` and
+- Before it goes out: `yarn tsc`, and each test file of the game with `yarn vitest run <file>`. That
+  includes `games/<game>/<game>.sim.test.ts` and
   `games/<game>/<game>.server.test.ts`, which boots the manager as the server does behind
   `serve(0, …)` and dials seats with `link(dial(url))`, as `going-multiplayer` describes, and
   `games/<game>/<game>.predict.test.ts` (`designing-a-seat`, The proof). It also includes each test

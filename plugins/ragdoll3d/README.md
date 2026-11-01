@@ -48,11 +48,12 @@ turns each model bone to follow its body.
 
 ## Using it
 
-1. List it after `anim` in `plugins`. Give `world.ragdoll3d`: `bones` (role to bone suffix for the 15
-   roles), `damp`, `iter`, `sweeps`, `radius`, `vmax`, `friction`, `spread`, `limits`, `still`,
+1. List it after `anim` in `plugins`. Give `world.ragdoll3d`: `kinds` (the kinds whose limp rows it
+   ragdolls; a limp row of any other kind is left alone, and a scene with no `kinds` throws), `bones`
+   (role to bone suffix for the 15 roles), `damp`, `iter`, `sweeps`, `radius`, `vmax`, `friction`, `spread`, `limits`, `still`,
    `calm`, `settle`, `physics?`, and `mods: { model: 'anim', pose: 'anim', land, solids, gravity,
    bodies? }`.
-2. Give the body kind `limp: false`, `limpFor: 0`, `blow: null`, `pose: null` in its prefab and point
+2. Name the body kind in `world.ragdoll3d.kinds`. Give it `limp: false`, `limpFor: 0`, `blow: null`, `pose: null` in its prefab and point
    anim's `reads.limp` at `limp`.
 3. In the kind's rule: `die(w, me, { dir, speed, height })` from its `hit` act when its health runs
    out; `lie(me)` each step while limp; `rise(w, me)` on respawn (and anim's `rest(me)`).

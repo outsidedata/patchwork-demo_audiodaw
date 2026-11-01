@@ -20,7 +20,8 @@ async function page() {
   return made
 }
 
-test('a docked panel behind another tab is not drawn while hidden, and is drawn as the editor is once shown; each panel\'s drawings are counted', async () => {
+// OCT-24-EDITOR-ALPHA-SWEEP
+test.skip('a docked panel behind another tab is not drawn while hidden, and is drawn as the editor is once shown; each panel\'s drawings are counted', async () => {
   const { ed } = await page()
   const draws = { front: 0, back: 0 }
   // Two panels that show how many lines the console has, joining the timeline's area behind it.

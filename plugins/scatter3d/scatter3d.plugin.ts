@@ -139,7 +139,11 @@
 //           ground and a ring of radius (foot + lean·(edge − foot))·size about the tilted axis, taken
 //           at 8 points starting straight downhill. The tilt turns the ring about the level line, so
 //           its highest point over the ground is downhill wherever the slope faces, and it touches:
-//           ground cover out to its edge, a fir at its foot, where its low branches overhang.
+//           ground cover out to its edge, a fir at its foot, where its low branches overhang;
+//   under   then lowered the cell's `sink` of its height, sink·rise·size metres straight down: the
+//           share its row's `sink` [base, spread] draws for the cell (`scatter3d.sim.ts`), so a model
+//           boulder stands buried in the ground as a shape's does, each one to its own depth; 0, as it
+//           stands, for a row with no `sink`.
 //
 // A stroke moves scatter. Each frame reads the ground's `edits()` against what it saw last: a new land
 // places every held cell again; a layer whose version moved re-takes each held cell whose footprint
@@ -646,7 +650,7 @@ export function scatter3d() {
       })
     }
     const grow = Math.max(0, ...drawn.map(row => models[row].edge)) * (pack.size[0] + pack.size[1])
-    const stands = Object.fromEntries(drawn.map(row => [row, { foot: models[row].foot, edge: models[row].edge, lean: models[row].lean }]))
+    const stands = Object.fromEntries(drawn.map(row => [row, { foot: models[row].foot, edge: models[row].edge, rise: models[row].rise, lean: models[row].lean }]))
     return { name, pack, radii, grow, models, at: undefined, held: new Map(), looks, byRow, pending: new Map(), queue: [], next: 0, stands, flying: new Set(), out: 0, ahead: undefined, geometries, materials }
   }
 

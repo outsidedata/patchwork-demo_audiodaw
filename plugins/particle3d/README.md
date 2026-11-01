@@ -1,7 +1,7 @@
 # particle3d
 
 3D particle effects for render3d: camera-facing quads from sheets or flat squares, bursts and
-streams with speed, spread, gravity, drag, pull, pacing, spin, tint that cools, fade, additive
+streams with speed, spread, gravity, drag, pull, swirl round a line, pacing, spin, tint that cools, fade, additive
 light and bloom-bright gain, stretch along the motion, beams and tracers to a target, particles that
 carry real point lights, effects that fly and throw more where they land, effects that ride on a
 row, and every seat drawing the same particles, all in one draw per sheet and blend.
@@ -26,7 +26,12 @@ stays while the row is there.
 **Browser half (`particle3d.plugin.ts`).** The page's own ledger of live effects. It takes each
 ledger entry the first frame it sees it (rolling bursts it missed, so a late page draws what an
 early one does), and anything on the page can `emit(...)` an effect of its own (box3dvehicle's
-exhaust and dust, dismember3d's gore), seeded or not. Every particle is a quad facing the camera; all
+exhaust and dust, dismember3d's gore), seeded or not. `emit` hands the effect back: writing its
+`at`, `dir` or `to` moves it, `life` stops it, `floor` is the height its particles rest on (box3dvehicle
+writes the ground under a wheel each frame), `rate` (1 as handed back) runs its bursts that many times
+as often, 0 throwing nothing new until it is written again, and `force` (1 as handed back) throws
+every particle from then on that many times as hard. A `rate` or `force` that is not a finite number
+of 0 or more throws, naming the effect. Every particle is a quad facing the camera; all
 the particles on one page of one sheet and one blend are one mesh whose buffers are written every
 frame.
 
@@ -34,7 +39,8 @@ The effects are a data file (the loader entry `world.particle3d.effects` names) 
 `alphaTest`, `ppm` (sheet pixels per metre) and `effects`, each a list of layers. A layer
 `{ "effect": name, "at"? }` reuses another effect; every other layer is an emitter, in metres and
 seconds: `n`, `every`, `after`, `life` or `lasts`, `skip`, `sheet` and `clip` (with `play`), `size`,
-`grow`, `dir`, `spread`, `speed`, `jitter`, `box`, `g`, `drag`, `pull`, `pace`, `follow`, `flips`,
+`grow`, `dir`, `spread`, `speed`, `jitter`, `box`, `g`, `drag`, `pull`, `swirl` and `axis` (carried
+round the point it was thrown from, a vortex or a whirlpool), `pace`, `follow`, `flips`,
 `tint`, `tint1`, `gain` (above 1 brighter than white, for render3d's `bloom`), `a0`, `a1`, `fade`,
 `spin`, `origin`, `add`, `stretch`, `face`, `beam`, and `light: { intensity, distance, decay }`, a
 real point light on each particle (which needs lights3d). An unknown field throws, naming it.
@@ -62,6 +68,6 @@ real point light on each particle (which needs lights3d). An unknown field throw
 
 particles, particle system, 3D particles, VFX, billboards, camera-facing quads, emitter, burst,
 explosion, muzzle flash, sparks, smoke, dust, exhaust, fire, embers, blood, gore, magic, tracer,
-beam, laser, trail, impact, gravity, drag, spread, fade, additive blending, bloom, HDR, glow, particle
+beam, laser, trail, impact, gravity, drag, swirl, vortex, whirlpool, portal, spiral, orbit, spread, fade, additive blending, bloom, HDR, glow, particle
 lights, sprite sheet particles, batching, one draw call, deterministic particles, seeded, late join,
 ledger, three.js, render3d, `emit`, `entry`, `world.particle3d`

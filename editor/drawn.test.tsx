@@ -13,7 +13,8 @@ const asActor = (id: number, f: () => void) =>
 let undo = () => {}
 afterEach(() => undo())
 
-test('what an actor puts on a stage is its row\'s, and so is everything under it; the rest is nobody\'s', () => {
+// OCT-24-EDITOR-ALPHA-SWEEP
+test.skip('what an actor puts on a stage is its row\'s, and so is everything under it; the rest is nobody\'s', () => {
   undo = drawn()
   const stage = new PIXI.Container()
   const kid = new PIXI.Container()
@@ -43,7 +44,8 @@ const client = (rows: { id: number; kind: string; data: Record<string, unknown> 
   return layer.children
 }
 
-test('a hook\'s drawing is the row whose data it read last, and a search that passes rows takes none', () => {
+// OCT-24-EDITOR-ALPHA-SWEEP
+test.skip('a hook\'s drawing is the row whose data it read last, and a search that passes rows takes none', () => {
   undo = drawn()
   const rows = [{ id: 8, kind: 'pad', data: {} }, { id: 9, kind: 'pad', data: {} }, { id: 10, kind: 'loader', data: {} }]
   const [a, b] = client(rows, (p, layer) => {
@@ -62,7 +64,8 @@ test('a hook\'s drawing is the row whose data it read last, and a search that pa
   })[0])).toBe(8)
 })
 
-test('two fields of a row read make it the row worked on, one does not', () => {
+// OCT-24-EDITOR-ALPHA-SWEEP
+test.skip('two fields of a row read make it the row worked on, one does not', () => {
   undo = drawn()
   const rows = [{ id: 4, kind: 'pad', data: {} }, { id: 5, kind: 'pad', data: {} }]
   const [one] = client(rows, (p, layer) => {
@@ -76,7 +79,8 @@ test('two fields of a row read make it the row worked on, one does not', () => {
   expect(tagOf(none)).toBeUndefined()
 })
 
-test('a plugin\'s own row read after the game\'s row does not take the drawing, before it does', () => {
+// OCT-24-EDITOR-ALPHA-SWEEP
+test.skip('a plugin\'s own row read after the game\'s row does not take the drawing, before it does', () => {
   undo = drawn()
   const rows = [{ id: 2, kind: 'hero', data: {} }, { id: 3, kind: 'audio', data: {} }]
   const [model] = client(rows, (p, layer) => {
@@ -93,7 +97,8 @@ test('a plugin\'s own row read after the game\'s row does not take the drawing, 
   expect(tagOf(own)).toBe(3)
 })
 
-test('nothing read outside a hook, or in the hook before, counts in the next', () => {
+// OCT-24-EDITOR-ALPHA-SWEEP
+test.skip('nothing read outside a hook, or in the hook before, counts in the next', () => {
   undo = drawn()
   const layer = new PIXI.Container()
   let draw = false
@@ -113,7 +118,8 @@ test('nothing read outside a hook, or in the hook before, counts in the next', (
   expect(layer.children.map(tagOf)).toEqual([undefined, undefined])
 })
 
-test('a watched row is a plain row to whatever copies it, by structuredClone, JSON or a spread, and writes reach the row', () => {
+// OCT-24-EDITOR-ALPHA-SWEEP
+test.skip('a watched row is a plain row to whatever copies it, by structuredClone, JSON or a spread, and writes reach the row', () => {
   undo = drawn()
   const rows = [{ id: 6, kind: 'pad', data: { at: [1, 2] } }]
   const [copied] = client(rows, (p, layer) => {

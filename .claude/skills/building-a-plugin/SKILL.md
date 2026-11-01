@@ -1,6 +1,6 @@
 ---
 name: building-a-plugin
-description: Use in core, or any clone of it, when building or changing a plugin or an addon, a top-level one in `plugins/<p>/` or `addons/<a>/`, or a game's own in `games/<game>/plugins/<p>/` or `games/<game>/addons/<a>/`. That covers deciding plugin or addon, the server half (`<p>.sim.ts`) and the browser half (`<p>.plugin.ts`) and how each is loaded (`plugins`, `shipped`, `world.shipped.plugins`), a plugin's fixed numbers on `world.<p>`, whether it has a row and what its prefab holds, browser state, wrapping a library such as a physics world or a renderer, and moving code several kinds share into a game's own plugin and on to a top-level one. It covers mods, one plugin using what another knows (`<a>.<p>.ts`, `world.<p>.mods`, `mod`, `provided`, `ahead`), where the file goes and its test. Also use it when a plugin throws that a mod is not exported, not loaded or not listed, a game's plugin is not found or not on `plugins`, or a plugin is listed in the wrong order.
+description: Use in core, or any clone of it, when building or changing a plugin or an addon, a top-level one in `plugins/<p>/` or `addons/<a>/`, or a game's own in `games/<game>/plugins/<p>/` or `games/<game>/addons/<a>/`. That covers deciding plugin or addon, the server half (`<p>.sim.ts`) and the browser half (`<p>.plugin.ts`) and how each is loaded (`plugins`, `shipped`, `world.shipped.plugins`), a plugin's fixed numbers on `world.<p>`, whether it has a row and what its prefab holds, browser state, wrapping a library such as a physics world or a renderer, moving code several kinds share into a game's own plugin, and expanding a plugin core already has. It covers where a game's logic goes (an actor, a game's own plugin or addon; never a new one in core), mods, one plugin using what another knows (`<a>.<p>.ts`, `world.<p>.mods`, `mod`, `provided`, `ahead`), behaviors, a plugin's table from a word to the function that does its job for things of that word, which mods deliver and override (`world.<p>.mods.behaviors`, `behaviors()`), where the file goes and its test. Also use it when a plugin throws that a mod is not exported, not loaded or not listed, a game's plugin is not found or not on `plugins`, or a plugin is listed in the wrong order.
 ---
 
 # Building a plugin or an addon
@@ -11,6 +11,44 @@ headers of `engine/engine.ts`, `engine/browser.ts`, `addons/scenemanager/scenema
 Mods header and the list of what a game folder holds), `plugins/shipped/shipped.plugin.ts`, and the
 plugins and addons named below with the tests beside them. Where this skill and the prime directive
 disagree, the directive wins.
+
+## The two questions
+
+Every piece of a game's logic is placed by the first question, and every use one plugin makes of
+another by the second. In each, the first yes is the answer. Nobody asks "should this be a mod?" or
+"should this be a plugin?": these answer it.
+
+**Where does it go?**
+
+1. Is it one kind's rule, what this kind of thing does, read off its own row and definition (a coin
+   that jumps when it is touched, a door that opens)? → An actor: `<kind>.sim.ts` for the rule,
+   `<kind>.client.ts` for the look. It uses plugins and never builds what a plugin builds.
+2. Is it shared by several of the game's kinds, or a system of the game's (its level, its NPCs'
+   brain, its HUD)? → A plugin of the game's own, `games/<game>/plugins/<p>/`: each kind's rule calls
+   it, or hands its rule out as its own (`export const guard = npc`), and it reads its numbers off
+   the definitions of the kinds it is handed.
+3. Does it hold a truth (seats, sockets, files, timers)? → An addon of the game's own,
+   `games/<game>/addons/<a>/`.
+
+However general it could be described, it stays in the game. Core gets no new plugin or addon from a
+game; a plugin core already has is used through its settings and its mods, and is expanded only for
+every game that uses it, with the yes of the person you are working for (Which home, below).
+
+**How does it use what another plugin knows?**
+
+1. Does it need behavior it does not have: how to do its job for a kind of thing (a shape's hit
+   test, an NPC's choice), or a fact another plugin knows (the ground's height, the sky's light)? →
+   A mod delivers it (Mods, below). A mod delivers behaviors, and any behavior a mod delivers takes
+   the place of the plugin's own of that name, a built-in included, and a later mod's the place of an
+   earlier one's (Behaviors, below). No plugin is a prison: a scene changes anything a plugin does by
+   naming a plugin that does it otherwise.
+2. Does it need a pure function of another plugin's, one that holds nothing of that plugin's state
+   (the loader's `json`, the player's `keyOf`)? → Import it.
+3. Is it built on another plugin, drawing or loading through it (render3d, the loader, the ui)? →
+   That plugin is handed to it, `plugins.<a>`.
+
+Never: a rule written in a page, one actor importing another, a plugin naming another plugin,
+a plugin reading another's `world.<a>`, or code branching on what a thing is.
 
 ## When it applies
 
@@ -23,7 +61,6 @@ a game, a wrapper round a library, and anything that holds a truth. Other work h
 - the `player` plugin, seats, presses and ledgers as a game uses them: `input-and-seats`.
 - transports, `interest`, `vision` and `security` as a game uses them: `going-multiplayer`.
 - a file type the loader lacks, and art: `bringing-in-art`.
-- the extension a plugin ships, `<p>.extension.tsx`: `building-an-extension`.
 - proving a game in general, playtesters and the simulator: `proving-a-game`.
 
 ## Which home
@@ -34,26 +71,27 @@ Ask the prime directive's questions in order; the first yes is the home.
   off, a theme): a key of the store (`plugins/store/store.plugin.ts`), never a plugin's number. A
   plugin that reads one names its store key in `world.<p>`, as `world.audio.volume` names the keys
   `{ level, muted }` that `plugins/audio/audio.plugin.ts` reads the volume from.
-- It is used by one game only, however general it could be described, shared by several of its
-  kinds or a system of that game's: a plugin or an addon of the game's own, `games/<game>/plugins/<name>/` or `games/<game>/addons/<name>/`, by the
-  rules below, except that it may name that game's kinds and has no prefab of numbers: it reads
+- It is shared by several of the game's kinds or is a system of that game's, however general it
+  could be described, and it lives in the world (rows, the step) or in the player's browser (drawing,
+  input, camera, sound, UI): a plugin of the game's own, `games/<game>/plugins/<name>/`, with a server
+  half, a browser half, or both. It may name that game's kinds and has no prefab of numbers: it reads
   every number off the definition of the kind whose row it is handed, as that kind's rule would, or
   off a file that definition names. Kinds share code through it, never by one actor importing
   another.
-- It is used by a second game or by core itself, and it lives in the world (rows, the step) or in
-  the player's browser (drawing, input, camera, sound, UI): a plugin, `plugins/<p>/`, with a server
-  half, a browser half, or both, moved up from the game that had it (Moving shared code into a
-  plugin, below).
-- It is used by a second game or by core itself, and it holds a truth (seats, connections, sockets,
-  files, timers, more than one truth, what a packet carries): an addon, `addons/<a>/`. It runs where
-  the truth is; a transport's page side and the scenemanager's `view` run in the page.
+- It holds a truth (seats, connections, sockets, files, timers, more than one truth, what a packet
+  carries): an addon of the game's own, `games/<game>/addons/<name>/`. It runs where the truth is; a
+  transport's page side and the scenemanager's `view` run in the page.
 
-A new folder in `plugins/` or `addons/`, or a new exported piece of an existing one (a call, a
-setting, a mod), is asked of the person you are working for in planning, before any code, with which games and core code use
-it and why it cannot stay in the game (prime directive, A new top-level plugin or addon is asked
-for). No answer is a no.
+Core is not touched for a game (prime directive, Core is not touched). No game's work makes a new
+folder in `plugins/` or `addons/`. What a game needs from a plugin core already has, it gives that
+plugin through the plugin's mods: a mod of the game's own plugin beside it,
+`games/<game>/plugins/<a>/<a>.<p>.ts`, handing `p` what the game knows or delivering it a behavior for
+a word of the game's (Mods, Behaviors). Expanding a plugin core already has (a new built-in behavior,
+a new mod key, a new setting every game that uses it could set, a fix) is the one way into core, and
+is asked of the person you are working for in planning, before any code, with which games use it and
+why the game cannot do it through the plugin's mods. No answer is a no.
 
-Addon or plugin is never a question to ask: it is question 4 or question 5. Nothing goes in the
+Addon or plugin is never a question to ask: it is question 2 or question 3 of Where does it go. Nothing goes in the
 engine. A setting only one game would set is that game's actor, never a plugin's setting.
 
 ## The files
@@ -73,8 +111,6 @@ A top-level plugin is a folder of files named after it, each test beside the fil
   `<p>`. The client imports `../plugins/<name>/<name>.plugin.ts` for every name in the scene's
   `plugins`, so a plugin is listed there only when it has a browser half.
 - `plugins/<p>/<a>.<p>.ts` beside a plugin `a`: a mod of `a`'s for `p` (Mods, below).
-- `plugins/<p>/<p>.extension.tsx`, `<p>.components.tsx`, `<p>.route.ts`: the editor extension it
-  ships (below).
 - `<p>.sim.test.ts`, `<p>.plugin.test.ts`, `<a>.<p>.test.ts` and the rest, beside each file.
 
 A game's own plugin is laid out the same in `games/<game>/plugins/<p>/`. Its server half is imported
@@ -104,8 +140,7 @@ not list `shipped` may list it, as the forge scene of `addons/scenemanager/scene
 lists two plugins with no browser half. Letting `shipped` pass over a listed plugin that has no
 browser half is `plugins/shipped`'s to build, never a game's to work around.
 
-An addon is `addons/<a>/<a>.addon.ts` with `<a>.addon.test.ts` beside it, and it may ship an
-extension and a route as a plugin does (`addons/simulator/`). A game's own addon is
+An addon is `addons/<a>/<a>.addon.ts` with `<a>.addon.test.ts` beside it. A game's own addon is
 `games/<game>/addons/<a>/`, laid out the same.
 
 ## The work, in order, for a plugin
@@ -265,15 +300,18 @@ the page, let go of in `close` (`plugins/render2d/render2d.plugin.ts`).
 
 ## Mods
 
-A mod is how one plugin gives another what it knows without either naming the other in its code. The
-whole of it is the Mods header of `addons/scenemanager/scenemanager.addon.ts`.
+A mod is how one plugin gives another what it knows without either naming the other in its code.
+Mods deliver behaviors: every function a mod exports is behavior the plugin that asks for it does not
+have, one named one (the ground's height, the sky's light) or a table of them by word (Behaviors,
+below). The whole of it is the Mods header of `addons/scenemanager/scenemanager.addon.ts`.
 
 What it is. Plugin `a` provides for plugin `p` with a file `<a>.<p>.ts` that exports functions under
 the names `p` asks for, written with everything `a` knows. `p` declares the type `F` of each function
 it asks for and asks `mod<F>(world, '<p>', '<function>')`, which hands back the function, or undefined
 when the scene names none. A scene switches one on with `world.<p>.mods: { <function>: '<a>' }`.
 A `p` that takes one function from several plugins at once, as box3d takes `props` (the fixed
-things standing on the land) from every placer a scene names, asks `modsOf<F>(world, '<p>',
+things standing on the land) from every placer a scene names, and `fixed` (shapes3d's floors, walls
+and ramps among them), asks `modsOf<F>(world, '<p>',
 '<function>')`, which hands back each one's function in the list's order, and the scene names them
 `{ <function>: ['<a>', '<b>'] }`; a single name is a list of one. `mod` throws on an entry naming
 more than one, since it hands back one. Before the first step, on the server and on the page alike, the scenemanager imports every mod a
@@ -332,6 +370,50 @@ The scene's side. It names each mod in `world.<p>.mods`, lists the plugin each n
 before `p` where `p` asks `ahead`. That is all: a scene that wanted terrain under its sea says
 `ocean3d.mods: { land: 'terrain3d' }` where it once said `ocean3d.ground: 'terrain3d'`.
 
+## Behaviors
+
+A plugin that does one job over many kinds of thing never knows what those things are. It keeps a
+table from a word to the function that does its job for things of that word: its behaviors. A thing
+names its word by the key its data sits under, `{ part: 'head', cylinder: { pos, radius, height } }`;
+the plugin finds the key and runs that word's behavior with the data. Its code says how to do its job
+for a word, and never which words there are. A plugin built this way is the model for every new one.
+
+- Built-ins. LEGACY, deprecated, being phased out: a new plugin has none, and every word is delivered by
+  the plugin that brings it. A plugin starts with behaviors of its own, the words every game that uses it has today.
+  Adding a word changes no other: a thing of a word already in use is handled exactly as before. A
+  plugin turned to behaviors leaves every game that uses it as it was, with nothing new written in
+  any scene.
+- Delivered. Mods deliver more. The scene names them in `world.<p>.mods.behaviors: ['<a>', …]`, and
+  each `<a>.<p>.ts` exports `behaviors()`, `{ <word>: <function> }`; `p` asks
+  `modsOf(world, '<p>', 'behaviors')` and lays them over its own in the list's order.
+- Override. A behavior a mod delivers takes the place of `p`'s own of that word, a built-in included,
+  and a later mod's the place of an earlier one's. No plugin is a prison: a scene changes anything a
+  plugin does for a word by naming a plugin that does it otherwise.
+- Whoever brings a word brings its behavior. A plugin that hands `p` things of a word hands `p` that
+  word's behavior in the same file, so `p` is never handed a word nothing delivered. A word nothing
+  delivered is a mistake in the data, and `p` throws naming the word and itself.
+- The data is plain. A thing is data, never a function: the word is the link to the code. So rows and
+  data stay copyable, savable and replayable, and a plugin that keeps history (a rewind, a replay)
+  copies them as they are.
+- The word is shared, the behavior is not. One word means a different job in each plugin that reads
+  it: a `box` is where a line enters it for a shot, its footprint for a walk, where to stand behind it
+  for cover. Each plugin keeps its own table, and the plugin that brings `box` delivers a behavior to
+  each one it hands boxes to.
+- The numbers are the thing's. A behavior holds no number: it reads them off the thing's data and the
+  definitions, as any plugin does.
+
+Not every plugin works this way yet. One that branches on what a thing is, `if (kind === …)` or a
+`switch` over types, is old code and never a pattern; it is turned to behaviors when the person you
+are working for says so, and those that are turned are the models.
+
+A plugin whose own words are still that old code can take delivered words without them being turned
+first: it looks a word up among the delivered behaviors before its own, so a delivered word is new or
+takes the place of its own, and its own are left exactly as they are. The cutscene does this for the
+steps of a cue file: its thirteen steps stay in their `switch`, and a game's steps in its own words
+(`open`, `spawn`) come from `world.cutscene.mods.behaviors`, each `{ fields, fire, wait?, page? }`
+(`plugins/cutscene/cutscene.sim.ts`, Steps a game brings). A behavior that
+needs more than one function, its fields' rules, a browser half, is an object of them under its word.
+
 ## Addons
 
 An addon takes a truth and runs where the truth is: the node process of `<game>.server.ts`, or the
@@ -354,8 +436,7 @@ throws naming the value, as both do. It is attached by whatever holds the truth:
 server file, as the scenemanager and the transports are and as `persist` is with the store each
 opens (its header), or another addon, as `addons/player` attaches `vision` when the scene's `world`
 has a `vision` block. Nothing loads a game's own addon by its name the way `shipped` loads a game's
-own plugins, and the editor lists no extension in a game's `addons/` folder (`GAME_LISTED` in
-`editor/editor.ts` lists a game's own extensions and its plugins' alone).
+own plugins.
 
 Nothing but a transport carries a packet. An addon that needs a page and a truth joined, as the
 recorder and every test that makes a page on a game do, takes a transport (`loopback` or `socket`)
@@ -377,33 +458,7 @@ drawing the first frame it is shown and destroys it after the first frame nobody
 of one kind never share a key, or the second `show` throws `ui showed <panel> <key> twice in one
 frame`. Each kind imports the server half from `./plugins/<p>/<p>.sim.ts`.
 
-When another game wants it, and the person you are working for says yes in planning, it moves to `plugins/<p>/`, and in the
-same change:
-
-- its numbers move off the kinds' definitions into `world.<p>`, the kinds it acts on named there too,
-  keyed by kind, as `world.walker.kinds` is; it names none of the game's kinds;
-- its imports in each game become `#plugins/<p>/<p>.sim.ts`; the scene drops it from
-  `world.shipped.plugins` and lists it in `plugins` when it has a browser half;
-- the mods it takes: a top-level `a`'s for it moves from `games/<game>/plugins/<p>/<a>.<p>.ts` to
-  `plugins/<a>/<a>.<p>.ts`; one of a game's own plugin `b` stays beside `b`,
-  `games/<game>/plugins/<b>/<b>.<p>.ts`;
-- the mods it gives, which sat beside it in the game: one for a top-level `x` moves to
-  `plugins/<p>/<p>.<x>.ts`, and one for a game's own `x` moves beside `x`,
-  `games/<game>/plugins/<x>/<p>.<x>.ts`;
-- its tests move with it and boot scenes they write themselves; each game keeps the tests of its own
-  content;
-- every game that used the old one is moved to it, every file and every test.
-
-## The extension it ships
-
-What presents or edits what a plugin owns (its `world.<p>`, its data files, what it draws) is the
-extension the plugin ships, `plugins/<p>/<p>.extension.tsx`, a function named `<p>` handed the
-editor, its React components in `<p>.components.tsx` and any backend in `<p>.route.ts`. It is on while
-a scene of the open game names the plugin in its `plugins`, as a key of its `world` or as a top-level
-block (`editor/editor.ts`); an addon's, `addons/<a>/<a>.extension.tsx`, the same. A game's own plugin's
-is `games/<game>/plugins/<p>/<p>.extension.tsx`, on while that game is open. Nothing a game runs
-imports an extension. The editor never gets a panel for a plugin; the plugin ships it. Building one
-is `building-an-extension`.
+It stays in the game. A plugin of the game's never moves into core's `plugins/`.
 
 ## What imports what
 
@@ -423,7 +478,6 @@ is `building-an-extension`.
   function that holds nothing of the plugin's, as the ui imports player's `keyOf`. A rule runs on node
   and imports no `.plugin.ts` at all but for types.
 - An addon: from `engine/` and other addons, never from `games/` and never from a plugin.
-- Nothing a game runs imports `editor/`, an extension or a route.
 
 ## What goes wrong
 
@@ -496,16 +550,17 @@ Each file has its test beside it, named after it, and each is run with `yarn vit
   each seat is sent (`truth.packet(seat)`) or what it wrote.
 - `yarn tsc` for the types of every file written.
 
-Then it is played: the game's `index.html` in Chrome, served by `yarn editor <game>`, and `client.html`
-against `node --experimental-strip-types games/<game>/<game>.server.ts`, where node loads every mod
+Then it is played: the game's `index.html` in Chrome, served by `yarn dev`, and `client.html`
+against the game's server under `yarn serve <game>`, where node loads every mod
 the scene names. What a plugin draws or plays for a moment is checked in `dev.html`, beside
 `index.html`, which may add readouts of its own and override a definition or `world` in its own copy
 in memory, and which nothing else reads.
 
 ## When something is missing
 
-Build it in its home: general, set from the scene file, tested, and used by every game it belongs
-in. Then use it. Never instead work around it in the game (an actor importing another, a test faking
+Build it in its home: in the game, set from the scene file, tested. Where a plugin core already has
+is what lacks it, the game gives it through that plugin's mods, or the plugin is expanded for every
+game that uses it, with the yes of the person you are working for (Which home). Then use it. Never instead work around it in the game (an actor importing another, a test faking
 what a plugin should do, a number written into code), give a plugin a setting only one game would set,
 edit the engine, or leave a note that it is missing. A plugin that cannot be built without the engine
 handing out something new is brought to core as an issue, with the attempt. A line in a header or a
@@ -522,7 +577,9 @@ of the job, migrating it is part of the job: every file that uses it and every t
 ## Questions never asked
 
 - Should this go in the engine? No.
-- Addon or plugin? Question 4 or question 5.
+- Addon or plugin? Question 2 or question 3 of Where does it go.
+- Should this game's plugin move into core's `plugins/` because it is general? No: it stays in the
+  game.
 - Can this number go in the code? No: the scene file.
 - Should this plugin get a setting so one game can…? No: that game's actor.
 - Can this fixed data ride on the row because the row is easy to reach? No: `world.<p>`, a definition
@@ -538,7 +595,11 @@ of the job, migrating it is part of the job: every file that uses it and every t
   Where does the mod go? Beside the game's plugin, `games/<game>/plugins/<p>/<a>.<p>.ts`.
 - Should a mod check that its plugin is listed, or listed first? No: `p` does, with `provided` or
   `ahead`.
-- Should the editor get a panel for this plugin? No: the plugin ships it, `<p>.extension.tsx`.
+- Should this be a mod, an actor or a plugin? The two questions, at the top, answer it.
+- Should `p` handle this new kind of thing? No: the plugin that brings it delivers `p` a behavior for
+  its word (Behaviors).
+- Can a scene change what a plugin does for a word it already has? Yes: a mod delivering a behavior
+  of that word takes the place of the plugin's own.
 - Should I work around this for now? No: build it in its home.
 - Do you want the full version? Always.
 

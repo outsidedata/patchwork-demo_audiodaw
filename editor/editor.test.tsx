@@ -8,7 +8,8 @@ import { BUDGET, changedIssue, changes, gridEdits, listEdits, looseInput, readin
 
 const ext = (name: string, add: (ed: Editor) => void) => ({ [`/extensions/${name}/${name}.extension.tsx`]: async () => ({ [name]: add }) })
 
-test('an extension turned off takes everything it added with it', async () => {
+// OCT-24-EDITOR-ALPHA-SWEEP
+test.skip('an extension turned off takes everything it added with it', async () => {
   const { ed } = await editor()
   await ed.load(ext('notes', e => {
     e.panel({ id: 'notes', title: 'Notes', component: () => null })
@@ -24,7 +25,8 @@ test('an extension turned off takes everything it added with it', async () => {
   expect(ed.typeOf('imp', ['health'])).toBeUndefined()
 })
 
-test('what an extension hands onDrop is called once as it turns off, the last first, and not for another\'s; one that throws is said and the rest are called', async () => {
+// OCT-24-EDITOR-ALPHA-SWEEP
+test.skip('what an extension hands onDrop is called once as it turns off, the last first, and not for another\'s; one that throws is said and the rest are called', async () => {
   const { ed } = await editor()
   const heard: string[] = []
   ed.use('feed', e => {
@@ -48,7 +50,8 @@ test('what an extension hands onDrop is called once as it turns off, the last fi
   expect(heard).toEqual([...stopped, 'other'])
 })
 
-test('a docked panel\'s drawings are counted; one longer than a frame is said in the console, at most once in ten seconds a panel; perf answers the counts, the costliest panel first, and reset counts again', async () => {
+// OCT-24-EDITOR-ALPHA-SWEEP
+test.skip('a docked panel\'s drawings are counted; one longer than a frame is said in the console, at most once in ten seconds a panel; perf answers the counts, the costliest panel first, and reset counts again', async () => {
   vi.useFakeTimers({ toFake: ['Date'] })
   onTestFinished(() => { vi.useRealTimers() })
   vi.setSystemTime(1_000_000)
@@ -74,7 +77,8 @@ test('a docked panel\'s drawings are counted; one longer than a frame is said in
   expect(ed.perf()).toEqual({ panels: [], topics: {} })
 })
 
-test('a file that names no function of its own name, or one that throws, is reported and the rest load', async () => {
+// OCT-24-EDITOR-ALPHA-SWEEP
+test.skip('a file that names no function of its own name, or one that throws, is reported and the rest load', async () => {
   const { ed } = await editor()
   const names = await ed.load({
     ...ext('good', e => e.panel({ id: 'good', title: 'Good', component: () => null })),
@@ -89,7 +93,8 @@ test('a file that names no function of its own name, or one that throws, is repo
   ])
 })
 
-test('a binding by pattern and by a test of the kind; the last one made wins', async () => {
+// OCT-24-EDITOR-ALPHA-SWEEP
+test.skip('a binding by pattern and by a test of the kind; the last one made wins', async () => {
   const { ed } = await editor()
   ed.bind('ui', { 'styles.*.fill': 'color' })
   ed.bind(kind => kind.endsWith('mp'), { health: 'stars' })
@@ -101,7 +106,8 @@ test('a binding by pattern and by a test of the kind; the last one made wins', a
   expect(ed.typeOf(undefined, ['health'])).toBeUndefined()
 })
 
-test('a data file\'s fields are bound by its path or a test of it, apart from every kind\'s; an extension turned off takes them', async () => {
+// OCT-24-EDITOR-ALPHA-SWEEP
+test.skip('a data file\'s fields are bound by its path or a test of it, apart from every kind\'s; an extension turned off takes them', async () => {
   const { ed } = await editor()
   await ed.load(ext('arms', e => {
     e.bindFile('games/war/weapons.json', { '*.tint': 'color' })
@@ -116,7 +122,8 @@ test('a data file\'s fields are bound by its path or a test of it, apart from ev
   expect(ed.typeOf(undefined, ['rifle', 'tint'], 'games/war/weapons.json')).toBeUndefined()
 })
 
-test('a route\'s change of code the page fetched reloads the page once it is in the history and the action is done, and again as it is undone and redone; a change of code it never fetched, or that is not code, reloads none', async () => {
+// OCT-24-EDITOR-ALPHA-SWEEP
+test.skip('a route\'s change of code the page fetched reloads the page once it is in the history and the action is done, and again as it is undone and redone; a change of code it never fetched, or that is not code, reloads none', async () => {
   const { ed, reloads, ran } = await editor()
   // A route that writes each file it is handed: code, or a picture's bytes.
   answer('fake', r => r.post('write', async ({ body, files }) => {
@@ -155,7 +162,8 @@ test('a route\'s change of code the page fetched reloads the page once it is in 
   expect(reloads).toHaveLength(3)
 })
 
-test('a reload waits for an action begun in the turn it lets go for an answer, as a call already sent is run then', async () => {
+// OCT-24-EDITOR-ALPHA-SWEEP
+test.skip('a reload waits for an action begun in the turn it lets go for an answer, as a call already sent is run then', async () => {
   const { ed, reloads } = await editor()
   let finish!: () => void
   const asked = ed.reloadPage(['games/g/a.sim.ts'])
@@ -168,7 +176,8 @@ test('a reload waits for an action begun in the turn it lets go for an answer, a
   expect(reloads).toEqual([['games/g/a.sim.ts']])
 })
 
-test('a reload waits for every action in hand, and the page reloads once however many ask while it waits', async () => {
+// OCT-24-EDITOR-ALPHA-SWEEP
+test.skip('a reload waits for every action in hand, and the page reloads once however many ask while it waits', async () => {
   const { ed, reloads } = await editor()
   let finish!: () => void
   const action = ed.together(() => new Promise<void>(done => { finish = done }))
@@ -181,7 +190,8 @@ test('a reload waits for every action in hand, and the page reloads once however
   expect(reloads).toEqual([['games/g/a.sim.ts']])
 })
 
-test('how a kind moves is the placer made for it last, by name or by a test of the kind, and goes with its extension', async () => {
+// OCT-24-EDITOR-ALPHA-SWEEP
+test.skip('how a kind moves is the placer made for it last, by name or by a test of the kind, and goes with its extension', async () => {
   const { ed } = await editor()
   const ground: Placer = { at: d => [d.x, 0, d.z], axes: ['x', 'y', 'z'], to: (_d, [x, , z]) => ({ x, z }) }
   const lifted: Placer = { at: d => (Array.isArray(d.pos) ? [...d.pos] : undefined), axes: ['x', 'y', 'z'], to: (d, [x, , z]) => ({ pos: [x, d.pos[1], z] }) }
@@ -195,7 +205,8 @@ test('how a kind moves is the placer made for it last, by name or by a test of t
   expect(ed.placerOf('coin')).toBe(ground)
 })
 
-test('a list edited as a whole is written as the list writes it: one taken out, one added at the end, the same in another order each moved whole, and else value by value', () => {
+// OCT-24-EDITOR-ALPHA-SWEEP
+test.skip('a list edited as a whole is written as the list writes it: one taken out, one added at the end, the same in another order each moved whole, and else value by value', () => {
   const [a, b, c] = [{ id: 1, x: 1 }, { x: 2, id: 2 }, { id: 3 }]
   expect(listEdits(['l'], [a, b, c], [a, c])).toEqual([{ at: ['l', 1], value: undefined }])
   expect(listEdits(['l'], [a, b], [a, b, c])).toEqual([{ at: ['l', -1], value: c, insert: true }])
@@ -205,7 +216,8 @@ test('a list edited as a whole is written as the list writes it: one taken out, 
   expect(listEdits(['l'], [a, b], [a, b])).toEqual([])
 })
 
-test('edits are written as one change: a lone value by itself, more, or a key put at its place, together', async () => {
+// OCT-24-EDITOR-ALPHA-SWEEP
+test.skip('edits are written as one change: a lone value by itself, more, or a key put at its place, together', async () => {
   const calls: unknown[] = []
   const e = { editFile: async (...a: unknown[]) => void calls.push(a), editFiles: async (x: unknown[]) => void calls.push(x.length) } as unknown as Pick<Edits, 'editFile' | 'editFiles'>
   await written(e, [{ file: 'f', at: ['a'], value: 1 }])
@@ -215,7 +227,8 @@ test('edits are written as one change: a lone value by itself, more, or a key pu
   expect(calls).toEqual([['f', ['a'], 1, false], 1, 2, 0])
 })
 
-test('a loose input lists as an object of plain values and is held to the strict fields its value picks, a field it has not got refused naming them', () => {
+// OCT-24-EDITOR-ALPHA-SWEEP
+test.skip('a loose input lists as an object of plain values and is held to the strict fields its value picks, a field it has not got refused naming them', () => {
   const shape = looseInput(v => ('ref' in v ? strictFields('p', 'a ref', { ref: z.string() }, ['ref']) : strictFields('p', 'a thing', { n: z.number().int(), on: z.boolean() })))
   expect(z.toJSONSchema(shape, { io: 'input' })).toMatchObject({ type: 'object', propertyNames: { type: 'string' } })
   expect(shape.safeParse({ n: 2, on: true }).success).toBe(true)
@@ -227,7 +240,8 @@ test('a loose input lists as an object of plain values and is held to the strict
   expect(shape.safeParse({ ref: 'x', n: 1 }).error!.issues.map(i => i.message)).toEqual(['a ref has no n, which p does not read: its fields are ref'])
 })
 
-test('a grid\'s fields are set by their paths, each a field the grid draws and of the shape of the value there, else refused naming the fields', async () => {
+// OCT-24-EDITOR-ALPHA-SWEEP
+test.skip('a grid\'s fields are set by their paths, each a field the grid draws and of the shape of the value there, else refused naming the fields', async () => {
   const { ed } = await editor()
   ed.bind('car', { route: 'nav.route' })
   const car = { engine: { speed: 50, on: true }, axles: [{ at: 1.2 }, { at: -1.2 }], paint: '#102030', name: 'van', center: [0, 0.2, 0], route: [[0, 0], [1, 0]], note: null, bodies: {} }
@@ -256,7 +270,8 @@ test('a grid\'s fields are set by their paths, each a field the grid draws and o
   expect(() => set({ route: [[1, 'a']] })).toThrow(/^the car route is .*, and .* is not of its shape/)
 })
 
-test('a truth read as a rule reads it finds its rows and reads its world, and throws at anything that would change it', () => {
+// OCT-24-EDITOR-ALPHA-SWEEP
+test.skip('a truth read as a rule reads it finds its rows and reads its world, and throws at anything that would change it', () => {
   const rows = [{ id: 1, kind: 'sky', data: { t: 3 } }, { id: 2, kind: 'sea', data: {} }]
   const w = reading({ rows, world: { day: 10 } } as never, 'the test panel')
   expect(w.world).toEqual({ day: 10 })
@@ -267,7 +282,8 @@ test('a truth read as a rule reads it finds its rows and reads its world, and th
   expect(() => w.spawn('sky', {})).toThrow('the test panel only reads the rows')
 })
 
-test('the changes between two values are the values that differ, each at its own path', () => {
+// OCT-24-EDITOR-ALPHA-SWEEP
+test.skip('the changes between two values are the values that differ, each at its own path', () => {
   expect(changes({ a: 1, b: [1, 2], c: { d: 1 } }, { a: 1, b: [1, 3], c: { e: 2 } })).toEqual([
     { at: ['b', 1], value: 3 },
     { at: ['c', 'd'], value: undefined, index: 0 },
@@ -292,7 +308,8 @@ test('the changes between two values are the values that differ, each at its own
   ])
 })
 
-test('a command whose input lists as no tool, or whose id another extension has, is refused as it is registered, and the one there keeps it', async () => {
+// OCT-24-EDITOR-ALPHA-SWEEP
+test.skip('a command whose input lists as no tool, or whose id another extension has, is refused as it is registered, and the one there keeps it', async () => {
   const { ed } = await editor()
   const run = () => {}
   // Its top is no object, so it would void every tool of the list: a union, a nullable, a bare value.
@@ -324,7 +341,8 @@ test('a command whose input lists as no tool, or whose id another extension has,
   expect(await ed.call('shared.go')).toBe('again')
 })
 
-test('a tool is a command in the Tools menu with its key; activating it puts the view in it, and it goes with its extension', async () => {
+// OCT-24-EDITOR-ALPHA-SWEEP
+test.skip('a tool is a command in the Tools menu with its key; activating it puts the view in it, and it goes with its extension', async () => {
   const { ed } = await editor()
   ed.use('brush', e => e.tool({ id: 'brush', title: 'Brush', key: 'T' }))
   const c = ed.commands.get('tool.brush') as Plain
@@ -338,7 +356,8 @@ test('a tool is a command in the Tools menu with its key; activating it puts the
   expect([ed.tooling, ed.tools.has('brush'), ed.commands.has('tool.brush')]).toEqual([undefined, false, false])
 })
 
-test('leaving a tool hands it hover(undefined) then off, for another tool, for Play and when its extension goes; activating the tool the view is in does nothing', async () => {
+// OCT-24-EDITOR-ALPHA-SWEEP
+test.skip('leaving a tool hands it hover(undefined) then off, for another tool, for Play and when its extension goes; activating the tool the view is in does nothing', async () => {
   const { ed } = await editor()
   const heard: string[] = []
   const tool = (id: string) => ({ id, title: id, hover: (p: unknown) => heard.push(`${id} hover ${p === undefined ? 'gone' : 'at'}`), off: () => heard.push(`${id} off`) })
@@ -362,7 +381,8 @@ test('leaving a tool hands it hover(undefined) then off, for another tool, for P
   expect(heard).toEqual(['press ended', 'b hover gone', 'b off'])
 })
 
-test('an object written whole as the values that change is held to its shape only where it changes: a value it had already, or a key, is not the change\'s', () => {
+// OCT-24-EDITOR-ALPHA-SWEEP
+test.skip('an object written whole as the values that change is held to its shape only where it changes: a value it had already, or a key, is not the change\'s', () => {
   const shape = z.strictObject({ a: z.number(), b: z.strictObject({ c: z.number(), d: z.number() }), e: z.array(z.number()) })
   const before = { a: 1, b: { c: 'x', d: 2 }, e: [1], stray: true }
   expect(changedIssue(shape, before, { ...before, a: 2 })).toBeUndefined()

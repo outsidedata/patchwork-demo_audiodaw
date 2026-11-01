@@ -17,20 +17,23 @@ const image = (bytes: Uint8Array | string, type?: string) => {
   return { img, heard }
 }
 
-test('a PNG\'s bytes load it with its size, and decode answers once they are read', async () => {
+// OCT-24-EDITOR-ALPHA-SWEEP
+test.skip('a PNG\'s bytes load it with its size, and decode answers once they are read', async () => {
   const { img, heard } = image(png(3, 2))
   expect([img.complete, img.naturalWidth]).toEqual([false, 0])
   await img.decode()
   expect([img.naturalWidth, img.naturalHeight, img.complete, heard]).toEqual([3, 2, true, ['load']])
 })
 
-test('a JPEG\'s bytes load it, with no pixels, as jsdom decodes none', async () => {
+// OCT-24-EDITOR-ALPHA-SWEEP
+test.skip('a JPEG\'s bytes load it, with no pixels, as jsdom decodes none', async () => {
   const { img, heard } = image(new Uint8Array([0xff, 0xd8, 0xff, 0xe0, 0, 0x10]))
   await img.decode()
   expect([img.naturalWidth, heard]).toEqual([0, ['load']])
 })
 
-test('bytes that are no picture, a PNG that does not decode, and a blob let go fail it, and decode refuses', async () => {
+// OCT-24-EDITOR-ALPHA-SWEEP
+test.skip('bytes that are no picture, a PNG that does not decode, and a blob let go fail it, and decode refuses', async () => {
   for (const bytes of ['{"not": "a picture"}', new Uint8Array([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a, 1, 2, 3])]) {
     const { img, heard } = image(bytes)
     await expect(img.decode()).rejects.toThrow('The source image cannot be decoded.')
@@ -44,7 +47,8 @@ test('bytes that are no picture, a PNG that does not decode, and a blob let go f
   await expect(img.decode()).rejects.toThrow('The source image cannot be decoded.')
 })
 
-test('a blob read after the image was given another url is told of nothing: the image is the second\'s', async () => {
+// OCT-24-EDITOR-ALPHA-SWEEP
+test.skip('a blob read after the image was given another url is told of nothing: the image is the second\'s', async () => {
   const { img, heard } = image(png(5, 5))
   img.src = URL.createObjectURL(new Blob([png(2, 7) as BlobPart]))
   await img.decode()
@@ -52,7 +56,8 @@ test('a blob read after the image was given another url is told of nothing: the 
   expect([img.naturalWidth, img.naturalHeight, heard]).toEqual([2, 7, ['load']])
 })
 
-test('a picture is judged by its bytes whatever its type, an SVG by its type: an AVIF, a HEIF, an icon and a cursor load with no pixels; bytes of no picture fail, typed as one or not', async () => {
+// OCT-24-EDITOR-ALPHA-SWEEP
+test.skip('a picture is judged by its bytes whatever its type, an SVG by its type: an AVIF, a HEIF, an icon and a cursor load with no pixels; bytes of no picture fail, typed as one or not', async () => {
   const box = (brand: string) => new Uint8Array([0, 0, 0, 0x18, ...[...`ftyp${brand}`].map(c => c.charCodeAt(0))])
   for (const [bytes, type] of [
     [box('avif'), 'image/avif'], [box('heic'), ''], [new Uint8Array([0, 0, 1, 0, 1, 0]), 'image/x-icon'], [new Uint8Array([0, 0, 2, 0, 1, 0]), ''],

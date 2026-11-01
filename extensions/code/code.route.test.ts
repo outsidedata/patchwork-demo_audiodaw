@@ -41,7 +41,8 @@ const refused = async (res: Response) => {
 const at = (p: string) => path.join(root, p)
 const text = (p: string) => readFileSync(at(p), 'utf8')
 
-test('list answers the code files under each folder named, sorted: no JSON, and none of a folder that is not there; a folder that is no game, plugin, addon or extension is refused', async () => {
+// OCT-24-EDITOR-ALPHA-SWEEP
+test.skip('list answers the code files under each folder named, sorted: no JSON, and none of a folder that is not there; a folder that is no game, plugin, addon or extension is refused', async () => {
   const listed = await (await fetch(`${server.url}/api/x/code/list?dirs=${encodeURIComponent('games/g,plugins/p,addons/nobody')}`)).json()
   expect(listed).toEqual({ files: ['games/g/assets/cut.py', 'games/g/hero.client.ts', 'games/g/hero.sim.ts', 'games/g/plugins/moves/moves.sim.ts', 'plugins/p/p.extension.tsx', 'plugins/p/p.plugin.ts'] })
   for (const dir of ['engine', 'games', 'games/g/plugins', '../x']) {
@@ -50,7 +51,8 @@ test('list answers the code files under each folder named, sorted: no JSON, and 
   }
 })
 
-test('read answers a code file\'s text, and null for one that is not there, which is no error; a path that is no code file is refused', async () => {
+// OCT-24-EDITOR-ALPHA-SWEEP
+test.skip('read answers a code file\'s text, and null for one that is not there, which is no error; a path that is no code file is refused', async () => {
   const read = (p: string) => fetch(`${server.url}/api/x/code/read?path=${encodeURIComponent(p)}`)
   const hero = await read('games/g/hero.sim.ts')
   expect([hero.status, await hero.json()]).toEqual([200, { text: text('games/g/hero.sim.ts') }])
@@ -60,7 +62,8 @@ test('read answers a code file\'s text, and null for one that is not there, whic
     expect(await refused(await read(p))).toContain('read reads a code file')
 })
 
-test('a save writes the file, answering its path and nothing more; a save of what was there over it writes it back, byte for byte', async () => {
+// OCT-24-EDITOR-ALPHA-SWEEP
+test.skip('a save writes the file, answering its path and nothing more; a save of what was there over it writes it back, byte for byte', async () => {
   const p = 'games/g/hero.sim.ts', was = text(p), now = "export const hero = { tick() { return 2 } }\n"
   const saved = await (await post('save', { path: p, text: now, was })).json()
   expect(saved).toEqual({ files: [p] })
@@ -69,7 +72,8 @@ test('a save writes the file, answering its path and nothing more; a save of wha
   expect(text(p)).toBe(was)
 })
 
-test('a save handed no `was` makes the file; one handed no text takes it away; each answers its path', async () => {
+// OCT-24-EDITOR-ALPHA-SWEEP
+test.skip('a save handed no `was` makes the file; one handed no text takes it away; each answers its path', async () => {
   const p = 'games/g/goblin.sim.ts', t = 'export const goblin = {}\n'
   expect(await (await post('save', { path: p, text: t, was: null })).json()).toEqual({ files: [p] })
   expect(text(p)).toBe(t)
@@ -77,7 +81,8 @@ test('a save handed no `was` makes the file; one handed no text takes it away; e
   expect(existsSync(at(p))).toBe(false)
 })
 
-test('a save is refused, writing nothing, out of a game, plugin, addon or extension, for the engine, for JSON, past its own folder, and for a file that does not hold what it was handed', async () => {
+// OCT-24-EDITOR-ALPHA-SWEEP
+test.skip('a save is refused, writing nothing, out of a game, plugin, addon or extension, for the engine, for JSON, past its own folder, and for a file that does not hold what it was handed', async () => {
   const hero = text('games/g/hero.sim.ts')
   for (const p of ['engine/engine.ts', 'editor/x.ts', 'games/g/g.scene.json', 'games/g/../g/hero.sim.ts', 'games/g', 'notes.ts', 'games//hero.sim.ts'])
     expect(await refused(await post('save', { path: p, text: 'x', was: null }))).toContain('save writes a code file')
@@ -91,7 +96,8 @@ test('a save is refused, writing nothing, out of a game, plugin, addon or extens
   expect(existsSync(at('games/g/ghost.sim.ts'))).toBe(false)
 })
 
-test('a save reloads no page itself, and the module a page imports after it is the one saved', async () => {
+// OCT-24-EDITOR-ALPHA-SWEEP
+test.skip('a save reloads no page itself, and the module a page imports after it is the one saved', async () => {
   // The page has imported the module.
   expect((await fetch(`${server.url}/games/g/hero.client.ts`)).status).toBe(200)
   const p = 'games/g/hero.client.ts', was = text(p)

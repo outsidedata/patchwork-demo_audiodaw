@@ -3,7 +3,8 @@
 // (terrain3d's `task`), so a cell placed in either is the same instance to the bit.
 //
 // `bed(cell, stand, ground)` is a placed cell's instance matrix: its model at `size`, yawed, tilted
-// `lean` of the way to the ground's plane and sunk, from the row's `stand`, `{ foot, edge, lean }`.
+// `lean` of the way to the ground's plane and sunk, from the row's `stand`, `{ foot, edge, rise, lean }`,
+// then lowered the cell's `sink` of its height, sink·rise·size metres.
 // `take(pack, stand, i, j, ground)` is cell (i, j) placed and bedded: `{ cell, m }`, both undefined
 // for a refused cell.
 //
@@ -13,12 +14,12 @@
 import * as THREE from 'three'
 import { place, type Cell, type Ground, type Pack } from './scatter3d.sim.ts'
 
-export type Stand = { foot: number; edge: number; lean: number }
+export type Stand = { foot: number; edge: number; rise: number; lean: number }
 
 const up = new THREE.Vector3(0, 1, 0)
 
 export function bed(c: Cell, stand: Stand, ground: Ground): Float32Array {
-  const { foot, edge, lean } = stand
+  const { foot, edge, rise, lean } = stand
   const f = foot * c.size
   let a = 0, bx = 0, bz = 0
   if (f > 0) {
@@ -46,7 +47,7 @@ export function bed(c: Cell, stand: Stand, ground: Ground): Float32Array {
     gap = Math.max(gap, a + p.y - ground.height(c.x + p.x, c.z + p.z))
   }
   const q = tilt.multiply(new THREE.Quaternion().setFromAxisAngle(up, c.yaw))
-  return Float32Array.from(new THREE.Matrix4().compose(new THREE.Vector3(c.x, a - gap, c.z), q, new THREE.Vector3(c.size, c.size, c.size)).elements)
+  return Float32Array.from(new THREE.Matrix4().compose(new THREE.Vector3(c.x, a - gap - c.sink * rise * c.size, c.z), q, new THREE.Vector3(c.size, c.size, c.size)).elements)
 }
 
 export function take(pack: Pack, stands: Record<string, Stand>, i: number, j: number, ground: Ground) {

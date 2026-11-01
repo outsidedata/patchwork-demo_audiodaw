@@ -5,20 +5,37 @@
 //
 // What a line meets is asked of other plugins through mods (`addons/scenemanager`), each named in
 // `world.hitscan3d.mods`, and each optional:
-//   ground   `(w, from, dir, far) → { t, normal } | undefined`, the first point of the ground along
-//            the line (`terrain3d.hitscan3d.ts`).
-//   solids   `(w, from, dir, far) → { x, z, radius, base, tall? }[]`, every solid standing on it, a
-//            trunk or a boulder, whose circle the line's path over the ground crosses within `far`:
-//            an upright cylinder about (x, z) from `base` up `tall`, or without end when it has none
-//            (`scatter3d.hitscan3d.ts`).
-//   bodies   `(w) → { id, kind, pos, shapes }[]`, every body that could be hit, `pos` its feet and
-//            `shapes` what of it a shot meets, in the world, each named by its `part`:
-//              `{ part, cylinder: { pos, radius, height } }`, upright, from its foot `pos` up
-//              `height` (`walker.hitscan3d.ts`);
-//              `{ part, capsule: { a, b, radius } }`, every point within `radius` of the segment from
-//              `a` to `b`, one sphere when they are one point (`ragdoll3d.hitscan3d.ts`).
+//   ground     `(w, from, dir, far) → { t, normal } | undefined`, the first point of the ground along
+//              the line (`terrain3d.hitscan3d.ts`).
+//   solids     `(w, from, dir, far) → Shape[]`, every solid standing on it, a trunk, a boulder, a wall,
+//              that the line may cross within `far`, as shapes (Shapes, below), named as one plugin or
+//              a list of them, each one's solids taken (`scatter3d.hitscan3d.ts`,
+//              `shapes3d.hitscan3d.ts`).
+//   bodies     `(w) → { id, kind, pos, shapes }[]`, every body that could be hit, `pos` its feet and
+//              `shapes` what of it a shot meets, in the world, each a shape named by its `part`,
+//              `{ part, <word>: { … } }` (`walker.hitscan3d.ts`, `ragdoll3d.hitscan3d.ts`).
+//   behaviors  the plugins that deliver hitscan3d more words of shape (Shapes, below).
 // `t` is metres along `dir` from `from`, `dir` any length (it is normalised), `normal` the surface's,
 // unit length. `far` is the most metres a line is asked along.
+//
+// Shapes. hitscan3d never knows what a shape is: it meets each by its behavior, a table from a word to
+// `(shape, from, dir, far, grow) → { t, normal } | undefined`, where the line from `from` along unit
+// `dir` first meets a thing of that word within `far`, taken `grow` metres wider, or, from inside it,
+// where it leaves it. A shape names its word by the key its numbers sit under, `{ cylinder: { pos,
+// radius, height } }`. hitscan3d's own words:
+//   cylinder  `{ pos, radius, height? }`, upright, from its foot `pos` up `height`, without end when it
+//             has none; `grow` takes it wider and longer at both ends.
+//   capsule   `{ a, b, radius }`, every point within `radius` of the segment from `a` to `b`, one
+//             sphere when they are one point; `grow` takes it wider.
+// More words come from the plugins `world.hitscan3d.mods.behaviors` names, each exporting
+// `behaviors()`, `{ <word>: <behavior> }`, laid over hitscan3d's own in the list's order: a word one
+// delivers takes the place of hitscan3d's own of that word, built-ins included, and a later one's
+// takes the place of an earlier one's. The plugin that hands hitscan3d shapes of a word delivers that
+// word's behavior (`plugins/shapes3d`'s `box`). A shape of a word none of them has throws naming it.
+// One fallback is kept, `fromBare`: a solid handed bare, `{ x, z, radius, base, tall? }`, as providers
+// written before shapes had words hand them, is the upright cylinder it always was, about (x, z) from
+// `base` up `tall`, without end when it has none. Nothing past `fromBare` reads a bare solid. A body's
+// shapes are met `grow` wider; a solid's are met as they stand.
 //
 // The rest of `world.hitscan3d`:
 //   kinds    `{ <kind>: { off?, tall? } }`: the kinds of body a shot can hit, and no other. A row
@@ -44,8 +61,8 @@
 // `kind` and `part` when it is a body, the part of the shape it met, or undefined when it meets
 // nothing. `skip` is ids of bodies it passes through (the shooter); `bodies: false` passes through
 // every body, for a line only the ground and the solids stop (a camera kept out of a hill); `grow` is
-// metres every shape is taken wider by, and a cylinder longer by at both ends, 0 when left out, for a
-// round with a size of its own. A line starting inside a shape meets it where it leaves it; a line
+// metres every body's shape is taken wider by, as its word's behavior says (a cylinder longer by it
+// at both ends too), 0 when left out, for a round with a size of its own. A line starting inside a shape meets it where it leaves it; a line
 // starting inside a skipped body passes it by.
 // `hurt` is what the shot does to a body it meets, `{ damage, by, … }`: `damage` the harm, a number,
 // or `{ <part>: number }`, the harm by the part met, which must name it; `by` the row that shot; and
@@ -71,13 +88,17 @@
 // `shoot` and `bodies`, so launched rounds meet, and hurt, what a shot meets.
 import type { Arg, Kind, Row, W } from '#engine/engine.ts'
 import * as math from '#plugins/math/math.sim.ts'
-import { mod } from '#addons/scenemanager/scenemanager.addon.ts'
+import { mod, modsOf } from '#addons/scenemanager/scenemanager.addon.ts'
 import type { Memory } from '#addons/rewind/rewind.addon.ts'
 
 export type Surface = { t: number; normal: number[] }
-export type Shape = { part: string } & (
-  | { cylinder: { pos: number[]; radius: number; height: number } }
-  | { capsule: { a: number[]; b: number[]; radius: number } })
+// A shape: its numbers under its word (Shapes, above).
+export type Worded = { [word: string]: any }
+// A body's shape, named by its part.
+export type Shape = { part: string } & Worded
+// A word's behavior: where the line from `from` along unit `dir` first meets a thing of that word,
+// within `far`, taken `grow` metres wider.
+export type Behavior = (shape: any, from: number[], dir: number[], far: number, grow: number) => Surface | undefined
 export type Body = { id: number; kind: string; pos: number[]; shapes: Shape[] }
 export type Hit = { t: number; point: number[]; normal: number[]; what: 'ground' | 'solid' | 'body'; id?: number; kind?: string; part?: string }
 export type Hurt = { damage: number | Record<string, number>; by: number; [more: string]: unknown }
@@ -87,9 +108,10 @@ export type Numbers = {
   rewind: number
 }
 
+// A solid handed bare (`fromBare`).
 export type Solid = { x: number; z: number; radius: number; base: number; tall?: number }
 type Ground = (w: W, from: number[], dir: number[], far: number) => Surface | undefined
-type Solids = (w: W, from: number[], dir: number[], far: number) => Solid[]
+type Solids = (w: W, from: number[], dir: number[], far: number) => (Solid | Worded)[]
 type Bodies = (w: W) => Body[]
 
 const kept = new WeakMap<Row, Map<number, Body[]>>()
@@ -240,23 +262,54 @@ export function capsule(o: number[], d: number[], far: number, a: number[], b: n
   return { t, normal: inside ? [-n[0] / l, -n[1] / l, -n[2] / l] : [n[0] / l, n[1] / l, n[2] / l] }
 }
 
-// Where a line meets one of a body's shapes, grown by `grow`.
-function meet(o: number[], d: number[], far: number, s: Shape, grow: number): Surface | undefined {
-  if ('cylinder' in s) {
-    const { pos, radius, height } = s.cylinder
-    return cylinder(o, d, far, pos, radius + grow, pos[1] - grow, pos[1] + height + grow)
+// hitscan3d's own words (Shapes, above).
+/** @deprecated LEGACY, being phased out: a plugin keeps no words of its own; every word is delivered by the plugin that brings things of it (`world.hitscan3d.mods.behaviors`). */
+export const base: Record<string, Behavior> = {
+  cylinder: (c, o, d, far, grow) => cylinder(o, d, far, c.pos, c.radius + grow, c.pos[1] - grow, c.height === undefined ? Infinity : c.pos[1] + c.height + grow),
+  capsule: (c, o, d, far, grow) => capsule(o, d, far, c.a, c.b, c.radius + grow),
+}
+
+// Every behavior the scene has: hitscan3d's own, and over them each mod's in the order they are named;
+// made once per scene's `world`, whose mods never change.
+const made = new WeakMap<object, Record<string, Behavior>>()
+function behaviorsOf(world: object): Record<string, Behavior> {
+  let all = made.get(world)
+  if (!all) {
+    all = { ...base }
+    for (const m of modsOf<() => Record<string, Behavior>>(world, 'hitscan3d', 'behaviors')) Object.assign(all, m())
+    made.set(world, all)
   }
-  return capsule(o, d, far, s.capsule.a, s.capsule.b, s.capsule.radius + grow)
+  return all
+}
+
+// Where a line meets a shape, by its word's behavior, `grow` wider. The word is the key its numbers sit
+// under, a body's `part` aside.
+function meet(world: object, o: number[], d: number[], far: number, s: Worded, grow: number): Surface | undefined {
+  const word = Object.keys(s).find(k => k !== 'part')!
+  const behavior = behaviorsOf(world)[word]
+  if (!behavior) throw new Error(`hitscan3d has no behavior for a shape of the word ${word}: no plugin world.hitscan3d.mods.behaviors names delivers it`)
+  return behavior(s[word], o, d, far, grow)
+}
+
+// The one fallback: a solid handed bare, `{ x, z, radius, base, tall? }`, as providers written before
+// shapes had words hand them, is the upright cylinder it always was. Nothing past this reads a bare
+// solid.
+/** @deprecated LEGACY, being phased out: a provider hands worded shapes and delivers their words' behaviors; a bare solid is the old way. */
+function fromBare(s: Solid | Worded): Worded {
+  if (!('x' in s && 'radius' in s)) return s
+  const bare = s as Solid
+  return { cylinder: { pos: [bare.x, bare.base, bare.z], radius: bare.radius, height: bare.tall } }
 }
 
 // Where a line from `from` along unit `d` first meets a solid within `far`, of those the scene's
-// `solids` mod stands along it.
+// `solids` mods stand along it, each met as it stands.
 function solidAlong(w: W, from: number[], d: number[], far: number): Surface | undefined {
-  const solids = mod<Solids>(w.world, 'hitscan3d', 'solids')
   let best: Surface | undefined
-  for (const s of solids?.(w, from, d, far) ?? []) {
-    const hit = cylinder(from, d, far, [s.x, s.base, s.z], s.radius, s.base, s.tall === undefined ? Infinity : s.base + s.tall)
-    if (hit && (!best || hit.t < best.t)) best = hit
+  for (const solids of modsOf<Solids>(w.world, 'hitscan3d', 'solids')) {
+    for (const s of solids(w, from, d, far)) {
+      const hit = meet(w.world, from, d, far, fromBare(s), 0)
+      if (hit && (!best || hit.t < best.t)) best = hit
+    }
   }
   return best
 }
@@ -282,7 +335,7 @@ export function shoot(w: W, from: number[], dir: number[], far: number, opts: { 
     if (skip.has(b.id)) continue
     const up = upright(w, b)
     if (!up) continue
-    for (const s of up.shapes) take(meet(from, d, best?.t ?? far, s, grow), 'body', { id: b.id, kind: b.kind, part: s.part })
+    for (const s of up.shapes) take(meet(w.world, from, d, best?.t ?? far, s, grow), 'body', { id: b.id, kind: b.kind, part: s.part })
   }
   const hit = best as Hit | undefined
   if (hit?.what === 'body' && opts.hurt) {

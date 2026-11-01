@@ -14,7 +14,7 @@
 //             this.
 //   moves     metres: a one-shot carries travel when it ends more than this from its start,
 //   turns     degrees: or when it turns this far or further; turning less, its yaw column is zeroed.
-//   kinds     `{ <kind>: { rig, model, glb, fade, reads, aim, props } }`: the rig file (a loader `json`
+//   kinds     `{ <kind>: { rig, model, glb, fade, falls, reads, aim, props } }`: the rig file (a loader `json`
 //             entry) and the model (a loader `model` entry) each kind's rows play, `glb`, a loader
 //             `binary` entry of the model's same file, which the server poses the body by (below,
 //             The pose), and which a kind no rule poses may leave out, `fade`, the
@@ -27,7 +27,9 @@
 //             into the row's fields, `"look.pitch"` its `look`'s `pitch`. `aim` `{ bones: { <bone
 //             suffix>: <share> } }` spreads that pitch over the bones it lists, and `props` `[{ model,
 //             bone, at, turn }]` hangs loader models on bones: the browser half's, which draws both,
-//             and nothing here reads them.
+//             and nothing here reads them. `falls`, which a kind may leave out, is the falls it plays
+//             by how fast it falls: `[{ above, role }]`, `above` m/s, in rising order, each the role
+//             played once the body falls faster than its `above` (The moments, 1).
 //
 // The rig file:
 //   bodies   `{ <model>: "<fbx>" }`, the rigged characters the rig's clips are baked onto, paths
@@ -39,7 +41,7 @@
 //   size     times, 1 when left out: every body of the rig baked that many times its own size, its
 //            `table` and `ends` measured on it (`anim.export.py`). Nothing plays by it.
 //   clips    name to a file string, or to `{ file, loop, gear, markers, scale, rate, stance, mirror,
-//            rebase }`. `file` is the clip's FBX under ~/troupe-collection and `rebase` `{ from, onto }`
+//            rebase, held }` (`held`: `offsets`, below). `file` is the clip's FBX under ~/troupe-collection and `rebase` `{ from, onto }`
 //            moves it from the pose it was authored around (the first frame of the FBX `from`) to the
 //            one clip `onto` starts in; both are the export's (`anim.export.py`), and nothing plays by
 //            them.
@@ -74,6 +76,21 @@
 //            a segment of its name, its guard to its tip, and into `grips` (`anim.export.py`).
 //   grips    per body, per blade, measured: `{ bone, guard, tip }`, the joint that carries it and its
 //            guard and tip in that joint's frame, which a blade's place is read by off `posed`.
+//   touches  per body, per clip of its own (no mirror), measured: what the clip touches, read off where
+//            the body's skin is on every frame of it as baked (`anim.export.py`, by `anim.touches.mjs`,
+//            whose header says what each reading holds): where its hands grip, its feet stand, its seat
+//            sits, the floors it stands on, and every patch of skin held still and when (`plants`).
+//            `touchOf(from, me, clip)` is a clip's reading, and `plantsOf(from, me, clip)` when each of
+//            its hands and feet is planted (below); motion3d pins a limb by it. A game that asks
+//            neither ignores them.
+//   offsets  per body, per clip, measured: the clip's two offsets, where the spot its `held` names
+//            (every clip gives one, for a rig motion3d holds) stands from the point it is held to at
+//            its first frame and at its last (motion3d's Offsets), written for every clip by motion3d's
+//            step of a bake (`motion3d.offsets.ts`, whose header says what `held` holds) from the
+//            body's `ends` and `touches`. Nothing here plays by them; motion3d places a held body by them.
+//   poses    pose name to `{ clip, frame, at }`, measured: a frame of a clip of the rig, named by the
+//            clip's `.poses.json` beside its FBX (`anim.export.py`), and its time, `at` seconds. `pose`
+//            plays one (below).
 //
 // A row that plays carries `state` (`loco` in its gears, `act` in a one-shot or loop it was told to
 // play, `fall` in the air), `clip`, `clipT` (seconds into the clip), `rate`, `holds`, `cancel`,
@@ -86,7 +103,10 @@
 //
 // `play(me, clip, { holds, rate })` starts a clip as an act: from 0, at the row's `rate` (1 when
 // left out), committed while `holds` or before its `cancel` marker. `gesture(me, clip)` starts a
-// clip on the upper channel. `committed(me)` is `holds || clipT < cancel`. The three take only the
+// clip on the upper channel. `pose(me, w, name)` plays a pose of the rig's `poses` as `play` plays a
+// clip: its clip held at its frame, the playhead at its `at` and the row's `rate` 0, so it never moves on,
+// and `holds`, so it stays until `play`, `pose` or `stop` changes it; it fades in from the clip before as
+// any clip does, a pose of the same clip too. `committed(me)` is `holds || clipT < cancel`. The three take only the
 // row, so they cannot read the rig: `animate` writes `cancel` (the clip's `cancel` marker, 0
 // without one) each step, and `play` sets it to null, which counts as committed until `animate` has
 // read it. `stop(me, w)` ends the act playing, as an act past its cancel gives way to the stick, or
@@ -102,7 +122,13 @@
 // clip a stance plays for a role, `momentOf(rig, stance, moment)` the clip it plays for one of
 // anim's moments, through `roles`, and `stanceOf(rig, fields)` the stance a row stands in.
 // `readsOf(from, kind)` is the kind's `reads`, off `world.anim`, and `numbersOf(from)` `world.anim`
-// itself. `at(measure, t)` is the travel curve at t, and `carries(clip, numbers)` whether a
+// itself. `touchOf(from, me, clip)` is what a clip touches on the row's body (the rig's `touches` for
+// its kind's `model`; a mirrored clip's its source's), throwing for a rig baked without them, and
+// `plantsOf(from, me, clip)` is when each limb, `handL`, `handR`, `footL` and `footR`, is planted: the
+// runs of seconds `[from, to]` any patch of skin it is planted by (a hand's middle, top or underside, a
+// foot's sole, ball or heel) is held on something, every plant but those held on nothing (`still`),
+// joined where they touch, in order, a loop's run going past its end into the next lap, a mirrored
+// clip's its source's from the other side. `at(measure, t)` is the travel curve at t, and `carries(clip, numbers)` whether a
 // clip carries travel and keeps its turn: what the browser half pins the hips by.
 //
 // `animate(me, w, dt)` runs one step and returns `{ markers, travel }`:
@@ -114,7 +140,12 @@
 //      fall speed of its last step in the air, since a mover's landing step may set vel[1] from the
 //      ground) plays `land` as an act that does not hold; slower, the body goes straight back to its
 //      gears, so a step off a kerb does not commit it to a landing. Each is the role `roles` names
-//      for that moment.
+//      for that moment. A kind with `falls` falls by them instead: a body in the air falling no
+//      faster than the first band's `above` plays on as it was, so a step down a stair, whose fall
+//      is short, is never a fall; past a band's `above` it plays that band's role, and only ever goes
+//      up the bands, never down, until it touches down, so the end of a long fall plays the band it
+//      reached and runs back through none. `band` is the row's band, −1 on the ground; a jump or a
+//      leap counts as the first band, so a jump's own way down never turns into a fall.
 //   2. In its gears: slower than `still`, the stance's `still` role. Otherwise the gears of the stance, taken
 //      by the nearest direction to the way the body moves against its facing, all ties kept, and of
 //      those the fastest whose speed·`shift` is at or under the body's speed, or the slowest when
@@ -169,6 +200,7 @@ await MeshoptDecoder.ready
 export type Entry = string | {
   file?: string; loop?: boolean; gear?: number; markers?: Record<string, number | string>
   scale?: number; rate?: number; stance?: string; mirror?: string; rebase?: { from: string; onto: string }
+  held?: { spot?: string[]; on?: 'both' | 'begin' | 'end' | 'face'; facing?: 'into' | 'along'; after?: string }
 }
 export type Measure = {
   frames?: number; dur: number; forward: number; left: number; yaw: number; rise?: number; height?: number; low?: number; peak?: number
@@ -194,13 +226,26 @@ export type Rig = {
   show?: Record<string, string[]>
   blades?: string[]
   grips?: Record<string, Record<string, Grip>>
+  touches?: Record<string, Record<string, Touch>>
+  offsets?: Record<string, Record<string, { beginOffset: number[]; endOffset: number[]; beginTurn: number; normal?: number[] }>>
+  poses?: Record<string, Pose>
 }
+// A pose: a frame of a clip of the rig, and its time in seconds.
+export type Pose = { clip: string; frame: number; at: number }
+// What a clip touches on a body, as anim's touch reader reads it (`anim.touches.mjs`, its header): every
+// field of the reading, of which anim itself reads the `plants`.
+export type Plant = { point: string; from: number; to: number; at: number[]; on: string }
+export type Touch = { case: string; loop: boolean; dur: number; plants: Plant[]; [field: string]: unknown }
+// The limbs anim says are planted, each the run of seconds it is held still on something.
+export type Limb = 'handL' | 'handR' | 'footL' | 'footR'
 // Where a blade stands on the joint that carries it: its guard and its tip in that joint's frame.
 export type Grip = { bone: string; guard: number[]; tip: number[] }
 export type Numbers = {
   still: number; shift: number; leap: number; landFall: number; moves: number; turns: number
-  kinds: Record<string, { rig: string; model: string; glb?: string; fade: number; reads: Reads; aim?: { bones: Record<string, number> }; props?: Prop[] }>
+  kinds: Record<string, { rig: string; model: string; glb?: string; fade: number; falls?: Fall[]; reads: Reads; aim?: { bones: Record<string, number> }; props?: Prop[] }>
 }
+// A band of falling: the role played once the body falls faster than `above`, m/s.
+export type Fall = { above: number; role: string }
 export type Clip = {
   name: string
   source: string // the clip whose tracks it draws: its own name, or the clip it mirrors
@@ -348,6 +393,16 @@ const kindOf = (a: Numbers, kind: string) => {
   if (!k) throw new Error(`anim kinds has no ${kind}`)
   return k
 }
+// A kind's `falls`, from the scene file: every `above` a number, each above the one before.
+const sorted = new WeakSet<Fall[]>()
+function bands(kind: string, falls: Fall[]) {
+  if (sorted.has(falls)) return
+  falls.forEach((f, i) => {
+    if (!Number.isFinite(f.above) || (i > 0 && !(f.above > falls[i - 1].above))) throw new Error(`anim kinds.${kind}.falls[${i}].above ${f.above} is not a number above the band before it`)
+  })
+  sorted.add(falls)
+}
+
 const READS = ['pos', 'yaw', 'vel', 'grounded', 'limp'] as const
 const readsIn = (a: Numbers, kind: string): Reads => {
   const r = kindOf(a, kind).reads
@@ -366,7 +421,7 @@ const bodyOf = (d: any, r: Reads) => ({ vel: (d[r.vel] ?? [0, 0, 0]) as number[]
 // Every field a row plays by, as a row that has played nothing holds it.
 const FRESH = {
   state: 'loco', clip: null, clipT: 0, rate: 1, holds: false, blend: 1, from: null, fromT: 0,
-  upper: null, upperT: 0, upperW: 0, was: null, wasT: 0, wasW: 0, sink: 0,
+  upper: null, upperT: 0, upperW: 0, was: null, wasT: 0, wasW: 0, sink: 0, band: -1,
 }
 
 // Every field a row plays by, filled where it gives none.
@@ -414,6 +469,14 @@ export function play(me: Row, clip: string, { holds, rate }: { holds?: boolean; 
   d.cancel = null
 }
 
+export function pose(me: Row, w: W, name: string) {
+  const kind = animKind(me)
+  const p = rigOf(w, kind).poses?.[name]
+  if (!p) throw new Error(`anim: ${kind}'s rig has no pose ${name}`)
+  play(me, p.clip, { holds: true, rate: 0 })
+  me.data.clipT = p.at
+}
+
 export function gesture(me: Row, clip: string) {
   const d = me.data
   drop(d)
@@ -429,19 +492,68 @@ export const animKind = (me: Row): string => (typeof me.data.as === 'string' ? m
 // A segment's two ends in the body's frame (x its left, y up, z ahead), at `at`, a clip and its
 // playhead, the row's own `clip` and `clipT` unless given: [ax, ay, az, bx, by, bz], off the rig's
 // `ends` for the kind's `model`, straight between the two frames the playhead falls between, held
-// within the clip's frames.
+// within the clip's frames. A mirrored clip, which the bake measures none of, is its source's other
+// side's segment (`handR` for `handL`) reflected across x. It throws naming a clip the rig measures no
+// ends of.
 export function ends(w: W | Wire, me: Row, segment: string, at: { clip: string; clipT: number } = me.data as any): number[] {
   const kind = animKind(me)
   const body = numbersOf(w).kinds[kind].model
-  const measured = rigOf(w, kind).ends?.[body]
+  const rig = rigOf(w, kind)
+  const measured = rig.ends?.[body]
   if (!measured) throw new Error(`anim: ${kind}'s rig has no ends for ${body}; bake it (anim.export.py)`)
-  const clip = measured[at.clip]
-  const rows = clip[segment] as number[][]
+  // A mirrored clip is its source's from the other side: the segment of the other side, across x.
+  const c = clipOf(rig, at.clip)
+  const clip = measured[c.source]
+  if (!clip) throw new Error(`anim: ${kind}'s rig has no ends of ${c.source} for ${body}; bake it (anim.export.py)`)
+  const rows = clip[c.mirrored ? otherSide(segment) : segment] as number[][]
+  if (!rows) throw new Error(`anim: ${kind}'s rig measures no segment ${segment}`)
   const f = Math.min(rows.length - 1, Math.max(0, at.clipT * clip.fps))
   const i = Math.floor(f), s = f - i
-  if (s === 0) return rows[i]
-  const a = rows[i], b = rows[i + 1]
-  return a.map((v, k) => v + (b[k] - v) * s)
+  const a = rows[i], b = rows[Math.min(rows.length - 1, i + 1)]
+  const got = s === 0 ? a : a.map((v, k) => v + (b[k] - v) * s)
+  return c.mirrored ? got.map((v, k) => (k % 3 === 0 ? -v : v)) : got
+}
+
+// A segment's name on the body's other side: `handL` for `handR`, a segment of no side as it is.
+const otherSide = (segment: string) => segment.replace(/[LR]$/, s => (s === 'L' ? 'R' : 'L'))
+
+// What `clip` touches on the kind's body (the rig's `touches`, its `model`'s): the reading of a clip of
+// its own; a mirrored clip's is its source's, read from the other side by `plantsOf`.
+export function touchOf(from: W | Wire, me: Row, clip: string): Touch {
+  const kind = animKind(me)
+  const body = numbersOf(from).kinds[kind].model
+  const rig = rigOf(from, kind)
+  const read = rig.touches?.[body]
+  if (!read) throw new Error(`anim: ${kind}'s rig has no touches for ${body}; bake it (anim.export.py)`)
+  const got = read[clipOf(rig, clip).source]
+  if (!got) throw new Error(`anim: ${kind}'s rig has no touches of ${clip} for ${body}; bake it (anim.export.py)`)
+  return got
+}
+
+// The patches of skin each limb is planted by: a hand by its middle, its top (a grip) or its underside
+// (a palm), a foot by its sole, its ball or its heel.
+const LIMBS: Record<Limb, RegExp> = { handL: /^(hand|grip|palm)L$/, handR: /^(hand|grip|palm)R$/, footL: /^(sole|ball|heel)L$/, footR: /^(sole|ball|heel)R$/ }
+const swapped = (limb: Limb): Limb => (limb.endsWith('L') ? limb.replace(/L$/, 'R') : limb.replace(/R$/, 'L')) as Limb
+
+// When each limb is planted in `clip`: the runs of seconds any patch of skin it is planted by is held on
+// something (the reading's `plants`, every one but those held on nothing, `still`), runs that touch or
+// overlap made one, in order. A loop's run may go past its end, into the next lap. A mirrored clip's are
+// its source's, the left's the right's.
+export function plantsOf(from: W | Wire, me: Row, clip: string): Record<Limb, number[][]> {
+  const t = touchOf(from, me, clip)
+  const mirrored = clipOf(rigOf(from, animKind(me)), clip).mirrored
+  const out = { handL: [], handR: [], footL: [], footR: [] } as Record<Limb, number[][]>
+  for (const limb of Object.keys(LIMBS) as Limb[]) {
+    const runs = t.plants.filter(p => p.on !== 'still' && LIMBS[limb].test(p.point)).map(p => [p.from, p.to]).sort((a, b) => a[0] - b[0])
+    const joined: number[][] = []
+    for (const r of runs) {
+      const last = joined[joined.length - 1]
+      if (last && r[0] <= last[1]) last[1] = Math.max(last[1], r[1])
+      else joined.push([...r])
+    }
+    out[mirrored ? swapped(limb) : limb] = joined
+  }
+  return out
 }
 
 // ---------------------------------------------------------------- the pose
@@ -830,7 +942,8 @@ export function animate(me: Row, w: W, dt: number): { markers: Marker[]; travel:
   const a = numbersOf(w)
   const reads = readsIn(a, animKind(me))
   if (d[reads.limp]) return { markers: [], travel }
-  const { fade } = kindOf(a, animKind(me))
+  const { fade, falls } = kindOf(a, animKind(me))
+  if (falls) bands(animKind(me), falls)
   const rig = rigOf(w, animKind(me))
   const stance = stanceOf(rig, d)
   const per = (s: number) => (fade > 0 ? s / fade : Infinity)
@@ -838,26 +951,45 @@ export function animate(me: Row, w: W, dt: number): { markers: Marker[]; travel:
 
   const body = bodyOf(d, reads)
   const { vel } = body
+  // The body leaves its gears, or its act, for a clip it plays in the air.
+  const aloft = (clip: string) => {
+    change(d, clip)
+    d.state = 'fall'
+    d.clipT = 0
+    d.rate = 1
+    d.holds = false
+    drop(d)
+  }
   if (d[reads.grounded] === false) {
     d.sink = -vel[1]
-    const air = momentOf(rig, stance, vel[1] > 0 ? (math.hypot(vel[0], vel[2]) > a.leap ? 'leap' : 'jump') : 'fall')
-    if (d.state !== 'fall' && air !== undefined) {
-      change(d, air)
-      d.state = 'fall'
-      d.clipT = 0
-      d.rate = 1
-      d.holds = false
-      drop(d)
+    const rising = vel[1] > 0
+    if (rising || !falls) {
+      const air = momentOf(rig, stance, rising ? (math.hypot(vel[0], vel[2]) > a.leap ? 'leap' : 'jump') : 'fall')
+      if (d.state !== 'fall' && air !== undefined) {
+        aloft(air)
+        if (falls) d.band = 0
+      }
+    } else {
+      // The fastest band it falls past, taken only when it is higher than the one it has.
+      let band = -1
+      falls.forEach((f, i) => { if (d.sink > f.above) band = i })
+      if (band > d.band) {
+        aloft(roleOf(rig, stance, falls[band].role))
+        d.band = band
+      }
     }
-  } else if (d.state === 'fall') {
-    const land = momentOf(rig, stance, 'land')
-    if (d.sink > a.landFall && land !== undefined) {
-      change(d, land)
-      d.state = 'act'
-      d.clipT = 0
-      d.rate = 1
-      d.holds = false
-    } else d.state = 'loco'
+  } else {
+    if (d.state === 'fall') {
+      const land = momentOf(rig, stance, 'land')
+      if (d.sink > a.landFall && land !== undefined) {
+        change(d, land)
+        d.state = 'act'
+        d.clipT = 0
+        d.rate = 1
+        d.holds = false
+      } else d.state = 'loco'
+    }
+    d.band = -1
   }
   if (d.state === 'loco') gear(d, rig, stance, a, body)
   if (d.clip == null) return { markers: [], travel }

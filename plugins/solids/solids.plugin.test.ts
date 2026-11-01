@@ -14,7 +14,9 @@
 // the scene. In `sloped`, a plugin of the test's own, `field`, shipped before solids and named for its
 // `land` (`plugins/field/field.solids.ts`), the pad stands on the field's slope wherever its row
 // moves, whatever height the row says. A scene that ships field after solids, or names terrain3d's
-// land and does not list terrain3d, throws on its first frame.
+// land and does not list terrain3d, throws on its first frame. In `checked`, the pad's slab lays the
+// catalogue's checker 2 m to a span: it is drawn with the loader's picture, a span of it every 2 m of
+// every face, upright and unmirrored, and its lamp, laying none, carries no places on a picture.
 import { afterAll, expect, test, vi } from 'vitest'
 import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
@@ -118,6 +120,11 @@ const PAD = {
 const PAD_URL = '/solids-plugin-test/pad.model.json'
 written(PAD_URL, JSON.stringify(PAD))
 
+// The pad with its slab laying a checker, 2 m to a span, and its lamp laying none.
+const CHECKED = { ...PAD, paints: { slab: { colour: '#4a4f55', map: 'checker', scale: 2 }, lamp: { colour: '#ffb547', glow: 4 } } }
+const CHECKED_URL = '/solids-plugin-test/checked.model.json'
+written(CHECKED_URL, JSON.stringify(CHECKED))
+
 // The field's land: `at` metres high at the origin, rising `slope` [x, z] a metre.
 const FIELD = { at: 0.4, slope: [0.2, -0.1] }
 const fieldHeight = (x: number, z: number) => FIELD.at + FIELD.slope[0] * x + FIELD.slope[1] * z
@@ -151,6 +158,10 @@ const scenes: Record<string, Scene> = {
   late: yardOf(['scenemanager', 'solids', 'shipped', 'render3d'], ['field'], { field: FIELD, solids: { kinds: { pad: 'pad' }, mods: { land: 'field' } } }),
   // terrain3d's land, and no terrain3d listed.
   unlisted: yardOf(['scenemanager', 'solids', 'render3d'], [], { solids: { kinds: { pad: 'pad' }, mods: { land: 'terrain3d' } } }),
+  // The pad drawn from the checked model, the checker a repeating texture of the catalogue.
+  checked: yardOf(['loader', 'scenemanager', 'solids', 'render3d'], [], {
+    loader: { assets: { pad: { type: 'json', url: CHECKED_URL, preload: true }, checker: { type: 'texture', url: '/solids-plugin-test/checker.png', wrap: 'repeat' } } },
+  }),
 }
 const dir = mkdtempSync(join(tmpdir(), 'solids-plugin-'))
 afterAll(() => rmSync(dir, { recursive: true }))
@@ -230,6 +241,21 @@ test('with no land named, a row of a kind world.solids names stands at its pos f
   close(solids.group(pad.id).localToWorld(new THREE.Vector3(1, 0, 2)).toArray(), standing(pad.data.pos, pad.data.yaw, [1, 0, 2]), 6)
 })
 
+test('a row turned past a quarter is drawn facing its yaw, upright, after render3d has written its turn as a quaternion', async () => {
+  const { THREE, frames, solids, pad } = await yard()
+  for (const yaw of [2.6, -2.9]) {
+    pad.data.yaw = yaw
+    await frames(1)
+    // As render3d writes it between the steps: three reads it back as a half turn on x and z.
+    const group = solids.group(pad.id)
+    group.quaternion.setFromAxisAngle(new THREE.Vector3(0, 1, 0), yaw)
+    expect(Math.abs(group.rotation.x)).toBeCloseTo(Math.PI, 9)
+    await frames(1)
+    for (const p of [[0, 0, 0], [1, 0, 2], [0.3, 0.2, -0.7]])
+      close(group.localToWorld(new THREE.Vector3(...p)).toArray(), standing(pad.data.pos, yaw, p), 6)
+  }
+})
+
 test('a model\'s light hangs in its node at its place, a spot pointed at its aim, and follows the row', async () => {
   const { THREE, frames, solids, pad } = await yard()
   const L = PAD.lights[0]
@@ -283,6 +309,29 @@ test('with a land mod named, a row stands on the land it hands, facing its yaw, 
     expect(fieldHeight(x, z)).not.toBeCloseTo(y, 3)
     for (const p of [[0, 0, 0], [1, 0, 2], [0.3, 0.2, -0.7]])
       close(solids.group(pad.id).localToWorld(new THREE.Vector3(...p)).toArray(), standing([x, fieldHeight(x, z), z], yaw, p), 6)
+  }
+})
+
+test('a paint that lays a picture is drawn with the loader\'s picture, a span of it every `scale` metres of every face, upright and unmirrored, and a paint that lays none carries no places on a picture', async () => {
+  const { field, page, frames } = await open('checked')
+  await frames(3)
+  const { solids, loader } = page.client!.plugins
+  const group = solids.group(field.rows.find(r => r.kind === 'pad')!.id)
+  const painted: any[] = []
+  group.traverse((o: any) => { if (o.isMesh) painted.push(o) })
+  const slab = painted.find(m => m.material.map), lamp = painted.find(m => !m.material.map)
+  expect(slab.material.map).toBe(loader.get('checker'))
+  expect(lamp.geometry.getAttribute('uv')).toBeUndefined()
+  // Every edge of every triangle of the slab, a box 4 m by 0.3 m by 2 m, is as long on the picture as
+  // it is in metres over the scale, and every triangle, wound outward, is wound the same way on it.
+  const at = slab.geometry.getAttribute('position'), uv = slab.geometry.getAttribute('uv')
+  expect(uv.count).toBe(at.count)
+  for (let i = 0; i < at.count; i += 3) {
+    const p = [0, 1, 2].map(k => [at.getX(i + k), at.getY(i + k), at.getZ(i + k)])
+    const q = [0, 1, 2].map(k => [uv.getX(i + k), uv.getY(i + k)])
+    for (const [a, b] of [[0, 1], [1, 2], [2, 0]])
+      expect(Math.hypot(q[b][0] - q[a][0], q[b][1] - q[a][1]) * 2).toBeCloseTo(Math.hypot(p[b][0] - p[a][0], p[b][1] - p[a][1], p[b][2] - p[a][2]), 5)
+    expect((q[1][0] - q[0][0]) * (q[2][1] - q[0][1]) - (q[1][1] - q[0][1]) * (q[2][0] - q[0][0])).toBeGreaterThan(0)
   }
 })
 

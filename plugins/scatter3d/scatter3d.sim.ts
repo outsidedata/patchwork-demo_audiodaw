@@ -17,11 +17,13 @@
 //     asset | shape  the loader `model` whose meshes are the pack's rows, or a boulder shape
 //                    `{ detail, lumpy, squash }`; a pack has exactly one of them.
 //     colour surface a shape pack's colour and its optional surface (the browser half's header).
-//     rows           name to `{ weight, solid?, tall? }`: a mesh row of the model, or a variant of
-//                    the shape. `solid` makes each instance a circle `solid·size` metres round for
+//     rows           name to `{ weight, solid?, tall?, sink? }`: a mesh row of the model, or a variant
+//                    of the shape. `solid` makes each instance a circle `solid·size` metres round for
 //                    `solids`, and `tall` how high that solid stands over the ground, `tall·size`
 //                    metres, for what asks along a line (hitscan3d); a solid with no `tall` stands
-//                    without end.
+//                    without end. `sink` [base, spread]: the share of each instance's height the
+//                    browser half pushes under the ground once it is bedded (its header), base +
+//                    h₇·spread, so no two sink alike; a row with none sits as it is bedded.
 //     cell           metres: the pack is a grid of square cells this wide, at most one instance each.
 //     seed           the pack's hashes' seed.
 //     lods           the LOD the browser half draws on each of its land's rings, finest ring first; the
@@ -55,8 +57,9 @@
 //   the tint   1 + vary·(2·h₄ − 1), a grey;
 //   the row    the first row, in the order `rows` lists them, whose running sum of weights passes
 //              h₅·(the sum of every weight), so a row of weight 0 is never drawn;
-//   the size   base + h₆·spread, so the spread is the same at any density.
-// `place(pack, i, j, ground)` is the cell's instance `{ i, j, x, z, row, size, yaw, tint }`, or
+//   the size   base + h₆·spread, so the spread is the same at any density;
+//   the sink   base + h₇·spread of its row's `sink`, 0 for a row with none.
+// `place(pack, i, j, ground)` is the cell's instance `{ i, j, x, z, row, size, yaw, tint, sink }`, or
 // undefined when the cell is refused.
 //
 // `solids(w, x, z, r, ground)` is `{ x, z, radius, tall? }` for every kept instance of a row with
@@ -87,7 +90,7 @@ export type RockSurface = {
 }
 export type Pack = {
   asset?: string; shape?: Shape; colour?: string; surface?: RockSurface
-  rows: Record<string, { weight: number; solid?: number; tall?: number }>
+  rows: Record<string, { weight: number; solid?: number; tall?: number; sink?: [number, number] }>
   cell: number; seed: number; lods: number[]; shadow: number; leaf: number
   density: number; rules: Rule[]; biomes?: Record<string, number>; clearing: number; size: [number, number]; vary: number
 }
@@ -111,7 +114,7 @@ export type Ground = {
   // land in one, its output handed back; undefined where it has none.
   task?(url: string, input: unknown): Promise<unknown> | undefined
 }
-export type Cell = { i: number; j: number; x: number; z: number; row: string; size: number; yaw: number; tint: number }
+export type Cell = { i: number; j: number; x: number; z: number; row: string; size: number; yaw: number; tint: number; sink: number }
 export type Solid = { x: number; z: number; radius: number; tall?: number }
 
 // One integer hash of a cell and a seed, mixed with Math.imul: a whole number 0 … 2³² − 1.
@@ -154,11 +157,13 @@ export function place(pack: Pack, i: number, j: number, ground: Ground): Cell | 
   let sum = 0
   const row = rows.find(([, r]) => (sum += r.weight) > pick)?.[0]
   if (row === undefined) return undefined
+  const sink = pack.rows[row].sink
   return {
     i, j, x, z, row,
     size: pack.size[0] + unit(i, j, seed + 6) * pack.size[1],
     yaw: 2 * Math.PI * unit(i, j, seed + 3),
     tint: 1 + pack.vary * (2 * unit(i, j, seed + 4) - 1),
+    sink: sink ? sink[0] + unit(i, j, seed + 7) * sink[1] : 0,
   }
 }
 
@@ -174,6 +179,10 @@ export function check(s: Scatter, ground: Ground) {
     if (!(p.lods.length > 0 && p.lods.every(l => Number.isInteger(l) && l >= 0))) throw new Error(`${what} lods ${p.lods.join(', ')} are not a LOD, a whole number of at least 0, for each land ring it is drawn on`)
     for (const [row, r] of Object.entries(p.rows)) if (!(r.weight >= 0)) throw new Error(`${what} row ${row} weighs ${r.weight}`)
     for (const [row, r] of Object.entries(p.rows)) if (r.tall !== undefined && !(r.tall > 0)) throw new Error(`${what} row ${row} stands ${r.tall} tall`)
+    for (const [row, r] of Object.entries(p.rows)) {
+      if (r.sink !== undefined && !(Array.isArray(r.sink) && r.sink.length === 2 && r.sink.every(v => Number.isFinite(v) && v >= 0)))
+        throw new Error(`${what} row ${row} sinks ${JSON.stringify(r.sink)}, not [base, spread], two shares of its height of at least 0`)
+    }
     ground.rules(p.rules, what)
     if (p.biomes) ground.rules(biomeRules(p.biomes).map(([rule]) => rule), `${what} biomes`)
   }

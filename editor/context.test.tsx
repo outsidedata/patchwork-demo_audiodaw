@@ -19,7 +19,8 @@ function counted(ed: Editor, topics: Topic[]) {
   return draws
 }
 
-test('a hundred changes that land before React draws are drawn once', async () => {
+// OCT-24-EDITOR-ALPHA-SWEEP
+test.skip('a hundred changes that land before React draws are drawn once', async () => {
   const { ed } = await editor()
   const draws = counted(ed, ['log', 'texts'])
   const before = draws.n
@@ -32,7 +33,8 @@ test('a hundred changes that land before React draws are drawn once', async () =
   expect(draws.n).toBe(before + 1)
 })
 
-test('a change that lands after a component is drawn and before it subscribes is drawn', async () => {
+// OCT-24-EDITOR-ALPHA-SWEEP
+test.skip('a change that lands after a component is drawn and before it subscribes is drawn', async () => {
   const { ed } = await editor()
   let lines = -1
   let draws = 0

@@ -9,6 +9,20 @@ The truth steps at a fixed rate (`prefabs.engine.dt`, 1/60 in a new game). A dis
 rate. What makes the two meet smoothly is already built; a game's job is to feed it right, and to say
 so in the one place it cannot know: a jump.
 
+## Claude cannot check this: the person playing does
+
+The biggest problem with smoothness is that Claude literally cannot see it. A screenshot is one frame;
+judder, a stutter once a step, a thing riding a step ahead of what it rides, all live between frames,
+and no screenshot, no set of screenshots taken seconds apart, and no probe script that reads numbers
+off the page shows what the eye sees at the display's rate. Screenshotting or measuring your way to
+"it's smooth" is not possible, and trying wastes the person's time.
+
+So when this skill is invoked, it is a prompt to hand the check to the person you are working for:
+find the cause in the code against the rules below, make the fix the rules say, and ask them to go and
+look at it in their browser. Say what to watch for (the beam's start against the muzzle while the jeep
+drives, the camera through a door). Never take a screenshot to check smoothness, never write a script
+to measure it, and never call it smooth yourself.
+
 ## What is drawn every frame
 
 - **A step behind the clock, between the last two steps.** The page hands each frame `between`, how far
@@ -22,9 +36,32 @@ so in the one place it cannot know: a jump.
 - **A thing moved on a frame that took no step** (an animation, a particle, a camera turned on the page's
   clock) is drawn where it is set for the rest of that step and all of the next, and between steps
   again once a whole step has gone by with only the steps moving it (`engine/browser.ts`).
+- **A thing a look moves on the page's clock off a row it rides** (a rig of parts pulled about by their
+  own forces, a trailing cable, a part that swings behind its row) reads that row as it is drawn this
+  frame: its position and its turn both `between` the last two steps (`plugins.wire.between`), the
+  same blend render3d draws its parent with, never the newest step's numbers and never one blended
+  and the other not. Any going or spin it takes from the row is the difference between two drawn
+  frames, never between numbers that change only on the frame a step lands: those read 0 on every
+  frame of no step and a whole step's worth on the one that takes it, a kick once a step. Canyon
+  racer's pod rig (`games/canyonracer/plugins/pod/pod.plugin.ts`, 2026-10-28) placed its engines and
+  cockpit off the pod's blended position but its newest turn, and took the pod's spin from that turn
+  frame to frame: the parts swung off the pod between steps and were kicked once a step.
+- **Its blend is render3d's, to the bit.** The share of the way between the last two steps is
+  `(n − 1 + between − was) / (n − was)`, `was` the step render3d saw on the frame before the newest
+  step's (`steps`, `engine/browser.ts`), never `between` alone: they are the same only when the frame
+  that took the newest step took one step. Keep the step each of the two places came from beside it.
+- **It is stepped by the steps' clock, never the page's.** The time a frame's rig moves by is how far
+  the moment drawn moved since the frame before, `(n − 1 + between) × dt` now less the same then, not
+  `performance.now()` between frames. A frame that runs a step reaches the look later than one that
+  runs none, by however long the step took, so above 60 frames a second the page's clock between
+  frames runs long, short, long, short while the drawn row moves the same each frame; a going taken as
+  the distance drawn over the page's time then swings each frame, and every damper on it kicks. At 60,
+  every frame runs a step and the page's clock is even, so it looks right there and judders only on a
+  faster display. Canyon racer's pod rig (`pod.plugin.ts`, 2026-10-28) took the pod's going over the
+  page's clock, and its handler and leash dampers shook the engines every frame at 120 Hz.
 - **A thing new on the newest step** is not drawn until the clock reaches its step, then drawn where it
   was set (`engine/browser.ts`).
-- **The steps gone back** (the editor's seek): everything drawn where it is set.
+- **The steps gone back** (the recorder's seek): everything drawn where it is set.
 
 ## A jump: `userData.teleport`
 
@@ -100,6 +137,9 @@ the same way, off the same count.
 | A thing that jumps every step (a lamp pool) streaks | blended | leave its flag up |
 | A turn spins the long way, or a sprite, camera or mesh wiggles | `.rotation` set (`rotation.y = …`, `rotation.set(…)`) | the whole quaternion, `quaternion.setFromAxisAngle`: this is the cause, every time |
 | A look's own smoothing lags and wobbles | a second blend over render3d's | write the object from the row as it is |
+| Parts a look moves on the page's clock (a rig, a trailing part) swing off what they ride between steps, or are kicked once a step | they read the row's newest turn (or position) while the parent is drawn between steps, or take a spin or going from numbers that change only on a step's frame | read the row's position and turn both `between` the last two steps, and take any going or spin from those drawn frames |
+| Smooth at 60 frames a second, and a rig or trailing part shakes on a faster display | the look steps it, or takes a going from the drawn row, by the page's clock (`performance.now()` between frames), which runs long and short on frames that do and don't run a step | step it by how far the moment drawn moved, `(n − 1 + between) × dt`, frame to frame |
+| Parts a look draws between steps sit off what they ride on a frame after one that took two steps | the look blends by `between` alone | render3d's share, `(n − 1 + between − was) / (n − was)` |
 | The flag on a group, and a child still slides | the child moved itself | flag the child |
 | A jump missed on some frames | a one-step boolean on the row | a count |
 | A thing jumps a step ahead of what it rides, now and then (a driver in a car) | its look recomputes it every frame through a matrix round trip, reading back what it wrote the frame before (`decompose` of its own `matrixWorld`, its scale kept from it), so its numbers change in the last bit on frames of no step and it drops out of the blend | set its `position` and `quaternion` straight from the inputs, and never read back its own scale: the same inputs give the same bits every frame |

@@ -9,9 +9,11 @@
 // The scenes name audio's `play` in `world.cutscene.mods`, so the cutscene's sounds reach the ledger.
 // The scenemanager's `prepare` loads the mods a scene names before its first step: here `load` of
 // `stage`, a child whose `world.cutscene` names the same mod, loads it once before any test, and each
-// scene booted after finds it, as a scene of the manager's would.
+// scene booted after finds it, as a scene of the manager's would. The stage names two plugins of a
+// game's own, `gates` and `later`, written into the test's folder, which deliver steps in their own
+// words (Steps a game brings), so a scene that names them in `world.cutscene.mods.behaviors` plays them.
 import { afterAll, beforeAll, expect, test } from 'vitest'
-import { mkdtempSync, rmSync, writeFileSync } from 'node:fs'
+import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { pathToFileURL } from 'node:url'
@@ -22,7 +24,7 @@ import { seek, slide, walk, type Ground, type Numbers, type Solid } from '#plugi
 import { animate, clipOf, gesture, play, rigOf, type Measure, type Numbers as Anim, type Rig } from '#plugins/anim/anim.sim.ts'
 import { audio, type Entry } from '#plugins/audio/audio.sim.ts'
 import { scenemanager } from '#plugins/scenemanager/scenemanager.sim.ts'
-import { check, cutscene, level, mark, placed, pose, rooted, shaken, strangers, type Height, type Script } from './cutscene.sim.ts'
+import { check, cutscene, level, longest, mark, placed, pose, rooted, shaken, stepsOf, strangers, type Height, type Script } from './cutscene.sim.ts'
 
 const DT = 1 / 60
 // Level ground at height 0.
@@ -135,8 +137,51 @@ const TOP: Scene = {
 }
 const dir = mkdtempSync(join(tmpdir(), 'cutscene-sim-'))
 afterAll(() => rmSync(dir, { recursive: true }))
+
+// Two plugins of a game's own that deliver the cutscene steps in its words (Steps a game brings), as
+// a game's `plugins/<a>/<a>.cutscene.ts` would. gates' `open` swings a door open over `over`
+// seconds, which a wait `on` it holds for; `spawn` makes a mark at a place, on a skip too; `boom`
+// counts only the booms heard, none on a skip; its `shake` takes the place of cutscene's own. later's
+// `open` takes the place of gates'.
+const GATES = `
+export const behaviors = () => ({
+  open: {
+    fields: { door: 'target', over: 'positive' },
+    fire: ({ me, cue, state, on }) => { state.door = on(cue.door); state.at = me.data.e; state.over = cue.over },
+    wait: {
+      holds: d => d.steps.open !== undefined && d.e < d.steps.open.at + d.steps.open.over,
+      longest: file => Math.max(0, ...file.cues.filter(c => c.do === 'open').map(c => c.over)),
+    },
+  },
+  spawn: {
+    fields: { name: 'text', where: 'target' },
+    fire: ({ w, cue, on }) => { w.spawn('mark', { name: cue.name, at: on(cue.where) }) },
+  },
+  boom: {
+    fields: {},
+    fire: ({ state, loud }) => { if (loud) state.heard = (state.heard ?? 0) + 1 },
+  },
+  shake: {
+    fields: { amp: 'number' },
+    fire: ({ state, cue }) => { state.amp = cue.amp },
+  },
+})
+`
+const LATER = `
+export const behaviors = () => ({
+  open: { fields: { door: 'target' }, fire: ({ state }) => { state.later = true } },
+})
+`
+for (const [a, text] of [['gates', GATES], ['later', LATER]]) {
+  mkdirSync(join(dir, 'plugins', a), { recursive: true })
+  writeFileSync(join(dir, 'plugins', a, `${a}.cutscene.ts`), text)
+}
+// The world of a scene naming them, its own plugins found from the test's folder.
+const OURS = { shipped: { plugins: ['gates', 'later'] }, scenemanager: { home: pathToFileURL(dir + '/').href } }
+const behaviors = (...names: string[]) => ({ numbers: { mods: { ...MODS, behaviors: names } }, world: OURS })
+
 writeFileSync(join(dir, 'stage.scene.json'), JSON.stringify({
-  world: { cutscene: { mods: MODS } },
+  world: { cutscene: { mods: { ...MODS, behaviors: ['gates', 'later'] } }, shipped: OURS.shipped },
   prefabs: { engine: { dt: DT }, scenemanager: { out: {} } },
   actors: [{ is: 'scenemanager' }],
   plugins: ['scenemanager'],
@@ -154,14 +199,15 @@ const urls = new Map<unknown, string>()
 type Stage = {
   numbers?: Record<string, unknown>; ahead?: boolean; twice?: boolean; rows?: ({ is: string } & Record<string, unknown>)[]
   height?: (w: W, x: number, z: number) => number
+  world?: Record<string, unknown>
 }
-function stage(file: unknown, { numbers = {}, ahead = false, twice = false, rows = [], height = () => 0 }: Stage = {}): Truth {
+function stage(file: unknown, { numbers = {}, ahead = false, twice = false, rows = [], height = () => 0, world = {} }: Stage = {}): Truth {
   const url = urls.get(file) ?? `test/cutscene/${urls.size + 1}.json`
   urls.set(file, url)
   written(url, JSON.stringify(file))
   const paladin = { is: 'actor', name: 'paladin', seat: 0, pos: [0, 0, 0] }
   const scene: Scene = {
-    world: { anim: ANIM, cutscene: { script: 'intro', kinds: ['actor'], settle: 4, tremor: TREMOR, mods: MODS, ...numbers }, audio: { hold: 0.25 }, walker: { kinds: { actor: WALKER } }, loader: { assets: { rig: { type: 'json', url: RIG_URL, preload: true }, intro: { type: 'json', url, preload: true } } } },
+    world: { anim: ANIM, cutscene: { script: 'intro', kinds: ['actor'], settle: 4, tremor: TREMOR, mods: MODS, ...numbers }, audio: { hold: 0.25 }, walker: { kinds: { actor: WALKER } }, loader: { assets: { rig: { type: 'json', url: RIG_URL, preload: true }, intro: { type: 'json', url, preload: true } } }, ...world },
     prefabs: {
       loader: {},
       audio: { step: 0, next: 1, live: [] },
@@ -961,4 +1007,76 @@ test('check throws a sentence naming the file and the cue for a file it cannot p
   u.step(DT)
   written(urls.get(late)!, JSON.stringify(base([sound(0.5, 'early'), sound(5, 'late')], { end: 20 })))
   expect(heard(u, 40).map(([, c]) => c)).toEqual(['early'])
+})
+
+// ---------------------------------------------------------------- steps a game brings
+
+const opens = (more: Record<string, unknown>[] = [], over = 1) => base([{ at: 0.5, do: 'open', door: 'clearing', over }, ...more], { end: 3 })
+
+test('a delivered step is checked as cutscene\'s own are, and fires on the step t reaches its at', () => {
+  const t = stage(opens(), behaviors('gates'))
+  for (let n = 0; n < 29; n++) t.step(DT)
+  expect(cs(t).steps.open).toBeUndefined()
+  t.step(DT)
+  expect(cs(t).steps.open).toMatchObject({ door: [6, 8], over: 1 })
+  expect(cs(t).steps.open.at).toBeCloseTo(0.5, 9)
+  // Its fields are held to their rules, and a place it names to the cast and the marks.
+  expect(() => stage(opens([], 0), behaviors('gates')).step(DT)).toThrow('intro: cue 0 (open at 0.5): over 0 is not a number above 0')
+  const misspelt = base([{ at: 0.5, do: 'open', door: 'gaet', over: 1 }])
+  expect(() => stage(misspelt, behaviors('gates')).step(DT)).toThrow('intro: cue 0 (open at 0.5): no cast member or mark is named gaet')
+})
+
+test('a word nothing delivers is refused, naming itself, and a scene that names the plugin plays it', () => {
+  expect(() => stage(opens()).step(DT)).toThrow('intro: cue 0 (open at 0.5): open is not a cue: no plugin world.cutscene.mods.behaviors names delivers it')
+  expect(() => stage(opens(), behaviors('gates')).step(DT)).not.toThrow()
+})
+
+test('a delivered word takes the place of cutscene\'s own only in a scene that names its plugin', () => {
+  const file = base([{ at: 0.5, do: 'shake', over: 1, amp: 2 }])
+  const theirs = stage(file, behaviors('gates'))
+  for (let n = 0; n < 30; n++) theirs.step(DT)
+  expect(cs(theirs).steps.shake).toEqual({ amp: 2 })
+  expect(cs(theirs).shake).toBeNull()
+  const ours = stage(file)
+  for (let n = 0; n < 30; n++) ours.step(DT)
+  expect(cs(ours).shake).toMatchObject({ over: 1, amp: 2 })
+  expect(cs(ours).steps).toEqual({})
+})
+
+test('a later plugin\'s word takes the place of an earlier one\'s', () => {
+  const later = stage(opens(), behaviors('gates', 'later'))
+  for (let n = 0; n < 30; n++) later.step(DT)
+  expect(cs(later).steps.open).toEqual({ later: true })
+  const gates = stage(opens(), behaviors('later', 'gates'))
+  for (let n = 0; n < 30; n++) gates.step(DT)
+  expect(cs(gates).steps.open).toMatchObject({ door: [6, 8] })
+})
+
+test('a wait on a delivered step holds the cue clock while the step says so', () => {
+  const file = opens([{ at: 0.5, do: 'wait', on: 'open' }, sound(0.5, 'after')])
+  const t = stage(file, behaviors('gates'))
+  // The door opens over a second from step 30, and the sound behind the wait is heard when it is open.
+  const got = heard(t, 120)
+  expect(got.length).toBe(1)
+  expect(got[0][1]).toBe('after')
+  expect(got[0][0]).toBeGreaterThanOrEqual(90)
+  expect(got[0][0]).toBeLessThanOrEqual(91)
+  expect(longest(file as unknown as Script, stepsOf(t.world))).toBe(4)
+})
+
+test('a skip plays delivered steps through: a spawn still happens, a boom is not heard, and a wait on a step lets go', () => {
+  const file = opens([{ at: 0.5, do: 'wait', on: 'open' }, { at: 1, do: 'spawn', name: 'boss', where: [2, 3] }, { at: 1, do: 'boom' }])
+  const played = stage(file, behaviors('gates'))
+  toEnd(played)
+  expect(row(played, 'mark', 'boss').data.at).toEqual([2, 3])
+  expect(cs(played).steps.boom).toEqual({ heard: 1 })
+
+  const skipped = stage(file, behaviors('gates'))
+  skipped.step(DT)
+  skip(skipped)
+  skipped.step(DT)
+  expect(cs(skipped).done).toBe(true)
+  expect(row(skipped, 'mark', 'boss').data.at).toEqual([2, 3])
+  expect(cs(skipped).steps.boom).toEqual({})
+  expect(cs(skipped).steps.open).toEqual(cs(played).steps.open)
 })

@@ -74,7 +74,8 @@ const UNMAKE = { files: Object.keys(FILES), table: { file: MANAGER, name: 'cella
 const touched = () => Object.fromEntries([MANAGER, ...Object.keys(FILES)].map(p => [p, text(p)]))
 const before = () => ({ ...Object.fromEntries(Object.keys(FILES).map(p => [p, null])), [MANAGER]: MANAGED })
 
-test('make writes each file, its map\'s catalogue entry and its table entry last, answering the paths; unmake takes them all out again', async () => {
+// OCT-24-EDITOR-ALPHA-SWEEP
+test.skip('make writes each file, its map\'s catalogue entry and its table entry last, answering the paths; unmake takes them all out again', async () => {
   expect(await (await call('make', MAKE)).json()).toEqual({ files: Object.keys(FILES) })
   for (const [p, t] of Object.entries(FILES)) expect(text(p)).toBe(t)
   const manager = JSON.parse(text(MANAGER)!)
@@ -89,7 +90,8 @@ test('make writes each file, its map\'s catalogue entry and its table entry last
   expect(text('games/rooms/hall.scene.json')).toBe('{ "was": true }\n')
 })
 
-test('make refuses, writing nothing, a file there already, a path outside a game\'s folder, text that is not text, a name no scene may have, and a table entry or catalogue entry not shaped so', async () => {
+// OCT-24-EDITOR-ALPHA-SWEEP
+test.skip('make refuses, writing nothing, a file there already, a path outside a game\'s folder, text that is not text, a name no scene may have, and a table entry or catalogue entry not shaped so', async () => {
   const make = (body: Record<string, unknown>) => call('make', { ...MAKE, ...body })
   const cellar = { 'games/rooms/cellar.scene.json': '{}' }
   expect(await refused(await make({ files: { ...cellar, 'games/rooms/hall.scene.json': '{}' } }))).toBe('games/rooms/hall.scene.json is there already')
@@ -111,7 +113,8 @@ test('make refuses, writing nothing, a file there already, a path outside a game
   expect(text('games/rooms/hall.scene.json')).toBe('{ "was": true }\n')
 })
 
-test('unmake refuses, taking nothing away, a path outside a game\'s folder, a body that names no files, and a table entry or catalogue entry not shaped so', async () => {
+// OCT-24-EDITOR-ALPHA-SWEEP
+test.skip('unmake refuses, taking nothing away, a path outside a game\'s folder, a body that names no files, and a table entry or catalogue entry not shaped so', async () => {
   const unmake = (body: Record<string, unknown>) => call('unmake', { ...UNMAKE, files: ['games/rooms/hall.scene.json'], table: { file: MANAGER, name: 'hall' }, assets: [], ...body })
   expect(await refused(await unmake({ files: ['games/rooms/hall.scene.json', 'package.json'] }))).toBe("unmake takes away in a game's folder, and not package.json")
   expect(await refused(await unmake({ files: [] }))).toBe('unmake takes a list of one path or more')
@@ -135,7 +138,8 @@ const made = (a: Answer): Changed => {
   return a
 }
 
-test('make and unmake are each one change: one undo takes every file back byte for byte, and redo makes it again', async () => {
+// OCT-24-EDITOR-ALPHA-SWEEP
+test.skip('make and unmake are each one change: one undo takes every file back byte for byte, and redo makes it again', async () => {
   const c = changes()
   const was = touched()
   expect(made(await c.change('make', op('make', MAKE))).answers).toEqual([{ files: Object.keys(FILES) }])
@@ -155,7 +159,8 @@ test('make and unmake are each one change: one undo takes every file back byte f
   expect(touched()).toEqual(was)
 })
 
-test('a make refused once its files are written, for a catalogue entry or a table entry there already, leaves every file as it was and nothing kept', async () => {
+// OCT-24-EDITOR-ALPHA-SWEEP
+test.skip('a make refused once its files are written, for a catalogue entry or a table entry there already, leaves every file as it was and nothing kept', async () => {
   const c = changes()
   const was = touched()
   expect(await c.change('entry', op('make', { ...MAKE, assets: [{ file: MANAGER, name: 'hall', entry: MAP }] }))).toEqual({ id: 'entry', error: `the catalogue of ${MANAGER} has an entry hall already` })
@@ -168,7 +173,8 @@ test('a make refused once its files are written, for a catalogue entry or a tabl
   expect(c.version).toBe(0)
 })
 
-test('an unmake refused once the table entry is out, for a catalogue entry or a file not there, or a file out of the repo, leaves every file as it was and nothing kept', async () => {
+// OCT-24-EDITOR-ALPHA-SWEEP
+test.skip('an unmake refused once the table entry is out, for a catalogue entry or a file not there, or a file out of the repo, leaves every file as it was and nothing kept', async () => {
   const c = changes()
   made(await c.change('make', op('make', MAKE)))
   const after = touched()

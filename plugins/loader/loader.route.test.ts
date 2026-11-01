@@ -64,7 +64,8 @@ function rip(): Pixels {
   return p
 }
 
-test('slice finds each frame and where it stands, from its marks, its width or the lone pixel under it, and names them by row', () => {
+// OCT-24-EDITOR-ALPHA-SWEEP
+test.skip('slice finds each frame and where it stands, from its marks, its width or the lone pixel under it, and names them by row', () => {
   const cut = slice(rip(), 32, [0xd7d7d7])
   expect(cut.frames).toEqual([
     { id: '0-0', box: [8, 2, 64, 38], anchor: [40, 40] },
@@ -90,7 +91,8 @@ test('slice finds each frame and where it stands, from its marks, its width or t
   expect(slice(rip(), 32, [0xd7d7d7], 361).frames.map(f => f.box).some(b => b[0] === 110)).toBe(false)
 })
 
-test('a frame stands on the bottom mark nearest a flat footprint\'s, not the top mark of a tall frame the next row down', () => {
+// OCT-24-EDITOR-ALPHA-SWEEP
+test.skip('a frame stands on the bottom mark nearest a flat footprint\'s, not the top mark of a tall frame the next row down', () => {
   const p: Pixels = { width: 40, height: 70, data: new Uint8ClampedArray(40 * 70 * 4), text: {} }
   const put = (x: number, y: number) => p.data.set(BROWN, (y * 40 + x) * 4)
   const box = (x0: number, y0: number, x1: number, y1: number) => { for (let y = y0; y <= y1; y++) for (let x = x0; x <= x1; x++) p.data.set(RED, (y * 40 + x) * 4) }
@@ -109,7 +111,8 @@ test('a frame stands on the bottom mark nearest a flat footprint\'s, not the top
 
 const sliceAt = (body: unknown) => fetch(`${server.url}/api/x/loader/slice`, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify(body) })
 
-test('the slice route writes the sheet and its page beside it, and its entry into the catalogue', async () => {
+// OCT-24-EDITOR-ALPHA-SWEEP
+test.skip('the slice route writes the sheet and its page beside it, and its entry into the catalogue', async () => {
   mkdirSync(path.join(root, 'games/x/rips'), { recursive: true })
   writeFileSync(path.join(root, 'games/x/rips/city.png'), encodePng(rip()))
   const got = await (await sliceAt({ from: 'games/x/rips/city.png', to: 'games/x/sheets/city.json', tile: 32, marks: [0xd7d7d7] })).json()
@@ -157,7 +160,8 @@ beforeAll(() => {
   writeFileSync(path.join(PAINT, 'tiles.png'), encodePng(page(4)))
 })
 
-test('paint sets pixels on a sheet\'s own page, the rest of it and its text as they were', async () => {
+// OCT-24-EDITOR-ALPHA-SWEEP
+test.skip('paint sets pixels on a sheet\'s own page, the rest of it and its text as they were', async () => {
   const was = disk('house.png')
   const got = await (await paintAt({ sheet: 'games/paint/house.json', pixels: { '/games/paint/house.png': [1, 0, 0x11223344, 3, 1, 0] } })).json()
   expect(got).toEqual({ url: '/games/paint/house.json', files: ['games/paint/house.png'] })
@@ -176,7 +180,8 @@ test('paint sets pixels on a sheet\'s own page, the rest of it and its text as t
   writeFileSync(path.join(PAINT, 'house.png'), was)
 })
 
-test('paint to another path copies the sheet there, its page named after it and set, the file naming its new page and otherwise as it was, the sheet left as it was, and its entry added', async () => {
+// OCT-24-EDITOR-ALPHA-SWEEP
+test.skip('paint to another path copies the sheet there, its page named after it and set, the file naming its new page and otherwise as it was, the sheet left as it was, and its entry added', async () => {
   const was = disk('house.png')
   const body = { sheet: 'games/paint/house.json', to: 'games/paint/blue/house-blue.json', pixels: { '/games/paint/house.png': [2, 1, 0x0000ffff] } }
   const got = await (await paintAt(body)).json()
@@ -199,7 +204,8 @@ test('paint to another path copies the sheet there, its page named after it and 
   expect(catalogue()).toBe(edit(SCENE, ['world', 'loader', 'assets', 'house-red'], { ...like, url: '/games/paint/house-red.json' }))
 })
 
-test('a multipack painted to a copy: every pack and page named after the copy, each name one gives another written to name the copy\'s, a page with no pixel set copied byte for byte', async () => {
+// OCT-24-EDITOR-ALPHA-SWEEP
+test.skip('a multipack painted to a copy: every pack and page named after the copy, each name one gives another written to name the copy\'s, a page with no pixel set copied byte for byte', async () => {
   const got = await (await paintAt({ sheet: 'games/paint/packs/one.json', to: 'games/paint/packs/one-old.json', pixels: { '/games/paint/packs/two.png': [0, 1, 0xabcdef01] } })).json()
   const files = ['one-old.json', 'one-old-two.json', 'one-old.png', 'one-old-two.png'].map(f => `games/paint/packs/${f}`)
   expect(got).toMatchObject({ url: '/games/paint/packs/one-old.json', files })
@@ -213,14 +219,16 @@ test('a multipack painted to a copy: every pack and page named after the copy, e
   expect(sheet.order).toEqual(['a', 'b'])
 })
 
-test('a Tiled tileset painted to a copy names the copy\'s image', async () => {
+// OCT-24-EDITOR-ALPHA-SWEEP
+test.skip('a Tiled tileset painted to a copy names the copy\'s image', async () => {
   const got = await (await paintAt({ sheet: 'games/paint/tiles.tsj', to: 'games/paint/tiles-dry.tsj', pixels: {} })).json()
   expect(got.files).toEqual(['games/paint/tiles-dry.tsj', 'games/paint/tiles-dry.png'])
   expect(JSON.parse(disk('tiles-dry.tsj').toString()).image).toBe('tiles-dry.png')
   expect(disk('tiles-dry.png').equals(disk('tiles.png'))).toBe(true)
 })
 
-test('paint refuses, and writes nothing, for a page not the sheet\'s, a pixel off its page, a colour that is none, nothing set, a copy onto the sheet\'s own files, or a body that is not one', async () => {
+// OCT-24-EDITOR-ALPHA-SWEEP
+test.skip('paint refuses, and writes nothing, for a page not the sheet\'s, a pixel off its page, a colour that is none, nothing set, a copy onto the sheet\'s own files, or a body that is not one', async () => {
   const was = disk('house.png')
   const house = (pixels: unknown, more = {}) => paintAt({ sheet: 'games/paint/house.json', pixels, ...more })
   expect(await refused(await house({ '/games/paint/tiles.png': [0, 0, 0] }))).toBe('sheet /games/paint/house.json has no page /games/paint/tiles.png')

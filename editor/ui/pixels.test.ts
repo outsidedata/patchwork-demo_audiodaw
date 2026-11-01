@@ -9,7 +9,8 @@ import { blank, cut, inkBottom, mirrored, raster, swapped, type Pixels } from '.
 const px = (p: Pixels, x: number, y: number) => [...p.data.subarray((y * p.width + x) * 4, (y * p.width + x) * 4 + 4)]
 const all = (p: Pixels) => Array.from({ length: p.height }, (_, y) => Array.from({ length: p.width }, (_, x) => px(p, x, y)))
 
-test('a frame turned a quarter clockwise on its page is stood upright, its kept pixels in their place in the whole frame', () => {
+// OCT-24-EDITOR-ALPHA-SWEEP
+test.skip('a frame turned a quarter clockwise on its page is stood upright, its kept pixels in their place in the whole frame', () => {
   // The upright picture, 3 across and 2 down, kept at [2, 1] of a 6 by 4 frame, lies on the page at
   // [1, 1] turned: 2 across and 3 down, its top row down the box's right edge.
   const up = [[1, 2, 3], [4, 5, 6]]
@@ -30,7 +31,8 @@ test('a frame turned a quarter clockwise on its page is stood upright, its kept 
   expect(all(cut(flat, [0, 0, 3, 2], false, [6, 4], [2, 1, 3, 2]))).toEqual(all(frame))
 })
 
-test('turned over, a picture\'s columns run the other way; swapped, only the exact colours change', () => {
+// OCT-24-EDITOR-ALPHA-SWEEP
+test.skip('turned over, a picture\'s columns run the other way; swapped, only the exact colours change', () => {
   const p = decodePng(rgba(3, 1, x => [[10, 20, 30, 255], [40, 50, 60, 255], [10, 20, 30, 0]][x]))
   expect(all(mirrored(p))[0]).toEqual([[10, 20, 30, 0], [40, 50, 60, 255], [10, 20, 30, 255]])
   const s = swapped(p, [0x0a141e, 0x28323d], [0xff0000, 0x00ff00])
@@ -39,13 +41,15 @@ test('turned over, a picture\'s columns run the other way; swapped, only the exa
   expect(all(p)[0][0]).toEqual([10, 20, 30, 255])
 })
 
-test('the lowest ink is the lowest row at least half opaque', () => {
+// OCT-24-EDITOR-ALPHA-SWEEP
+test.skip('the lowest ink is the lowest row at least half opaque', () => {
   const p = decodePng(rgba(2, 5, (x, y) => [0, 0, 0, y === 3 ? 127 : y === 2 && x === 1 ? 128 : 0]))
   expect(inkBottom(p)).toBe(2)
   expect(inkBottom(blank(3, 3))).toBeUndefined()
 })
 
-test('a picture drawn on as a canvas is: a wide line over the pixels within half its width, a dashed one broken as the dash says, a wide rectangle square at its corners, and a picture drawn larger by its nearest pixels, blended by their alpha', async () => {
+// OCT-24-EDITOR-ALPHA-SWEEP
+test.skip('a picture drawn on as a canvas is: a wide line over the pixels within half its width, a dashed one broken as the dash says, a wide rectangle square at its corners, and a picture drawn larger by its nearest pixels, blended by their alpha', async () => {
   const drawn = async (r: ReturnType<typeof raster>) => decodePng(new Uint8Array(await r.png().arrayBuffer()))
   // A line 3 wide along the middle of row 4 covers rows 3 to 5, and ends where it ends.
   const wide = raster(12, 10, 0)

@@ -11,7 +11,7 @@ game is being written, not once at the end: after a phase skill's work, before a
 done, and on picking up a game someone else wrote. The rules are theirs: `prime-directive`,
 `starting-a-game`, `designing-a-kind`, `designing-a-seat`, `input-and-seats`, `building-a-level`,
 `bringing-in-art`, `writing-the-look`, `scene-flow`, `building-the-hud`, `sound`, `tuning-feel`,
-`building-a-plugin`, `building-an-extension` and `proving-a-game`, with `going-multiplayer`'s step 7
+`building-a-plugin` and `proving-a-game`, with `going-multiplayer`'s step 7
 and press test for what every page that runs a scene ahead draws. This skill adds none. Each check below names the skill
 that says it; where a check and its skill differ, the skill is right and this one is fixed.
 
@@ -21,16 +21,16 @@ game's green tests let through. The tests are where a fix is proven, not where a
 ## When it applies
 
 It applies to everything in a game folder: its scene files, its data files, its rules and looks,
-its pages, its own plugins, addons and extensions, and its tests. It does not cover:
+its pages, its own plugins and addons, and its tests. It does not cover:
 
 - distribution: seats over a socket, `security`, `vision`, `interest` and a bad network are
   `going-multiplayer`, but for the seat's thing and its pages being run ahead, which every game
   has and this audit checks (Seats and prediction); accounts and records kept between runs are `persisting-players`; hosting a
   game and taking core's updates are `publishing-a-game`.
 - core's own folders on their own account. The audit asks whether the game's work changed one (The
-  folder, below), and a finding whose migration runs into a top-level plugin, addon or the editor
-  (Old code a game writes around, below) is built and proven there by `building-a-plugin` or
-  `building-an-extension`, as part of the same job. Nothing in `engine/` is edited.
+  folder, below), and a finding whose migration runs into a top-level plugin or addon (Old code a
+  game writes around, below) is built and proven there by `building-a-plugin`, as part of the same
+  job. Nothing in `engine/` is edited.
 - what the game should do: what a monster does, how a level plays. That is content, and it is the
   person's. Where a thing goes is never asked; what it does is.
 
@@ -64,18 +64,17 @@ Files are read with Read. A command that needs logic is a script file run with `
 First the baseline, before any check:
 
 1. `ls games/<game>`, and `ls` each folder in it by name. Read every scene file, the definitions, and
-   every rule, look, plugin and extension once.
+   every rule, look and plugin once.
 2. The names the checks use: the game's kinds, the keys of `sim` in each `<scene>.sim.ts`
    (`grep -n "export const sim" games/<game>/*.sim.ts`); its scenes, the keys of
    `prefabs.scenemanager.scenes` in `<game>.scene.json`; its own plugins, the folders of
    `games/<game>/plugins` and the names in `world.shipped.plugins`; the plugins each scene lists.
-3. Every test file in the folder, run one file a call: `yarn vitest run <file>`, and
-   `yarn test:view <file>` for a `.view.test.tsx` (`proving-a-game`). Never a directory and never the
+3. Every test file in the folder, run one file a call: `yarn vitest run <file>`
+   (`proving-a-game`). Never a directory and never the
    whole suite. A kind an `actors` entry names that its scene's `sim` leaves out, or that has no
    prefab, shows here as `no code for kind <kind>` or `no prefab for <kind>`.
 4. `yarn tsc --pretty false > <scratch>/<game>.tsc.txt`, then `grep -n "games/<game>/" <scratch>/<game>.tsc.txt`.
    It checks the whole repo, so another game's error is in it too.
-5. `yarn eslint <file>` on each of the game's `*.extension.tsx` and `*.route.ts`.
 
 ## What the audit hands back
 
@@ -89,7 +88,7 @@ games/<game>/<file>:<line>   what is there
 ```
 
 After the findings, one line for each check that found nothing, so the reader knows it ran, and one
-for each that did not apply (no tilemap, no sound, no extension). The list is handed back only once
+for each that did not apply (no tilemap, no sound). The list is handed back only once
 every check's Find has run and every hit has been read, the Tests section's included.
 
 Then each entry is moved to its home (Migrating, below). The list is not the end of the audit.
@@ -103,7 +102,7 @@ old code first.
 ### The folder (prime-directive, starting-a-game)
 
 - **A file named for what it does.** Every file is named after a kind, a scene or the game, beside
-  `assets/` and the game's own `plugins/<n>/`, `addons/<n>/` and `extensions/<n>/`. The page loads a
+  `assets/` and the game's own `plugins/<n>/` and `addons/<n>/`. The page loads a
   look by its kind's name, `<kind>.client.ts`, so `helpers.ts` or `coins.ts` is never loaded as one.
   Find: `ls games/<game>` against the kinds, the scenes and the game's
   name. Home: code kinds share goes to a plugin of the game's own, `games/<game>/plugins/<name>/`;
@@ -122,16 +121,17 @@ old code first.
   '"port"' games --include='*.scene.json'`, reading only each manager's `scenemanager` prefab. Home:
   a port no game has.
 - **Core's folders changed for this game.** The engine is frozen, and a top-level plugin never gets
-  a setting only one game would set (prime-directive). Find: `git status --short engine plugins addons
-  editor extensions`, and `git diff --stat <the branch the work began from> -- engine plugins addons
-  editor extensions`. An edit to `engine/` goes back out; a plugin's change for one game is that
-  game's kind; a change that is general is built and proven in its home by `building-a-plugin`. A
-  defect of core met while making the game is fixed there with its test, never worked around in the
-  game, the testbed or a way of looking round it.
+  a setting only one game would set (prime-directive). Find: `git status --short engine plugins
+  addons`, and `git diff --stat <the branch the work began from> -- engine plugins addons`. An edit
+  to `engine/` goes back out; a plugin's change for one game is that game's kind; a new folder in
+  `plugins/` or `addons/` moves into the game; an expansion of a plugin core already has stays only
+  with the yes of the person you are working for, built and proven by `building-a-plugin`
+  (prime-directive, Core is not touched). A defect of core met while making the game is fixed there
+  with its test, never worked around in the game, the testbed or a way of looking round it.
 - **A core file naming this game.** No file, header, test or skill outside `games/` names a game in
-  `games/`, as an example, a model or a fixture: core ships none, and cites its own tests
-  (prime-directive, Names and tests). Find, from the root: `grep -rnF "games/<game>" engine plugins
-  addons editor extensions scripts .claude README.md`, and `grep -rnw "<game>"` over the same
+  `games/`, as an example, a model or a fixture: core ships none, and an expansion of a core plugin is
+  for every game that uses it (prime-directive, Core is not touched). Find, from the root: `grep -rnF
+  "games/<game>" engine plugins addons scripts .claude README.md`, and `grep -rnw "<game>"` over the same
   folders, each hit read: a test that writes a game of the same name on a root of its own is not one,
   and a word that only spells the game's name is not one. Home: the line cites core's own test or a
   scene its test writes; a test that uses the game is written again on a game it writes itself.
@@ -139,7 +139,7 @@ old code first.
   each field means and what the rule does (`designing-a-kind`); a plugin's file has its header first,
   every field of what it reads with its unit, its row's fields, every function, each mod and what it
   does with none, and the order it is listed in (`building-a-plugin`); a look its header saying what
-  it draws from what (`bringing-in-art`); an extension its header with its commands (`building-an-extension`).
+  it draws from what (`bringing-in-art`).
   A comment naming a kind, a field, a file or a thing the game does not have is wrong and is fixed in
   the same change (prime-directive, When a doc disagrees). Find: read the top of each file beside
   what the file does. The headers `yarn new-game` wrote (`start.sim.ts`, `player.sim.ts`,
@@ -156,16 +156,16 @@ old code first.
 ### The pages (starting-a-game, scene-flow, building-a-plugin)
 
 - **A rule, number, readout, listener or scene name in a page.** Every page `gameFiles` writes
-  (`extensions/games/games.route.ts`), each `games/<game>/*.html` but `dev.html`, and
+  (`scripts/new-game.ts`), each `games/<game>/*.html` but `dev.html`, and
   `<game>.server.ts` are as `yarn new-game` wrote them, the same in every game but the file names they
   import (`<game>.server.ts` names no scene in its comment once the game has a second, `scene-flow`).
   Find: `ls games/<game>` for the pages it holds, then `grep -nE
   "addEventListener|keydown|entry|seed|\.go\(|textContent|innerHTML|addons/"` over each of them but
   `dev.html`, named one by one, and `games/<game>/<game>.server.ts`; then read each page beside the
-  `page(...)` and `MOUNT` lines of `extensions/games/games.route.ts` for `index.html` and
+  `page(...)` and `MOUNT` lines of `scripts/new-game.ts` for `index.html` and
   `<game>.server.ts`, and `client.html` beside the page `starting-a-game` gives whole (The pages),
-  which wraps the link in `predict`: `gameFiles` still writes the `client.html` of before `predict`
-  while the editor is on hold, so for that page alone the skill's text is the model and the
+  which wraps the link in `predict`: `gameFiles` still writes the `client.html` of before `predict`,
+  so for that page alone the skill's text is the model and the
   template's is a finding. A page the game lacks, or one in an older shape, is a finding too: it is
   written again as `starting-a-game` (The pages) gives it. A `client.html` that holds two panes, a
   network panel, readouts or keys of its own is a testbed in the wrong page. Home: a rule into its
@@ -222,7 +222,7 @@ old code first.
   and the player addon, which writes the `player` row's `seat`. A field none of them writes never
   changes: it goes to the definition, and a thing whose fixed numbers differ from another's is
   another kind (`designing-a-kind`). Two are a row's though they may never change: the `pos` of a
-  thing that stands somewhere, which the editor's placer moves (`designing-a-kind`), and what a
+  thing that stands somewhere, which each of its `actors` entries sets (`designing-a-kind`), and what a
   `start` entry hands the thing it becomes, its `pos` and whatever it starts with (`starting-a-game`,
   `input-and-seats`).
 - **A changing field missing from its prefab.** A prefab holds every field that changes, at its
@@ -289,8 +289,11 @@ the way of. Each phase skill lists once every file its move touches; the audit p
   `atan2`, the hyperbolics, `exp`, `expm1`, the logs, `pow`, `**`, `cbrt` and `hypot` differ between
   node and a browser in the last bit, so a page that runs the scene ahead ends a hair from the server;
   so does anything a rule takes from three outside three's `src/math` (a curve, the scene graph).
-  Find: `yarn vitest run games/games.test.ts -t "no game's rule computes"`, which names every rule,
-  game plugin's server half and truth-side mod that breaks it. Home: `plugins/math`, `math.sin(a)` for
+  Find: `grep -rnE
+  "Math\.(sin|cos|tan|asin|acos|atan|atan2|sinh|cosh|tanh|asinh|acosh|atanh|exp|expm1|log|log1p|log2|log10|pow|cbrt|hypot)\(|\*\*"
+  games/<game> --include='*.sim.ts' --exclude='*.test.ts'`, the rules and the server halves of the
+  game's own plugins, and the same over each truth-side mod (`<a>.<p>.ts`) of its plugins; then every
+  rule and server half read for an import from three outside its maths. Home: `plugins/math`, `math.sin(a)` for
   `Math.sin(a)`, `math.pow(a, b)` for `a ** b`, and three's vectors, quaternions and matrices for the
   rest (`designing-a-kind`, Maths in a rule).
 - **The die rolled in a scene with no seed.** It throws `scene has no seed` the step it first rolls.
@@ -644,9 +647,8 @@ check here is run on every game whose seat controls anything.
   every scene uses go into the manager's `world` once, where every child inherits them. Find: the
   scene files' `world` blocks, read side by side (`grep -nE "\"(defs|loader)\": *[\"{]"
   games/<game>/*.scene.json` starts it; the loader's prefab hits too). Home: `<game>.scene.json`'s
-  `world`. With it: every test and extension that reads a scene file's own `world` rather than the
-  scene's merged `world` (a session's `scene(name).world`), and any test holding that each scene's
-  file gives them.
+  `world`. With it: every test that reads a scene file's own `world` rather than the scene's merged
+  `world`, and any test holding that each scene's file gives them.
 - **A scene written by hand missing a piece.** It lists `scenemanager` in its `plugins`, has a
   `"scenemanager": { "out": {} }` prefab and an `actors` entry for it, a `loader` prefab and entry, and
   an `engine` prefab with `dt`, `width` and `height`; its sim names every kind it makes rows of and
@@ -657,15 +659,6 @@ check here is run on every game whose seat controls anything.
   `actors` entry holds only which exit it is, a key, and the level's `world` maps each key to the
   scene it leads to; a destination is never on an `actors` entry, where the row carries it to every
   seat every step.
-- **A field naming a scene, bound to nothing.** The game's own extension, `games/<game>/<game>.extension.tsx`
-  exporting `<game>`, binds each to the scenemanager's type: a definition's field with
-  `ed.bind('<kind>', { <field>: 'scenemanager.scene' })`, a `world` field of the scene files with
-  `ed.bindFile(path => path.endsWith('.scene.json'), { 'world.<field>': 'scenemanager.scene' })`, or
-  `'world.<field>.*'` for a map of exits. Find: each scene's name grepped in `games/<game>/assets` and
-  the scene files (past the manager's `scenes` and `entry`), then `grep -rnF "scenemanager.scene"
-  games/<game>`. The first game that names a scene in `world` extends `namingsOf` in
-  `plugins/scenemanager/scenemanager.extension.tsx` to walk each scene file's `world`, with its test
-  beside it. Proven by `<game>.extension.test.tsx` (`ed.typeOf`, and `removeScene` refused).
 - **A hook calling `go` with a seat nobody stored.** A hook has no seat. `player.client.ts`'s `setup`,
   for the row that is `mine`, calls an act of the `player` row that writes the seat it is handed, on
   every arrival; `arrive` writes it only when the `go` carried args. Find: each hook that calls `go`,
@@ -701,9 +694,6 @@ check here is run on every game whose seat controls anything.
 - **Chat on a page before `ui.entry` exists.** chat's text entry is `ui.entry`, which the ui plugin
   does not have, so a chat box on a real page throws. Find: `grep -n '"chat"' games/<game>/*.scene.json`.
   Home: `entry` built in `plugins/ui/ui.plugin.ts` first, tested there.
-- **A frame-rate readout outside `dev.html`.** `stats` is a readout of `dev.html`'s own, listed in its
-  copy of the scene in memory. Find: `grep -rn "stats" games/<game> --include='*.json' --include='*.ts'`,
-  read.
 
 ### Feel (tuning-feel)
 
@@ -713,7 +703,7 @@ check here is run on every game whose seat controls anything.
   over `dt`; a top speed beside `accel` and `friction` is a second number for one fact. Find: `grep -nE
   "\+= .*\* *dt" games/<game>/*.sim.ts`, read for a velocity; the definitions read.
 - **A definition kept from an earlier read.** A number kept in a module variable is never the one
-  the editor or `dev.html` changed. Find: `grep -nE "^(const|let) .*def\(" games/<game>/*.ts`. An arrow
+  `dev.html` changed. Find: `grep -nE "^(const|let) .*def\(" games/<game>/*.ts`. An arrow
   that calls `def` each time it is called is not one.
 
 ### The game's own plugins and addons (building-a-plugin, prime-directive)
@@ -765,52 +755,6 @@ check here is run on every game whose seat controls anything.
 - **A function a rule calls that writes another kind's row.** It is reached through `w.call`, a
   ledger's row excepted (Rules, above).
 
-### The game's own extensions (building-an-extension, building-a-level)
-
-- **Where it is and what it exports.** One beside a game's addon is never loaded. The file exports
-  a function of its own name; its `.components.tsx` exports components and nothing else. Find: `ls`
-  the game's folder, its `extensions` and its `plugins` folders by name, for `*.extension.tsx`;
-  `grep -n "^export"` on each file found.
-- **A level tool that re-builds Place and Arrange.** Actors are placed, dragged and deleted with the
-  editor's own Actors panel, which every game has; a game's own level tool is for what is that game's
-  alone, running its generator with its recipe and seed, or showing its own things its own way
-  (`building-a-level`). Find: each extension's commands and pointer, read for placing, moving or
-  taking out `actors` entries. Home: the Actors panel; a start that draws nothing is made pickable in
-  `extensions/actors/`, with its test.
-- **A write, a fetch or a control of its own.** A file is changed only through the editor's files, a
-  value at a time, and a truth only through the recorder; no `PUT /api/files`, `ed.files.write` or
-  fetch by hand; panels are built from `editor/ui/`. Find: `grep -rnE "fetch\(|files\.write|api/files|<button|<input|<select|style=\{"
-  games/<game> --include='*.tsx' --include='*.route.ts'`.
-- **An edit outside its change.** An asked command writes through the `e` it is handed, never
-  `ed.editFile`; an edit through a route is `Edits.route`, never `routeOf`; a panel's action runs in
-  `ed.together` (`building-an-extension`). Find: `grep -rnE "ed\.editFile|routeOf|together"
-  games/<game> --include='*.tsx'`, read.
-- **The button, the tool and the command doing one thing their own ways.** They call one function in
-  the extension's file, taking the `Editor`, the `Edits` and world points, never canvas pixels. Find:
-  read each `ed.command`, `ed.tool` and panel action.
-- **What outlives a call not handed to `ed.onDrop`.** A listener, a feed, a timer, a mark on the stage.
-  Find: read the extension's function.
-- **A colour in code.** A canvas or a mark reads the theme with `themed` or `cssOf` of
-  `editor/ui/theme.ts`. Find: `grep -rnE "#[0-9a-fA-F]{3,8}\b|getComputedStyle" games/<game>
-  --include='*.tsx'`. A function that does what `cssOf` does is the same finding. Home: an import of
-  `cssOf` or `themed`.
-- **A game's number written into the extension.** A game's numbers are in its scene and data files;
-  the extension's own choices, a snap or a step, are its own. Find: read its numbers.
-- **A command an LLM cannot read.** Its `input` is a `z.object` at the top, described, every field
-  described, no `.transform`, its tool entry at most 1.2 KB; its header lists its commands. Find: read
-  each `ed.command`; `tools(window.editor)` of `editor/mcp.ts`, in the page, answers each entry as an
-  LLM reads it.
-- **A component that subscribes to the wrong topics.** It names every topic it reads in `useEditor`,
-  or shows the first frame and never another. Find: each component's `useEditor(` against what it reads.
-- **A route whose name another route has.** Routes are found by file name across `extensions/`,
-  `plugins/`, `addons/` and `games/`, and a second of one name throws. Find: `ls` the game's folders
-  for `*.route.ts`, each name grepped for in the others.
-- **The game importing it.** Find: `grep -rlE "#editor|extension|\.route" games/<game>
-  --include='*.sim.ts' --include='*.client.ts' --include='*.plugin.ts' --include='*.html'
-  --include='*.server.ts'`.
-- `yarn eslint` covers `*.extension.tsx` and `*.route.ts` and not a game's `.components.tsx`
-  (`eslint.config.js`), so the components are read for the same things by eye.
-
 ### Tests (proving-a-game, and each skill's Proof)
 
 - **A file with no test beside it.** Every kind with a rule has `<kind>.sim.test.ts`; every look
@@ -818,8 +762,7 @@ check here is run on every game whose seat controls anything.
   `<game>.sim.test.ts`; a scene with a level or with look plugins, `<scene>.sim.test.ts`
   (`building-a-level`, `writing-the-look`); each file of a game's own plugin its test, booting the
   game's manager with the game's folder as base (`new URL('../../', import.meta.url).href`); each mod
-  `<a>.<p>.test.ts`; each extension `<name>.extension.test.tsx`, with `<name>.extension.view.test.tsx`
-  when it attaches the game view; each route `<name>.route.test.ts`; and `<game>.server.ts`,
+  `<a>.<p>.test.ts`; and `<game>.server.ts`,
   `<game>.server.test.ts` with its `simulate` test, once any scene's `seats` is above 1, since a scene
   of more than one seat is played over a socket (`going-multiplayer`, `input-and-seats`). A kind with
   no rule (`start`) has no rule to test; a screen kind with no rule, a title card a shared look draws,
@@ -891,8 +834,6 @@ check here is run on every game whose seat controls anything.
   `grep -rnE "as (unknown as )?W\b|: W = " games/<game> --include='*.test.ts'`, read.
 - **A page joined to a truth by hand.** Find: `grep -nE "\bview\(|link\(" games/<game>/*.test.ts`,
   each page on `link(loopback(accept(...)))`, a dial, or the recorder's link, often made a line above.
-- **A view test in a `.test.tsx`.** Find: `grep -rln "attach(" games/<game> --include='*.test.tsx'`,
-  each a `.view.test.tsx`.
 - **`playtester` in a scene a person plays, or handed without asking.** That `index.html` then plays
   itself. Its homes are a scene of its own that lists it, or `dev.html`'s copy in memory; a test has a
   scene a person plays play itself with the simulator's page `think` or a `playtest` seat. An actor
@@ -917,10 +858,6 @@ check here is run on every game whose seat controls anything.
   `addons/recorder/recorder.addon.test.ts`, and a `player` row a recorder edit spawned is never taken
   for a seat. Find: `grep -rln "recorder(" games/<game> --include='*.test.ts'`, read for those
   checks and for the scene's `seats`, and `grep -rnF ".link.send(" games/<game>`.
-- **An extension's test missing its checks.** It reads `edits` for the one value sent, the file's
-  bytes differing in that value alone, undo putting the bytes back exactly, `ed.undos` one change per
-  action, and `ed.log` with no error line (`building-an-extension`). Find: each `.extension.test.tsx`,
-  read.
 
 ## Migrating
 
@@ -929,21 +866,22 @@ is part of the job: every file that uses it and every test (prime-directive, Whe
 disagrees). So each entry of the list is moved, in the same piece of work:
 
 1. Find every user: the name, the field or the key grepped across the whole game folder, its scene
-   files, data files, rules, looks, plugins, extensions and tests. An extension or a test that reads
-   the old place is a user. A migration in a top-level plugin reaches every game that uses it.
+   files, data files, rules, looks, plugins and tests. A test that reads the old place is a user. A migration in a top-level plugin reaches every game that uses it.
 2. Move it to its home, and change every user. A rename goes first, since later entries name the new
    files.
 3. Change the tests that held the old place, and write the test the rule asks for where none holds
    it. Each new check is seen to fail on the old code before it is trusted.
 4. Run the test files beside every file touched, one a call, `yarn vitest run <file>`; `yarn tsc`,
-   read for the game; `yarn eslint` on each extension or route touched.
-5. Play it where what is drawn or how it plays changed: `yarn editor <game>`, `index.html`, and
-   `client.html` against `node --experimental-strip-types games/<game>/<game>.server.ts`, the seat's
+   read for the game.
+5. Play it where what is drawn or how it plays changed: `yarn dev`, `index.html`, and
+   `client.html` against the game's server under `yarn serve <game>`, the seat's
    thing moving on the frame after its key.
 
-A finding whose home is missing in core is built there first, general, set from the scene file and
-tested (`building-a-plugin`, `building-an-extension`), never worked around in the game and never left
-as a note. Nothing in `engine/` is edited. Where a fix would change what the game does, a field
+A finding whose home is missing is built in the game, in a plugin or addon of its own, set from the
+scene file and tested (`building-a-plugin`); where a plugin core already has is what lacks it, the
+game gives it through that plugin's mods, or the plugin is expanded for every game that uses it with
+the yes of the person you are working for (`prime-directive`, Core is not touched). Never worked
+around and never left as a note. Nothing in `engine/` is edited. Where a fix would change what the game does, a field
 nobody reads, a screen it could lose, the person is asked what it should do.
 
 ## What goes wrong
@@ -959,7 +897,7 @@ nobody reads, a screen it could lose, the person is asked what it should do.
   lets go of; a `<scene>.sim.ts`,
   `<game>.server.ts` or test importing kinds, or a look importing its own kind's rule; an `import
   type` from a `.plugin.ts`; arithmetic on the definition's numbers; a static thing's `pos` and what
-  a start hands on; a look test's literal path for the url asked for; an extension's own snap or step.
+  a start hands on; a look test's literal path for the url asked for.
 - What the skills forbid passed over as allowed: a starting angle taken for a direction, a gap of
   spaces in a string taken for no number, a test's input that works only because of the layout taken
   for the test's own, a car, a gun or a hero on a row the `player` row spawns taken for a kind of its
@@ -970,8 +908,8 @@ nobody reads, a screen it could lose, the person is asked what it should do.
   a plugin's function, which writes into it. Every `w.find`, `w.get` and `w.all` is read through to
   what it is handed on to.
 - A number judged from the grep's line without opening the file.
-- The line fixed and its users left: a key moved up into the manager while an extension still reads
-  the scene file's own `world`; a test still holding the old shape.
+- The line fixed and its users left: a key moved up into the manager while a test still reads the
+  scene file's own `world`, or still holds the old shape.
 - An entry with no home, or a home that is a new setting on a top-level plugin for one game, or old
   code written back into: a camera put back into `prefabs.render3d` instead of the move.
 - A rule of the audit's own. A check is one a phase skill or the directive makes.
@@ -986,5 +924,5 @@ The audit: the baseline run and its results written down; every check's command 
 section's included, with a real answer and not a stopped glob, before the work is reported; every
 hit read. The migration: the test files beside every file it
 touched, run one a call and passing, each new check seen to fail on the old code; `yarn tsc` with no
-error in the game; `yarn eslint` on each extension or route touched; and the game played where what
+error in the game; and the game played where what
 it draws or how it plays changed. Then the audit is run again over the folder, and the list is empty.

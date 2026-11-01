@@ -25,12 +25,17 @@
 //   joints             kind to Joint: the kinds whose rows are joints.
 //   chunk              `{ count, cell }`: the ground's chunks, each `count` heights a side `cell`
 //                      metres apart, for the `ground` mod (below).
-//   mods               `{ ground: '<a>', props: ['<a>', …], kinds: ['<a>', …] }`, the plugins whose mods give
-//                      box3d those functions (`addons/scenemanager`'s mods): `ground(w, [i, j])` hands
-//                      back chunk [i, j] of the ground as a Static; `props(w, [i, j])`, from every
-//                      plugin `props` names, the fixed things of that plugin's standing in chunk
-//                      [i, j] (each one's middle in the chunk's square), as a Static, or undefined
-//                      where there are none, streamed with the ground; `kinds(w)`, from every plugin
+//   mods               `{ ground: '<a>', props: ['<a>', …], fixed: ['<a>', …], kinds: ['<a>', …] }`, the
+//                      plugins whose mods give box3d those functions (`addons/scenemanager`'s mods):
+//                      `ground(w, [i, j])` hands back chunk [i, j] of the ground as a Static;
+//                      `props(w, [i, j])`, from every plugin `props` names, the fixed things of that
+//                      plugin's standing in chunk [i, j] (each one's middle in the chunk's square), as
+//                      a Static, or undefined where there are none, streamed with the ground;
+//                      `fixed(w)`, from every plugin `fixed` names, the things of that plugin's that
+//                      never move, each a Static with the `id` of the row it stands for, placed once,
+//                      when the world is made, beside `static`, and named by that id in a body's or a
+//                      query's answer and at a joint's end; a row of theirs that moves or ends after is
+//                      not followed, as nothing that never moves does; `kinds(w)`, from every plugin
 //                      `kinds` names, hands back the kinds that plugin makes out of numbers of its own, `{ bodies: { <kind>: row => Body },
 //                      joints: { <kind>: row => Joint } }`, each asked for a row's entry when box3d
 //                      makes its body or joint, so two rows of one kind may differ, as two wheels of
@@ -120,7 +125,8 @@
 //              hits            this step's impacts, `{ with, point, normal, speed }`: enableHitEvents.
 //              visitors        the bodies inside its sensor shapes, sorted: isSensor with
 //                              enableSensorEvents, and the visitor's shape's own enableSensorEvents.
-//   a joint  `a` and `b`, the bodies it joins, each a row's id or -(i + 1) for static body i.
+//   a joint  `a` and `b`, the bodies it joins, each a row's id (a body's, or a `fixed` mod's thing's)
+//            or -(i + 1) for static body i.
 //            box3d makes it the first step both are bodies, and it goes with either. It may carry
 //            any field of its kind's entry Box3D can change on a live joint — for a wheel, say,
 //            `spinSpeed`, `maxSpinTorque` and `targetSteeringAngle` — and the row's value is then
@@ -222,6 +228,8 @@ export type Body = { shapes: Shape[] } & Partial<{
   mass: b3MassData
 }>
 export type Static = { pos: Vec3; rot: Quat; shapes: Shape[] }
+// What a `fixed` mod hands back: a thing that never moves, and the row it stands for.
+export type Fixed = Static & { id: number }
 
 type Base = Partial<{
   localFrameA: Frame
@@ -391,6 +399,7 @@ type Tied = { id: b3JointId; type: JointType; a: number; b: number; live: Record
 type Made = {
   world: b3WorldId
   statics: b3BodyId[]
+  fixed: Map<number, b3BodyId> // a `fixed` mod's things, by the row each stands for
   bodies: Map<number, Held>
   joints: Map<number, Tied>
   owner: Map<string, number> // a body's or a shape's key to the row, or -(i + 1) for static body i
@@ -549,10 +558,13 @@ function make(me: Row, w: W): Made {
   if (d.enableSpeculative !== undefined) b3.b3World_EnableSpeculative(world, d.enableSpeculative)
   if (d.contactRecycleDistance !== undefined) b3.b3World_SetContactRecycleDistance(world, d.contactRecycleDistance)
   const m: Made = {
-    world, statics: [], bodies: new Map(), joints: new Map(), owner: new Map(), oneWay: new Map(), chunks: new Map(),
+    world, statics: [], fixed: new Map(), bodies: new Map(), joints: new Map(), owner: new Map(), oneWay: new Map(), chunks: new Map(),
     live: {}, keep: [], events: b3.createEventsBuffer(),
   }
   d.static.forEach((s, i) => m.statics.push(place(m, s, -(i + 1), m.keep, w)))
+  for (const fixed of modsOf<(w: W) => Fixed[]>(w.world, 'box3d', 'fixed')) {
+    for (const s of fixed(w)) m.fixed.set(s.id, place(m, s, s.id, m.keep, w))
+  }
   // A contact on a one-way shape is kept while the other shape is on the face that looks along
   // `oneWay`: the contact normal, which points from shape A to shape B, pointing out of that face.
   b3.b3World_SetPreSolveCallback(world, (a: b3ShapeId, b: b3ShapeId, _point: Vec3, normal: Vec3) => {
@@ -575,6 +587,7 @@ function make(me: Row, w: W): Made {
 type Memo = {
   image: Uint8Array
   statics: b3BodyId[]
+  fixed: [number, b3BodyId][]
   bodies: [number, Omit<Held, 'touching' | 'visitors'> & { touching: [number, number][]; visitors: [number, number][] }][]
   joints: [number, Tied][]
   owner: [string, number][]
@@ -607,6 +620,7 @@ function hold(me: Row): Memo | undefined {
   if (!image.length) throw new Error('box3d: the world is mid step and cannot be saved')
   return { image, ...structuredClone({
     statics: m.statics,
+    fixed: [...m.fixed],
     bodies: [...m.bodies].map(([id, h]) => [id, { ...h, touching: [...h.touching], visitors: [...h.visitors] }]),
     joints: [...m.joints],
     owner: [...m.owner],
@@ -630,6 +644,7 @@ function restore(me: Row, w: W): Made {
   for (const k of m.keep.splice(0)) k.destroy()
   const here = <T extends { world0: number }>(id: T): T => ({ ...id, world0: m.world.index1 - 1 })
   m.statics = memo.statics.map(here)
+  m.fixed = new Map(memo.fixed.map(([id, b]) => [id, here(b)]))
   m.bodies = new Map(memo.bodies.map(([id, h]) => [id, { ...h, id: here(h.id), touching: new Map(h.touching), visitors: new Map(h.visitors) }]))
   m.joints = new Map(memo.joints.map(([id, j]) => [id, { ...j, id: here(j.id) }]))
   m.owner = new Map(memo.owner)
@@ -946,8 +961,8 @@ const DEFAULT: Record<JointType, () => any> = {
 }
 const BASE_FIELDS = ['forceThreshold', 'torqueThreshold', 'constraintHertz', 'constraintDampingRatio', 'drawScale', 'collideConnected'] as const
 
-// The body a joint's end names: a row's, or static body i's for -(i + 1).
-const end = (m: Made, at: number) => at < 0 ? m.statics[-at - 1] : m.bodies.get(at)?.id
+// The body a joint's end names: a row's, a `fixed` mod's thing's, or static body i's for -(i + 1).
+const end = (m: Made, at: number) => at < 0 ? m.statics[-at - 1] : m.bodies.get(at)?.id ?? m.fixed.get(at)
 
 function tie(m: Made, row: Row, j: Joint): Tied | undefined {
   const d = row.data
@@ -1089,9 +1104,10 @@ export const box3d: Kind & Memory = {
     const joints = new Map(Object.keys(jointOf).flatMap(k => w.all(k)).map(r => [r.id, r]))
     // A joint goes before its bodies: Box3D takes a body's joints with it, and a joint of a body
     // gone is remade, if its row asks, once both its ends are bodies again.
+    const stands = (at: number) => at < 0 || bodies.has(at) || m.fixed.has(at)
     for (const [id, t] of m.joints) {
       const r = joints.get(id)
-      if (r && r.data.a === t.a && r.data.b === t.b && (t.a < 0 || bodies.has(t.a)) && (t.b < 0 || bodies.has(t.b))) continue
+      if (r && r.data.a === t.a && r.data.b === t.b && stands(t.a) && stands(t.b)) continue
       if (b3.b3Joint_IsValid(t.id)) b3.b3DestroyJoint(t.id, true)
       m.joints.delete(id)
     }

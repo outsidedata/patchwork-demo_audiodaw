@@ -27,6 +27,10 @@ solver's memory, not the game's state). Every step, before the world steps:
 - the chunks listed on the world row's `ground` are built through the `ground` mod and every `props`
   mod, and chunks no longer listed are dropped, ground and props together.
 
+When it makes the world it also places, beside `static`, what every `fixed` mod hands it: the things
+of another plugin's that never move, each named in answers, contacts and joint ends by the row it
+stands for. They are placed once and never followed after.
+
 After the step every body's row gets `pos`, `rot` (a quaternion, x y z w), `vel`, `spin` and `awake`,
 and every joint's row its `measured` readings (`constraintForce`, `angle`, `spinSpeed`,
 `steeringAngle`, `twistAngle`, …) and `strained` when its force or torque passed its threshold. A
@@ -61,7 +65,7 @@ drew by row. `drop(id)` stops following.
    - `joints`: kind to Joint (`distance`, `revolute`, `prismatic`, `wheel`, `weld`, `spherical`,
      `motor`, `parallel`, `filter`). A joint row carries `a` and `b`.
    - `chunk: { count, cell }`: each ground chunk `count` heights a side, `cell` metres apart.
-   - `mods: { ground: '<plugin>', props: ['<plugin>', …], kinds: ['<plugin>', …] }`.
+   - `mods: { ground: '<plugin>', props: ['<plugin>', …], fixed: ['<plugin>', …], kinds: ['<plugin>', …] }`.
 2. A Shape is one geometry — `box` (half extents), `sphere`, `capsule`, `hull` (at most 128 vertices),
    `cylinder`, `cone`, `rock`, `mesh` (inline, `{ asset }` from the loader, or one of Box3D's makers),
    `heightField`, `compound` (static bodies only) — with `density`, `baseMaterial` (`friction`,
@@ -80,6 +84,9 @@ drew by row. `drop(id)` stops following.
   chunk of the land as a height field of terrain3d's `heightAt`.
 - **scatter3d**: the mod `scatter3d.box3d.ts` (`mods: { props: ['scatter3d'] }`) makes trunks and
   boulders fixed capsules and balls, so the tree a car hits is the tree a seat sees.
+- **shapes3d**: the mod `shapes3d.box3d.ts` (`mods: { fixed: ['shapes3d'] }`) makes every shapes3d
+  box, cylinder and plane a thing in the world that never moves, the solid solids draws of it, named
+  by its row.
 - **box3dvehicle**: the mod `box3dvehicle.box3d.ts` (`mods: { kinds: ['box3dvehicle'] }`) makes the
   chassis, wheels and joints of each car. box3d's own mod `box3d.box3dvehicle.ts`
   (`world.box3dvehicle.mods: { gravity: 'box3d' }`) hands box3dvehicle the gravity it preloads its
@@ -96,7 +103,7 @@ drew by row. `drop(id)` stops following.
 
 physics, 3D physics, rigid body, Box3D, box3d.js, WebAssembly, wasm, deterministic, collision,
 collider, box, sphere, capsule, convex hull, cylinder, cone, rock, triangle mesh, trimesh, height
-field, heightmap, compound, ground chunks, streaming, props, joint, hinge, revolute, prismatic,
+field, heightmap, compound, ground chunks, streaming, props, fixed, shapes3d, joint, hinge, revolute, prismatic,
 slider, wheel joint, suspension, spherical, ball joint, weld, motor, ragdoll, sensor, trigger,
 contact events, hit events, explosion, impulse, force, torque, wind, friction, kinematic, raycast,
 shape cast, overlap, character controller, mover, plane solver, sleep, bullet, continuous, collision

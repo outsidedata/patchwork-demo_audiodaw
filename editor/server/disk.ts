@@ -29,9 +29,9 @@
 //     was written, which is before a page that reloads for that write began to load; any other change
 //     when the watcher saw it.
 // A page decides for itself whether it holds a file as a module, and reloads for it (`Editor`). A game
-// running on node starts again on a change to a file it may run (`runs`), whoever made it, the change
-// log too: its own game's, or the shared code every game runs; one that will not start again says why
-// in its log (`servers.ts`).
+// running on node starts again on a change to a file it may run, whoever made it, the change log too:
+// its own game's, or the shared code every game runs; one that will not start again says why in its
+// log (`scripts/servers.ts`).
 //
 // What Vite would say to a page over its own socket, which it has none of here, is said on the
 // editor's: a reload (`editor:reload`), which Vite asks for when it has bundled a dependency it found
@@ -50,14 +50,12 @@ import path from 'node:path'
 import type { HMRPayload, ViteDevServer } from 'vite'
 import type { Changed, Changes } from './changes.ts'
 import type { Page, Pages } from './pages.ts'
-import type { Servers } from './servers.ts'
+import { gameOf, restarts, type Servers } from '#scripts/servers.ts'
 
+export { GATHER } from '#scripts/servers.ts'
 // How long a file is still before the pages are told of it: a write lands as one or more changes
 // within a few ms, and a page is told of the file once, as it ends up.
 export const STILL = 100
-// How long the changes to the files of a game on node are gathered before it starts again, so a
-// change of many files, a kind made say, restarts it once.
-export const GATHER = 300
 // How long what the pages were told is kept, for a page that is loading: far longer than any page
 // takes to load and join.
 const KEPT = 120_000
@@ -74,18 +72,6 @@ const hash = (data: string | Uint8Array | null) => (data === null ? null : creat
 const relOf = (root: string, file: string) => path.relative(root, file).split(path.sep).join('/')
 // What no page is told of: what is out of the repo, and what the editor never touches.
 const outside = (rel: string) => rel === '' || rel.startsWith('..') || path.isAbsolute(rel) || /(^|\/)(node_modules|\.git)(\/|$)/.test(rel)
-// The game a file is of, when it is in a game's folder.
-const gameOf = (rel: string) => /^games\/([^/]+)\//.exec(rel)?.[1]
-// Whether a game on node may run the file: code of the four folders a server imports, so not a test,
-// the editor's own, or an actor's look, which only a page draws; and a data file of a game's folder.
-// Never a hidden file or an editor's backup, a page, a note, or what a run of the simulator records.
-const runs = (rel: string) => {
-  const name = rel.slice(rel.lastIndexOf('/') + 1)
-  if (name.startsWith('.') || name.endsWith('~') || /\.(html|md)$/.test(name)) return false
-  if (/\.(test\.tsx?|extension\.tsx|components\.tsx|route\.ts|client\.tsx?)$/.test(name)) return false
-  if (/\.tsx?$/.test(name)) return /^(games|plugins|addons|engine)\//.test(rel)
-  return /^games\//.test(rel)
-}
 // The pages a file is told to: those on its game, or every page for a file of no game.
 const onGame = (rel: string) => {
   const game = gameOf(rel)
@@ -110,20 +96,8 @@ export function disk(root: string, vite: ViteDevServer, pages: Pages, servers: S
     for (const t of told) if (t.at > since && t.to(page)) page.send(t.event, t.data)
   })
 
-  // The games on node to start again, gathered: a game's name, or `*` for every one.
-  const restarting = new Set<string>()
-  let restart: ReturnType<typeof setTimeout> | undefined
-  const rerun = (game: string | undefined) => {
-    restarting.add(game ?? '*')
-    clearTimeout(restart)
-    restart = setTimeout(() => {
-      const all = restarting.has('*')
-      const games = [...restarting]
-      restarting.clear()
-      if (all) servers.changed()
-      else for (const g of games) servers.changed(g)
-    }, GATHER)
-  }
+  // The games on node to start again, gathered.
+  const restart = restarts(servers)
 
   // What each file was when it last settled: its inode, size and when it was last written, or null
   // once it was gone.
@@ -145,7 +119,7 @@ export function disk(root: string, vite: ViteDevServer, pages: Pages, servers: S
     const gone = now === null || (had !== undefined && there === null)
     const ours = had !== undefined && had.hash === hash(gone ? null : there) ? had : undefined
     if (!ours && written.get(rel) === had) written.delete(rel)
-    if (runs(rel)) rerun(gameOf(rel))
+    restart.changed(rel)
     if (ours?.log || ours?.told) return
     if (ours) ours.told = true
     changes.outside()
@@ -215,7 +189,7 @@ export function disk(root: string, vite: ViteDevServer, pages: Pages, servers: S
     close() {
       for (const w of waiting.values()) clearTimeout(w.timer)
       waiting.clear()
-      clearTimeout(restart)
+      restart.close()
     },
   }
 }

@@ -44,8 +44,8 @@ of it has landed (below).
 | `cutscene` row | `actors` entry, prefab `{}` | the playhead; listed before every cast row (lower id) |
 | cast rows | `actors` entries of the game's own kinds, each with a `name` | filmed; driven by their own rules |
 | the start | a kind of the game's own, one row (a `curtain`) | starts the cutscene and the action in one step |
-| the cue file | `assets/intro.json`, catalogue `json` entry, `preload` | written by a script, never by hand |
-| the script | `assets/intro.ts` beside it | plays the scene, lays the shots, checks every frame |
+| the cue file | `assets/intro.json`, catalogue `json` entry, `preload` | laid in the cutscene's panel on the dev page (`dev.html?cutscene`) and saved from it |
+| the check | `assets/intro.ts` beside it | plays the scene and checks every frame; `failing(script)` hands back each failing frame |
 | the title | the title's kind's look (`<kind>.client.ts`) | menu, 3D name, camera after the intro |
 | the 3D words | `assets/<name>/<name>.py` → `.glb`, in the game's bake | the name and any 3D menu words |
 
@@ -68,6 +68,84 @@ stands still while the cast leap ahead, and the scene behind the menu is torn. R
 cast (a race's or a match's clock) are not stepped by a skip; the intro is laid out so that does not
 matter (the action runs on under its own clock afterwards).
 
+## Adding a cast member
+
+A member is in the cast only when three files name it, and the panel's `who` and `follows` lists are
+the cue file's `cast` and nothing else; a member missing from any of the three never appears there,
+and the panel cannot add one. Its place lists (`look`, `pos`, `to`) are the cast and the scene's
+`mark` rows.
+
+1. The scene's `world.cutscene.kinds` holds the member's kind (`["driver", "gunner"]`): the kinds a
+   member may be, and the rows a skip and a target are looked for in.
+2. The member's `actors` entry gives it a `name` (`{ "is": "gunner", "name": "gunner" }`), listed
+   after the `cutscene` row. Its kind keeps the cast contract (The cast, above): `name: ""` and
+   `direct: null` in its prefab, and `advance(dt)`.
+3. The cue file's `cast` maps the member's cue name to that kind and name
+   (`"gunner": { "kind": "gunner", "name": "gunner" }`).
+
+Then reload `dev.html?cutscene`: the member has its own lane and is in every list.
+
+## Seeing as a thing in the game sees
+
+The camera takes the point of view of anything in the game that has a row with `pos` and `yaw`: a
+shot `follows` that row with `frame: "body"`, so `pos` is an offset in the row's own axes (x to its
+left, y up, z ahead along its `yaw`, which faces (sin yaw, cos yaw); `cutscene.sim.ts`'s `view`) and the camera turns as the row turns. `frame` left out, or
+`"world"`, keeps the offset in the world's axes, so the camera rides along without turning.
+
+- **The thing turns by itself, apart from what carries it.** Follow the row that turns. In horde the
+  chaingun turns on the jeep: the `gunner` sits on the gun's seat point, which turns with the gun
+  (`games/horde/plugins/gun/gun.interact.ts`), so a shot following `gunner` in its body frame swings
+  with the gun, and one following `driver` turns with the jeep. When nothing that turns that way has
+  a row (a turret drawn as part of a car, a head bone), cast the row whose `yaw` it is, or give the
+  thing a row of its own whose rule keeps its `pos` and `yaw` on it; the cutscene reads nothing but
+  rows.
+- **Looking where it looks.** `look` is a target, a member, a mark or a point, never a direction in
+  the member's frame. To see along the thing's way, stand the camera behind it and a little above
+  and look at it: `pos: [0, 1.5, -2.5]`, `look: "gunner"` is over the gunner's shoulder down the gun.
+  The member's look point is `head` metres over its `pos`.
+- **Its own eye.** An offset of `[0, eye, 0]` with `look` on the same member puts the camera on the
+  look point and has nothing to aim at: put the camera behind the eye (z below 0) and look at the
+  member, or look at a mark or a point ahead of where it is going.
+
+## The game's own things: behaviors
+
+A shot often needs the game to do something on cue: the gate opens as the camera reaches it, the boss
+steps out, the rain starts, a lamp lights. That is a step in the game's own words, in the same cue
+file, beside the shot it belongs with, never a rule of the game's that watches the cutscene's clock,
+and never a change to core's cutscene. The game's plugin delivers it as a behavior (`plugins/cutscene/
+cutscene.sim.ts`, Steps a game brings; the cutscene README, Steps a game brings):
+
+- **Where.** A plugin of the game's own, `games/<game>/plugins/<a>/`, writes `<a>.cutscene.ts` beside
+  itself, exporting `behaviors()`, `{ <word>: <step> }`. The scene lists `<a>` in
+  `world.shipped.plugins` and names it in `world.cutscene.mods.behaviors: ['<a>']`. A plugin that
+  exists only to deliver steps is that mod alone (`games/demo_cutscene/plugins/stagehand/`).
+- **The word is the game's.** `open`, `spawn`, `rain`, `explode`: what the game calls the act, so the
+  cue file reads as the game's script. The step does the act through the thing's own act, the way a
+  rule would (`w.call(gate, 'open', -1, cue.over)`), or `w.spawn`; it never writes another kind's
+  fields itself. The rule of what opening is stays in the kind.
+- **Its fields** are rules from cutscene's `RULES`: `who` for a cast member it acts on (then `fire`
+  is handed that member's row as `who`, and the step does not fire once that row has ended),
+  `target` for a place (a cast name, a mark or a point, checked at the start like every place),
+  `positive`, `text`, `flag` and the rest. A misspelt field or name in the file fails when it is read.
+- **Waiting on it.** A step that takes time (a gate swinging, a bridge lowering) gives
+  `wait: { holds(d, w), longest(file) }`, and the cue file holds the shots behind it with
+  `{ "do": "wait", "on": "open" }`. `holds` reads the row it acted on (the gate's `open` below 1);
+  `longest` is the most it can take, after which the wait lets go whatever `holds` says, so a skip
+  always ends.
+- **On a skip.** `fire` is handed `loud`. A step that changes the world (opens, spawns) acts whatever
+  `loud` is, so the scene behind the menu is the one a played intro leaves; a step that is only felt
+  (a sound, a flash) does nothing while `loud` is false. A row a step acts on and that moves over
+  time is cast, as every row that moves in the shots is (The cast, above), so the skip advances it.
+- **Drawing it.** A step that draws on the page beyond what its rows' looks draw gives
+  `page: { tick(plugins, d), close?() }`, reading what its `fire` kept under `d.steps.<word>`; it takes
+  down what it drew when the scene stops and in `close`. Anything a row of the game's carries is drawn
+  by that kind's own look, not here.
+- **Overriding.** A delivered word of cutscene's own name (`shake`, `sound`) takes the place of
+  cutscene's own in the scenes that name the plugin, and a later plugin's word takes an earlier one's.
+- **Testing it.** The game's test plays the intro and reads the rows: the act lands at its cue, the
+  wait holds until it is done, what is behind the wait comes after, and a skip leaves the same world
+  (`games/demo_cutscene/demo_cutscene.sim.test.ts`).
+
 ## Starting it: the art, and one step
 
 `auto: true` is wrong for an intro: the page that just arrived is still fetching the models and
@@ -83,48 +161,49 @@ never named after the scene), holds it:
   cutscene's open `skip` on any `keydown` or `pointerdown` while it runs, once; listeners on the window,
   taken off in `remove`.
 
+Once it starts, a shot the page cannot place yet (the land's ground not there, a member it names
+not among the rows) is covered in black by the cutscene itself, in render3d's overlay, and
+`plugins.cutscene.waiting()` is true while it is, so the curtain's look can show a spinner on the ui
+over it (`cutscene.plugin.ts`, Waiting).
+
 Starting the cutscene and the action in one step is what makes the cue file right: the cue clock `e`
 and the action's clock then run together from the same step, on the server and in the script alike,
 whenever the page happens to be ready. Anything that lets the action begin before the intro (a race
 that counts down on its own, a fight already going) puts every car or ship somewhere else than where
 the cue file was written for it.
 
-## Writing the cue file from the run
+## Laying the shots on the dev page
 
-A game whose action is a pure function of its seed and its numbers (CPU drivers, a seeded map) runs the
-same every time, so the shots are written from it, not guessed. `assets/intro.ts`, run with
-`node --experimental-strip-types games/<game>/assets/intro.ts`:
+The shots are laid on the game itself, in the cutscene's panel (`plugins/cutscene/cutscene.panel.ts`,
+the plugin's README, Editing a cutscene on the dev page). The game's `dev.html` calls the panel's
+`edit` when its address has `?cutscene`, before it boots anything of its own (mech's does), and
+`yarn dev` serves it: the game behind core's recorder, entering the title, the curtain starting the
+intro as it does in the game, every skip held off. The playhead scrubs the real run; each change plays
+at once; Save writes `assets/intro.json`.
 
-1. Boot the manager as the server does (`boot`, `load`, `connection(manager(truth), …)`), step once,
-   and send the curtain `ready` as a page would (`seat.take` with the last `Down`'s scene, seat and
-   `n`). This is exactly the start path the game runs.
-2. The cutscene needs a cue file to begin, and its cast is fixed, so write a first file with the cast
-   and no cues; nothing the cutscene does changes how a self-driving cast moves, so the run it records
-   is the run the finished file plays. After each write call the loader's `written(url, text)`
-   (`plugins/loader/loader.sim.ts`): the process keeps every file it has read, and a second boot reads
-   the old one otherwise.
-3. Record every cast row each step: place, heading, speed, its state (a drift, a target), progress.
-4. Lay the shots on what really happens, every time read off the recording: when the action goes, the
-   first big event (a drift, a kill), when the leader reaches a landmark (a bridge, a tower). Fixed
-   points come from the set's own functions (the track's `sample`, the land's `height` and
-   landmarks), follow offsets from the cast row's heading at that moment. Alternate wide and high
-   (aerial sweeps, `over` > 0 dollies from a fixed point looking at a cast name) with close and low
-   (follows, `frame: "body"` for a bumper or wing camera).
-5. Write the file and check every frame (below). Throw on the first that fails, naming the shot and
-   the time.
+1. Write a first cue file by hand with the cast and the game's own start cues (mech's `land`), and no
+   shots: the cutscene needs one to begin, and its cast is fixed.
+2. Open `dev.html?cutscene`, play the intro, and lay the shots on what really happens: when the action
+   goes, the first big event (a drift, a kill), when the leader reaches a landmark (a bridge, a tower).
+   Alternate wide and high (aerial sweeps, `over` > 0 dollies from a fixed point looking at a cast
+   name) with close and low (follows, `frame: "body"` for a bumper or wing camera). A shot's camera is
+   dragged with the gizmo; Look shows the real shot.
+3. Every frame the check fails (below) is red on the camera lane; fix each, and Save.
 
 On a set with no ground plugin, or one whose `land` mod the scene does not name, the server half is
-`cutscene(() => 0)` and the browser half flat at 0: then every point the script writes is a world point
-with its height in it. The two halves must agree on the ground, or the server's `shot.from` and the
-page's pose differ.
+`cutscene(() => 0)` and the browser half flat at 0: then every point is a world point with its height in
+it. The two halves must agree on the ground, or the server's `shot.from` and the page's pose differ.
 
 The first shot has `over: 0` (the check refuses otherwise). The last shot is the title's: a follow of
 one cast member with an offset in the world's axes, so the title's camera can carry it on.
 
 ## Checking every frame
 
-A shot that "should" show its subject is a guess. The script plays the finished file and, at every
-step of every shot, takes the camera the cutscene draws (`pose(d, rows, height)` from
+A shot that "should" show its subject is a guess. `assets/intro.ts` beside the cue file writes nothing:
+it boots the manager as the server does (`boot`, `load`, `connection(manager(truth), …)`), steps once,
+sends the curtain `ready` as a page would (`seat.take` with the last `Down`'s scene, seat and `n`),
+exactly the start path the game runs, plays the file and, at every step of every shot, takes the camera
+the cutscene draws (`pose(d, rows, height)` from
 `cutscene.sim.ts`) and the cast row the shot `look`s at, and requires:
 
 - the subject on the screen: its point in the camera's axes, divided out to the screen's −1…1 across
@@ -137,8 +216,13 @@ step of every shot, takes the camera the cutscene draws (`pose(d, rows, height)`
   bores at their drawn heights. A camera stood "just beyond the wall" is inside the bank where the
   ground beside the road is higher; only a check of the bank finds it.
 
-The same check runs in the title's test on the file as written. Add every new way a shot went wrong
-on screen to the check before fixing the shot, and see it fail on the old shot.
+It exports `failing(script)`, which calls the loader's `written(url, text)` with the file handed to it
+(`plugins/loader/loader.sim.ts`: the process keeps every file it has read) and hands back each failing
+frame, `{ shot, e, text }`: the dev server runs it on the file as it stands in the panel, which draws
+those frames red. Run on its own (`node --experimental-strip-types games/<game>/assets/intro.ts`) it
+checks the file on the disk, prints each shot's failures and exits 1 when one fails. Its test runs it on
+a short file of its own (mech's `assets/intro.game.test.ts`). Add every new way a shot went wrong on
+screen to the check before fixing the shot, and see it fail on the old shot.
 
 ## The title after the intro
 
@@ -181,23 +265,28 @@ A page test of anything on the title skips the intro first, as a player would: w
 cutscene to run, press a key, wait for `done`. A helper that steps "until `e` reaches t" also stops
 at `done`, since `e` stops there: it otherwise steps forever.
 
-Then play it and look: `yarn editor <game>`, the game's `index.html`.
+Then play it and look: `yarn dev`, the game's `index.html`; and `dev.html?cutscene` to scrub and edit it.
 
 ## What goes wrong
 
 - `auto: true`, so the intro plays before the art lands, to an empty set.
 - The action starts on its own clock, not in the step the cutscene starts, so every shot points at
   where the cast is not.
-- Shots typed by hand from guessed positions.
+- Shots typed into the cue file from guessed positions, never laid on the run in the panel.
 - Only the named rows cast, so a skip leaves the others behind.
 - A camera beside the road or the level stood inside a bank, a wall or a building: the check knew only
   the open ground.
-- The script's second boot reads the cue file it wrote before (`written` not called).
+- The check's boot reads the cue file on the disk, not the one handed to `failing` (`written` not
+  called).
 - The menu or the lobby's text drawn during the intro.
 - The 3D name put in the scene, where the action passes in front of it, or in the overlay with no
   environment, so its chrome is black.
 - A separate intro scene, so the scene behind the menu is not the one the intro filmed.
 - A test's step loop that waits on `e` past the end.
+- A game's act timed by its own rule watching the cutscene's `e`, or added to core's cutscene, instead
+  of a step in the game's words delivered through `world.cutscene.mods.behaviors`.
+- A delivered step that writes another kind's fields itself instead of calling that kind's act.
+- A row a delivered step sets moving left out of the cast, so a skip leaves it half done.
 
 Ask the person making the game what the intro shows: its set, its beats, whether it has words, what
 stays behind the menu, and how the name and the menu look. That is content, and it is theirs.

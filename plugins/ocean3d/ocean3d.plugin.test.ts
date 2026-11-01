@@ -6,8 +6,7 @@
 //
 // The mods are imported as a game's are, by scenemanager's `load` of a scene naming them: `sky()`
 // loads `sea`, a manager's one child this test writes, with a real sky over the sea, whose
-// `world.ocean3d.mods` name skydome3d's light and wind and terrain3d's land. It is loaded before all,
-// and the weather test steps a truth of it of its own.
+// `world.ocean3d.mods` name skydome3d's light and wind and terrain3d's land. It is loaded before all.
 import { afterAll, beforeAll, beforeEach, expect, test, vi } from 'vitest'
 import { mkdtempSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
@@ -20,7 +19,7 @@ import { scenemanager } from '#plugins/scenemanager/scenemanager.sim.ts'
 import { written } from '#plugins/loader/loader.sim.ts'
 import { render3d } from '#plugins/render3d/render3d.plugin.ts'
 import type { Weather } from '#plugins/skydome3d/skydome3d.sim.ts'
-import { ampAt, RES, spectrum } from './ocean3d.sim.ts'
+import { RES, spectrum } from './ocean3d.sim.ts'
 import { disc, ocean3d, radii, type Fixed, type Numbers } from './ocean3d.plugin.ts'
 
 type Draw = { name: string; values: Record<string, unknown>; target: THREE.WebGLRenderTarget | null; camera: THREE.Camera }
@@ -160,7 +159,7 @@ const named = (name: string) => gpu.draws.filter(d => d.name === name)
 
 // ---------------------------------------------------------------- the surface
 
-test('the colour pass is transparent with no depth write, LEQUAL, renderOrder 2, the front side under the scene\'s fog, and its shader ends in three\'s tonemapping, colorspace and fog chunks', () => {
+test('the colour pass is transparent with no depth write, LEQUAL, renderOrder −1, the front side under the scene\'s fog, and its shader ends in three\'s tonemapping, colorspace and fog chunks', () => {
   const { me, frame, plugins } = page()
   frame()
   const { colour } = me.sea()!
@@ -170,7 +169,7 @@ test('the colour pass is transparent with no depth write, LEQUAL, renderOrder 2,
   expect(m.depthFunc).toBe(THREE.LessEqualDepth)
   expect(m.side).toBe(THREE.FrontSide)
   expect(m.fog).toBe(true)
-  expect(colour.renderOrder).toBe(2)
+  expect(colour.renderOrder).toBe(-1)
   expect(plugins.render3d.scene.children).toContain(colour)
   const f = m.fragmentShader
   const tone = f.indexOf('#include <tonemapping_fragment>'), space = f.indexOf('#include <colorspace_fragment>'), fog = f.indexOf('#include <fog_fragment>')
@@ -701,36 +700,4 @@ test('a brush held over the tile never starts its bake again: each bake runs to 
   expect(tile.data.every(v => v === Math.round((28 / 64) * 255))).toBe(true)
   frame()
   expect(tile.next).toBeUndefined()
-})
-
-test('the GPU draws at the server\'s amplitude through a weather fade on skydome3d, whose wind the scene\'s mod hands it: amp·(floor + (1 − floor)·min(1, mix.wind/windRef)), amp itself with no sky row or no wind mod', async () => {
-  const { truth, w } = await sky()
-  const { frame, plugins } = page()
-  const amps = () => named('evolve h').slice(-3).map(d => d.values.amp)
-  const show = () => { plugins.wire.rows = truth.rows; frame() }
-  show()
-  expect(amps()).toEqual([ampAt(w), ampAt(w), ampAt(w)])
-  expect(ampAt(w)).toBeCloseTo(0.35 * (0.2 + 0.8 * (2 / 12)), 12)
-  w.call(truth.rows.find(r => r.kind === 'skydome3d')!, 'weather', 0, 'storm', 6)
-  const seen: number[] = []
-  for (let n = 0; n < 30; n++) {
-    truth.step(0.25)
-    show()
-    for (const a of amps()) expect(a).toBe(ampAt(w))
-    seen.push(ampAt(w))
-  }
-  expect(seen[0]).toBeLessThan(seen[12])
-  expect(seen[29]).toBeCloseTo(0.35, 12)
-  // No sky row: amp itself.
-  plugins.wire.rows = truth.rows.filter(r => r.kind !== 'skydome3d')
-  frame()
-  expect(amps()).toEqual([0.35, 0.35, 0.35])
-  // A sky row in fair weather, which a scene naming the wind draws at under a third of amp, and a
-  // scene that names none: amp itself.
-  const fair = await sky()
-  expect(ampAt(fair.w)).toBeCloseTo(0.35 * (0.2 + 0.8 * (2 / 12)), 12)
-  const calm = page({ mods: { light: 'skydome3d', land: 'terrain3d' } })
-  calm.plugins.wire.rows = fair.truth.rows
-  calm.frame()
-  expect(amps()).toEqual([0.35, 0.35, 0.35])
 })

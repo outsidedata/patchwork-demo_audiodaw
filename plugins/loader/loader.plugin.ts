@@ -98,6 +98,17 @@
 // over as the `BitmapFont`; a name PixiJS already has a font of is that font, one per page. A scene
 // with neither to draw it fails it.
 //
+// An entry of type `font` is a TrueType, OpenType or WOFF file (`.ttf`, `.otf`, `.woff`, `.woff2`),
+// installed in the page as the font of the entry's name, so a `Text` whose style's `fontFamily` is
+// that name, a ui style say, draws with it, and every other text on the page too: the ui's, render2d's
+// and the DOM's alike, whatever the entry is `for`. It is handed over as the `FontFace`. A name the
+// page already has a font of from this loader is that font, one per page, so a client made for the
+// next scene installs nothing again. Every font is preloaded: each starts on the first tick, whatever
+// its entry says, and `fonts()` says whether every font of the catalogue has landed or failed, which
+// the ui waits on before it draws its first frame, so no text is ever drawn in the font after it and
+// kept in it. Where there is no `FontFace` to install, in node or jsdom, nothing draws text, and a font
+// whose file reads is `{ family }`, its name.
+//
 // An entry of type `model` is one self-contained `.glb` (in any case), decoded once with render3d's
 // glTF loader, with three's meshopt decoder, so a glb packed by gltfpack (`EXT_meshopt_compression`)
 // decodes as any other; a `.gltf`, which names files beside it, is refused. `model(name)` is `{ scene,
@@ -187,6 +198,10 @@ function blank() {
 // object, which every client in the process shares, and not on the lent `document`, which something
 // else may take away or put its own in place of while a model decodes.
 const LENT = Symbol.for('loader: lent')
+
+// Each font this half installed in the page or is installing, by its name: kept on the global object,
+// as the page's fonts are the page's, so every client of the page has the one font of a name.
+const FACES = Symbol.for('loader: fonts')
 type Lent = { decoding: number; document?: object; self: boolean }
 
 // Lends node the `self` and the `document` three's glTF loader decodes a model's images with, for
@@ -464,6 +479,23 @@ export function loader() {
         return font
       })
     }
+    if (it.type === 'font') {
+      if (typeof FontFace === 'undefined' || typeof document === 'undefined' || !document.fonts) return fetched(it.url).then(() => ({ family: name }))
+      // one font of a name in the page, whichever client installs it first
+      const g = globalThis as any
+      const faces: Map<string, Promise<FontFace>> = (g[FACES] ??= new Map())
+      const had = faces.get(name)
+      if (had) return had
+      const coming = fetched(it.url).then(async bytes => {
+        const face = new FontFace(name, bytes)
+        await face.load()
+        document.fonts.add(face)
+        return face
+      })
+      faces.set(name, coming)
+      coming.catch(() => faces.delete(name))
+      return coming
+    }
     if (it.type === 'model') {
       const { GLTFLoader } = p.render3d
       return fetched(it.url).then(bytes => {
@@ -478,7 +510,7 @@ export function loader() {
   const begin = (p: Plugins, name: string): Promise<any> => {
     const it = catalogue()[name]
     if (!it) throw new Error('the catalogue has no such entry')
-    if (!['json', 'palette', 'pixels', 'binary', 'texture', 'sheet', 'tilemap', 'bitmapfont', 'model', 'sound'].includes(it.type)) throw new Error(`no type ${it.type} is known`)
+    if (!['json', 'palette', 'pixels', 'binary', 'texture', 'sheet', 'tilemap', 'bitmapfont', 'font', 'model', 'sound'].includes(it.type)) throw new Error(`no type ${it.type} is known`)
     if (it.for !== undefined && it.for !== 'ui') throw new Error(`it is for ${it.for}; an entry is for the scene's renderer, or for ui`)
     if (it.for === 'ui' && !p.ui) throw new Error('it is for ui, which this scene does not name')
     if (it.type === 'sheet' && it.for !== 'ui' && !p.render3d && !p.render2d) throw new Error('a sheet, and this scene names no renderer and no ui to cut it for')
@@ -557,7 +589,7 @@ export function loader() {
       if (!preloaded) {
         preloaded = true
         mount(p.wire.scene.world ?? {}).catch(e => console.error(e))
-        for (const [name, it] of Object.entries(catalogue())) if (it.preload) wanted.add(name)
+        for (const [name, it] of Object.entries(catalogue())) if (it.preload || it.type === 'font') wanted.add(name)
         ticked()
       }
       for (const name of wanted) void start(name)
@@ -653,6 +685,10 @@ export function loader() {
       await Promise.all(at.map(async ([name, it]) => {
         if (await refilled(name, it)) for (const f of heard.get(name) ?? []) f()
       }))
+    },
+    // Whether every font of the catalogue has landed or failed; false before the first tick.
+    fonts(): boolean {
+      return !!assets && Object.entries(assets).every(([name, it]) => it.type !== 'font' || made.has(name) || failed.has(name))
     },
     // How many of the ones started and not failed are here.
     progress() { return { done: made.size, started: going.size - failed.size } },

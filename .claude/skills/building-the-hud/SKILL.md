@@ -1,6 +1,6 @@
 ---
 name: building-the-hud
-description: Use in core, or any clone of it, when drawing anything over the game - a score, health, lives, ammo, a timer, a health bar or nameplate over a thing, a minimap, an inventory, a menu, a pause or game-over screen, a dialog or modal, a settings screen for the volume or mute, chat and party frames, a cutscene's bars and lines. That covers the `ui` plugin (`world.ui` panels, keys and styles, `show`, `button`, `bar`, `iris`, `pin`, `surface`, modals, `open`/`dismiss`/`opened`, focus), the `store` plugin for values only the page keeps, a picture the HUD shows (`"for": "ui"`), reading what the HUD shows off the rows the seat is sent (the seat's own score, health, ammo and lives off its own `player` row, `possessed` or `mine`, drawn the frame after the key on a page that runs ahead), and testing a HUD on a page in node. Also use it when the HUD does not show, throws `ui has not ticked yet` or `holds a child show did not hand out`, a menu takes no keys, or Escape will not leave a pause screen.
+description: Use in core, or any clone of it, when drawing anything over the game - a score, health, lives, ammo, a timer, a health bar or nameplate over a thing, a minimap, an inventory, a menu, a pause or game-over screen, a dialog or modal, a settings screen for the volume or mute, chat and party frames, a cutscene's bars and lines. That covers the `ui` plugin (`world.ui` panels, keys and styles, `show`, `button`, `bar`, `iris`, `pin`, `surface`, modals, `open`/`dismiss`/`opened`, focus), the `store` plugin for values only the page keeps, a picture the HUD shows (`"for": "ui"`), reading what the HUD shows off the rows the seat is sent (the seat's own score, health, ammo and lives off its own `player` row, `possessed` or `mine`, drawn the frame after the key on a page that runs ahead), testing a HUD on a page in node, and tuning a game's title screen, HUD and messages live in the UI workshop (`tools/workshop/ui.html`, a game's `<game>.screens.ts`). Also use it when the HUD does not show, throws `ui has not ticked yet` or `holds a child show did not hand out`, a menu takes no keys, or Escape will not leave a pause screen.
 ---
 
 # Building the HUD
@@ -31,7 +31,6 @@ skills instead:
   different when the HUD draws it.
 - Drawing in the game's world, on render2d's or render3d's stage: `writing-the-look`.
 - A title screen or menu that is a scene of its own, and moving between scenes: `scene-flow`.
-- The editor's panels: `building-an-extension`. The editor's design system is not this (below).
 - Chat and parties across a network, and keeping each seat's lines to it: `going-multiplayer`.
 - Writing a plugin of the game's own: `building-a-plugin`.
 - Tests and playing in general: `proving-a-game`.
@@ -91,7 +90,7 @@ skills instead:
   come back as one texture (`plugins/loader/loader.plugin.ts`); the scene still gives both.
 - The page: nothing. `index.html` and `client.html` as `yarn new-game` writes them already make a
   canvas for `ui` over the game's whenever the scene lists it (the `MOUNT` lines of
-  `extensions/games/games.route.ts`), and the editor's game view does the same (`editor/session.ts`).
+  `scripts/new-game.ts`).
   `client.html` wraps its link in `predict` (the prime directive's The pages), which the template does
   not write yet; a game's `client.html` is put in that shape before its HUD is checked over a network.
   A page mounts things: no rule, number, readout, listener or scene name. `dev.html`, the testbed, is
@@ -180,7 +179,8 @@ hand out` at the end of the frame. The key is the thing's PixiJS `label`, so a t
 What an actor draws with: plain PixiJS off `ui.PIXI` (`Text`, `BitmapText`, `Sprite`, `Graphics`,
 `Container`, PixiJS's pointer events), and three pieces. `button(options)` is a Container of a
 background and a label centred on it, hit as one thing, filled with `focus` while focused and `fill`
-otherwise, its label a `BitmapText` with `bitmap`; what it does is `.on('pointertap', ...)`, which hands
+otherwise, its label a `BitmapText` with `bitmap`, moved `baselineOffset` pixels down from the
+middle (0 when left out) for a typeface that sits high or low in its box; what it does is `.on('pointertap', ...)`, which hands
 the button back. `bar(options)` is a track with a frame round it, and `set(k, fill)` fills `k` of it,
 0 to 1, from the left. `iris(options)` covers a box but for a circle, `set(x, y, r)`, cut a pixel row
 at a time, the circle a screen change closes on. No layout measures text: node cannot measure PixiJS
@@ -299,6 +299,54 @@ of one game's (`plugins/shipped/shipped.plugin.ts`, and the prime directive's th
 
 Building it is `building-a-plugin`.
 
+## Tuning it in the UI workshop
+
+The UI workshop (`tools/workshop/ui.html`, `tools/workshop/ui.ts`) shows a game's title screen, HUD
+and messages, drawn by the game's own looks on core's `ui` plugin over a still frame of the game, with
+no game running. Click anything on the screen to change it, then save the change back into the game's
+own files. It is served by the asset workshop's server:
+
+```
+node --experimental-strip-types tools/workshop/workshop.server.ts
+```
+
+and opened at `http://localhost:5180/ui?game=<game>` (add `&screen=<screen>&state=<state>` to open on
+one). The full account is the header of `tools/workshop/ui.ts`.
+
+A game with no screens file is drawn from its config alone: a screen per scene that gives a
+`world.ui`, each laying out every style of it as the ui draws it (a button style as a `button`, a bar
+style as a `bar`, a text style as words, any other as a box), and the things its definitions place on
+a panel, each where its `at` puts it (the header of `tools/workshop/ui.ts` says how a definition names
+its panel and its things).
+
+A game whose looks draw its screens joins it with one file, `games/<game>/<game>.screens.ts`. It
+exports:
+
+- `scene`, the name of the scene whose catalogue, fonts, definitions and `world.ui` the page loads.
+- `backdrop`, the path of a still frame of the game the screens are drawn over
+  (`/games/<game>/assets/screens/<name>.jpg`).
+- `stand(plugins)`, called once, adding the stand-ins its looks read beyond `loader`, `store`, `player`
+  and `ui` (a game plugin's state a look asks for, say, or a `render3d` with a camera and `project`
+  for a thing a look pins over the world).
+- `screens`, each screen by name: its `states` (each by the words the workshop lists it by), its
+  `draw(plugins, state)`, which calls the game's own look with the rows it would be sent in that state,
+  made in the file, and its `things`. Each thing has a `name` and an `about` (what it is), plus:
+  - `shown`: the ui keys that are it (`<panel>/<key>`; a key ending in `*` is any key starting so).
+  - `style`: the `world.ui` style it is drawn in.
+  - `words`: each of its words in the definitions, by when it shows.
+  - `place`: where it stands, as a path in the definitions or a ui panel.
+  - `colours` and `numbers`: any other colour or number of it, each by what it does.
+
+The left column lists every screen and state. A click on the canvas picks the smallest thing under it,
+outlines it, and opens its card: its words; its type (typeface from the catalogue's fonts, size, colour,
+bold, outline, letter spacing); its button or bar style; its place; and its other colours and numbers.
+A change shows on the next frame, and its control's name turns amber. **Save to game** writes every
+change into the file that gives it, with the file's layout kept. **Revert** drops them. A game file
+changed on disk reloads the page on the same screen and state, unless there are changes not yet saved.
+
+A thing added to the HUD gets its entry in the game's screens file in the same change. A state the
+HUD can be in gets its entry in `states` and its rows in `draw`.
+
 ## The work in order
 
 The example all the way through: a coin a seat's `player` row takes raises that seat's score, shown in
@@ -306,7 +354,7 @@ its corner, Escape pauses, and the pause screen sets the volume. A game made wit
 starts with a `player` row that spawns a `body` and forwards `move` to it; that `body` is folded into
 the `player` row first, its fields onto the `player` prefab, its rule into `player.sim.ts`, its look
 into `player.client.ts`, and `body` gone from the sim, the scene, the data file and the test
-(`designing-a-seat`). The template is the editor's, which is on hold; it is never the model.
+(`designing-a-seat`). The template is never the model.
 
 1. Ask the person making the game what the HUD shows, where, and what each screen does. That is
    content, and it is theirs.
@@ -492,18 +540,10 @@ into `player.client.ts`, and `body` gone from the sim, the scene, the data file 
   "ui's prefab", and the ui reads them off `world.ui`.
 - `stats` (`plugins/stats/stats.plugin.ts`) is three.js's frame-rate panel, the page's frames a second,
   milliseconds a frame and heap. It is not a game's stat. It shows only once something calls its
-  `mount(parent)`, and neither the page `yarn new-game` writes nor the editor's game view calls it. A
+  `mount(parent)`, and the page `yarn new-game` writes does not call it. A
   frame-rate readout is a readout of `dev.html`'s own: before the boot it lists `stats` in its copy of
   the scene in memory, after the plugins that draw, as its header asks, and its `mount` calls
   `me.plugins.stats.mount(document.body)` beside the canvases.
-
-## The editor's design system is another thing
-
-The editor is a React web app, and its design system is React components in `editor/ui/` with themes
-that are CSS (`editor/themes/`). It builds the editor's panels and nothing else. The game's `ui` plugin
-is PixiJS on a canvas over the game, and the two have nothing to do with each other: a game's HUD never
-imports `editor/ui/`, and an extension never draws its panel with the `ui` plugin. Nothing a game runs
-imports `editor/` at all.
 
 ## What goes wrong
 
@@ -610,14 +650,12 @@ Each file written has its test beside it, named after it, `.test.ts`, run in nod
   the new value and its HUD shows it, read off the panel by key, and the other seat's page shows its
   own HUD unchanged. A readout read off any row but the seat's own `player` row fails this on every
   bad wire.
-- A test that attaches the game to the editor's session (`session.attach`) in jsdom is a
-  `.view.test.tsx` instead, run with `yarn test:view <file>`.
 - Once the tests pass, break the thing on purpose and see its test fail: change `world.ui`'s `back`,
   or point the HUD at the game's catalogue entry (which the test sees only through a stand-in that
   makes a new texture per call).
 - `yarn tsc` checks the game's files.
 
-Then play it: `yarn editor <game>`, open `localhost:5173/games/<game>/index.html`, take a coin and see
+Then play it: `yarn dev`, open `localhost:5173/games/<game>/index.html`, take a coin and see
 the score change, pause, move through the screen with the keys and the pointer, change the volume and
 hear it, and leave the screen with the same key. Then run `<game>.server.ts` on node, open
 `client.html` in two tabs, and see each tab's score turn over on the frame after its own seat takes a
@@ -639,7 +677,6 @@ label inside its button. The work is not done until what those shots showed is r
 - Can the HUD draw the texture the game decoded? No: its own `"for": "ui"` entry.
 - Can the volume go on a row or to the server? No: the store.
 - Should the `ui` plugin get a setting so this game's HUD can…? No: this game's kind draws it.
-- Should a HUD component come from `editor/ui/`? No: that is the editor's.
 - Should the controls screen go here? No: `building-a-controls-screen`.
 - Do you want the full version? Always.
 

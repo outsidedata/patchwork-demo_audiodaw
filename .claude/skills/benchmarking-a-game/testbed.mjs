@@ -17,6 +17,11 @@
 // A stage still waited on after three minutes stops the profiler and names what it was waiting on (no
 // `window.__page`, the bakes left, ...) and the first error the page threw. Then the page is clicked in its
 // middle, each `--press` key is pressed for real, and it settles `--settle` seconds.
+// `--playtest` has the game's playtester play the seat from then on, so a scene is measured as it is
+// played and not only as it sits: `games/<game>/<game>.playtest.ts` exports `playtest`, a think for each
+// scene by its name (the playtester plugin's `Think`: the rows the page holds in, a press or nothing out),
+// and each frame its press goes through the player plugin as a key's would. It plays a further `--settle`
+// seconds before anything is measured.
 // Time stops with `stop()` and goes again with `go()`, both handed back by `open`, and `--still` stops it
 // once the page has settled, before anything is measured. Stopped, the client the page holds now drops
 // every packet it is handed, so its rows stay as the last one left them, and the page draws every frame
@@ -38,8 +43,42 @@ import fs from 'node:fs'
 import os from 'node:os'
 import path from 'node:path'
 
-export const usage = '[--dpr <n>] [--press <key>]… [--settle <s>] [--loading] [--ready <page expression>] [--after <steps>] [--still] [--out <folder>]'
+export const usage = '[--dpr <n>] [--press <key>]… [--settle <s>] [--loading] [--ready <page expression>] [--after <steps>] [--still] [--playtest] [--out <folder>]'
 
+const root = path.resolve(import.meta.dirname, '../../..')
+const git = (dir, ...a) => { try { return execFileSync('git', ['-C', dir, ...a], { encoding: 'utf8' }).trim() } catch { return '' } }
+
+// What a run was made on, written at the top of every profiler's data file so two runs can be told
+// apart and compared: when, which commit of core and of games/ (and whether either had changes not
+// committed), the machine, and the profiler's own settings.
+export function made(tool, settings) {
+  const repo = dir => ({ commit: git(dir, 'rev-parse', '--short', 'HEAD'), branch: git(dir, 'branch', '--show-current'), dirty: git(dir, 'status', '--short') !== '' })
+  return {
+    tool, at: new Date().toISOString(),
+    core: repo(root), games: repo(path.join(root, 'games')),
+    machine: `${os.cpus()[0]?.model ?? os.arch()}, ${os.cpus().length} cores, ${Math.round(os.totalmem() / 2 ** 30)} GB, ${os.platform()} ${os.release()}`,
+    settings,
+  }
+}
+
+// Where a run is kept when no `--out` names a folder: `benchmarks/<game>/<when>` at the repo's root, the
+// folder benchmarkPage.ts lists, `<when>` the minute it started (`2026-10-28-1302`) and then what it
+// was, `-played`, `-deep` or the profiler that ran alone (`-cpu`).
+export function runFolder(game, ...tags) {
+  const d = new Date(), p = n => String(n).padStart(2, '0')
+  const when = `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())}-${p(d.getHours())}${p(d.getMinutes())}`
+  return path.join(root, 'benchmarks', game, [when, ...tags.filter(Boolean)].join('-'))
+}
+
+// Writes a profiler's data file, `<out>/<name>`, and says where.
+export function write(out, name, data) {
+  fs.mkdirSync(out, { recursive: true })
+  const file = path.join(out, name)
+  fs.writeFileSync(file, JSON.stringify(data, null, 1))
+  console.log(`\nthe data: ${file}`)
+}
+
+// What a run was made on, and its data file: `made` and `write`, above, which every profiler uses.
 // Takes the testbed's flags out of `args`, leaving the rest.
 export function testbedFlags(args, name) {
   const flag = (f, many = false) => {
@@ -52,7 +91,10 @@ export function testbedFlags(args, name) {
   const still = args.includes('--still')
   if (still) args.splice(args.indexOf('--still'), 1)
   const after = flag('--after')
+  const playtest = args.includes('--playtest')
+  if (playtest) args.splice(args.indexOf('--playtest'), 1)
   return {
+    playtest,
     presses: flag('--press', true),
     settle: Number(flag('--settle') ?? 4),
     ready: flag('--ready'),
@@ -60,7 +102,9 @@ export function testbedFlags(args, name) {
     dpr: Number(flag('--dpr') ?? 1),
     loading,
     still,
-    out: flag('--out') ?? fs.mkdtempSync(path.join(os.tmpdir(), name + '-')),
+    // the run's folder, `runFolder` once the game is known when none is named
+    out: flag('--out'),
+    name,
   }
 }
 
@@ -80,11 +124,11 @@ const warn = (port, when) => {
   if (o.length) console.log(`${o.length} other Chrome${o.length > 1 ? 's' : ''} driven over a debugging port ${when}; each shares this GPU with the page measured:\n${o.map(f => '  ' + f).join('\n')}`)
 }
 
-export async function open({ base, game, scene, presses, settle, ready, after, dpr, loading, still = false, out, scenes = false, render = false, init }) {
+export async function open({ base, game, scene, presses, settle, ready, after, dpr, loading, still = false, playtest = false, out, scenes = false, render = false, init }) {
   const PORT = 9340 + Math.floor(Math.random() * 600)
   warn(PORT, 'before the page was opened')
   const chrome = spawn('/Applications/Google Chrome.app/Contents/MacOS/Google Chrome', [
-    '--headless=new', `--remote-debugging-port=${PORT}`, `--user-data-dir=${path.join(out, 'chrome')}`,
+    '--headless=new', `--remote-debugging-port=${PORT}`, `--user-data-dir=${fs.mkdtempSync(path.join(os.tmpdir(), 'bench-chrome-'))}`,
     '--use-angle=metal', '--enable-gpu', '--ignore-gpu-blocklist', '--mute-audio', '--window-size=1280,800', 'about:blank',
   ], { stdio: 'ignore' })
   // A Chrome outlives the node that spawned it, and goes on drawing its scene on the GPU: two another
@@ -148,7 +192,9 @@ export async function open({ base, game, scene, presses, settle, ready, after, d
     : !window.__page.client ? 'window.__page has no client yet'
     : !(window.__page.client.n > 0) ? 'the client has taken no packet'
     : ${scenes} && !window.__scenes ? 'no window.__scenes: dev.html needs window.__scenes = await load(truth, import.meta.url) (SKILL.md, What the game\\'s dev.html has to add first)'
-    : ${render} && !(window.__page.client.plugins.render3d && window.__page.client.plugins.render3d.renderer) ? 'render3d has no renderer yet'
+    : ${render} && !window.__page.client.plugins.render3d && !window.__page.client.plugins.render2d ? 'the scene has neither render3d nor render2d to measure the drawing of'
+    : ${render} && window.__page.client.plugins.render3d && !window.__page.client.plugins.render3d.renderer ? 'render3d has no renderer yet'
+    : ${render} && !window.__page.client.plugins.render3d && !window.__page.client.plugins.render2d.canvas ? 'render2d has no canvas yet'
     : true`)
   if (!loading) {
     await stage('loaded', `(() => {
@@ -208,10 +254,31 @@ export async function open({ base, game, scene, presses, settle, ready, after, d
   }
   if (still) await stop()
 
+  // The game's playtester playing the seat, every frame from here on: the think the game's
+  // `<game>.playtest.ts` hands out for this scene reads the rows the page holds and names a press or
+  // nothing, and the press goes through the player plugin as a key's would, as the playtester plugin's.
+  if (playtest) {
+    const got = await evaluate(`(async () => {
+      const m = await import('/games/${game}/${game}.playtest.ts')
+      const think = m.playtest && m.playtest[${JSON.stringify(scene)}]
+      if (!think) return 'games/${game}/${game}.playtest.ts hands out no think for ${scene}: its playtest has ' + Object.keys(m.playtest || {}).join(', ')
+      const play = () => {
+        const c = window.__page.client
+        if (c && c.plugins.player) { const press = think(c.rows); if (press) c.plugins.player[press[0]](...press.slice(1)) }
+        requestAnimationFrame(play)
+      }
+      requestAnimationFrame(play)
+      return true
+    })()`)
+    if (got !== true) { console.log(got); done(1) }
+    console.log(`played by games/${game}/${game}.playtest.ts from step ${await step()}`)
+    await wait(settle * 1000)
+  }
+
   warn(PORT, 'as the page is measured')
   const before = take()
   if (before.length) console.log(`the page threw ${before.length} times while it loaded and settled; the first: ${before[0].split('\n')[0]}`)
   const drawn = await evaluate(`(() => { const r = window.__page.client.plugins.render3d; if (!r || !r.renderer) return ''; const s = r.renderer.getDrawingBufferSize(new r.THREE.Vector2()); return ', drawn at pixel ratio ' + r.renderer.getPixelRatio() + ', ' + s.x + 'x' + s.y })()`)
   console.log(`measured from ${((Date.now() - opened) / 1000).toFixed(1)} s, step ${await step()}, the screen's devicePixelRatio ${dpr}${drawn}\n`)
-  return { send, evaluate, wait, done, take, stop, go }
+  return { send, evaluate, wait, done, take, stop, go, others: others(PORT), drawn: drawn.replace(/^, /, '') }
 }

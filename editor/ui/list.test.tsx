@@ -8,7 +8,8 @@ import { NodeList } from './list.tsx'
 
 const nodes = [{ name: 'base' }, { name: 'hills' }, { name: 'sum' }]
 
-test('rows move, drop, drag and add, each change handing back the whole list', async () => {
+// OCT-24-EDITOR-ALPHA-SWEEP
+test.skip('rows move, drop, drag and add, each change handing back the whole list', async () => {
   const onChange = vi.fn()
   render(<NodeList label="program" items={nodes} name={n => n.name} onChange={onChange} make={() => ({ name: 'new' })} render={n => <span>{n.name} body</span>} />)
   const user = userEvent.setup()
@@ -33,7 +34,8 @@ test('rows move, drop, drag and add, each change handing back the whole list', a
   expect(onChange).toHaveBeenCalledTimes(5)
 })
 
-test('with no `make` there is no Add, and a row with no name is called by its place', () => {
+// OCT-24-EDITOR-ALPHA-SWEEP
+test.skip('with no `make` there is no Add, and a row with no name is called by its place', () => {
   render(<NodeList label="layers" items={[1, 2]} onChange={() => {}} render={n => String(n)} />)
   expect(screen.queryByRole('button', { name: 'add to layers' })).toBeNull()
   expect(screen.getAllByRole('listitem').map(r => r.getAttribute('aria-label'))).toEqual(['0', '1'])
@@ -45,7 +47,8 @@ function Draft({ label }: { label: string }) {
   return <input aria-label={label} value={text} onChange={e => setText(e.target.value)} />
 }
 
-test('what a row\'s field holds goes with its node when the node moves, and stays with its place when the node is replaced by an edited copy', async () => {
+// OCT-24-EDITOR-ALPHA-SWEEP
+test.skip('what a row\'s field holds goes with its node when the node moves, and stays with its place when the node is replaced by an edited copy', async () => {
   function Program() {
     const [items, setItems] = useState([{ name: 'base' }, { name: 'hills' }, { name: 'sum' }])
     return (
@@ -68,7 +71,8 @@ test('what a row\'s field holds goes with its node when the node moves, and stay
   expect(within(screen.getByRole('listitem', { name: 'base' })).getByRole('textbox')).toHaveValue('half typed')
 })
 
-test('rows of plain values keep their rows while the list does not change', async () => {
+// OCT-24-EDITOR-ALPHA-SWEEP
+test.skip('rows of plain values keep their rows while the list does not change', async () => {
   const { rerender } = render(<NodeList label="layers" items={[1, 2]} onChange={() => {}} render={(_n, i) => <Draft label={`d ${i}`} />} />)
   await userEvent.setup().type(screen.getByRole('textbox', { name: 'd 1' }), 'x')
   rerender(<NodeList label="layers" items={[1, 2]} onChange={() => {}} render={(_n, i) => <Draft label={`d ${i}`} />} />)

@@ -1003,7 +1003,7 @@ test('outline: a shape as groups of points where it lies, each group a convex pi
 const landField: Field = {
   program: { world: 200, hscale: 1, sea: 0.5, flood: false, out: 'hills', nodes: [{ id: 'hills', op: 'noise', kind: 'simplex', freq: 4, seed: 7 }] },
   analysis: { slopeStep: 1.5, curveStep: 4, positionRadius: 18, occlusionRadius: 30, occlusionSteps: 5, cliffProbe: 12, cliffSlope: 0.5, cliffDrop: 7, flatAngle: 0.03, records: 50000 },
-  bands: [{ colour: '#3e5722', amount: 1, rules: [] }], grain: { base: 0.84, range: 0.32 }, detail: [], surfaces: {}, layers: [],
+  ground: { layers: [{ name: 'grass', map: 'grass', scale: 30 }] }, surfaces: {}, layers: [],
 }
 written('/box3d-sim-test/land.json', JSON.stringify(landField))
 writeFileSync(join(folder, 'land.scene.json'), JSON.stringify({

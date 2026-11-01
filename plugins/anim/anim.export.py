@@ -5,7 +5,7 @@
 #       <rig.json> <table.json> <body>=<out.glb> [<body>=<out.glb> ...]
 #
 # The rig file names its bodies, paths under the library, and the file of each clip, paths under
-# ~/troupe-collection. The library is `PATCHWORK_LIBRARY` from the environment, else from the repo's
+# the clip collection, `PATCHWORK_CLIPS` (else ~/troupe-collection). The library is `PATCHWORK_LIBRARY` from the environment, else from the repo's
 # `.env` (`.env.example` beside it lists the settings), else ~/patchwork-library; `~` in it is the
 # home folder. A rigged character is `characters/<name>/<name>.fbx` in it.
 #   bodies  `{ <body>: "<fbx>" }`, the rigged characters. Each `<body>=<out.glb>` names one of them.
@@ -27,6 +27,27 @@
 #           bone's turn on the first frame of `onto`; the hips' position likewise. A pack's fire and
 #           reload were authored around a rifle held 22 cm further forward than the locomotion pack's
 #           aim, and on the upper channel that difference would jump the rifle on every shot.
+#
+# A clip's sidecar: a JSON file beside its FBX, of the same name with `.json` for `.fbx`
+# (`Stand To Crouch.json` beside `Stand To Crouch.fbx`), says what the clip itself gets wrong, and is
+# laid onto the clip as it is baked; the FBX is never changed. A clip with no sidecar, or a sidecar
+# with no `offset`, is baked as it is.
+#   offset  `{ position, rotation }`, each rows sampled straight between them and held past either
+#           end, one row standing for the whole clip: `position` `[[t, x, y, z], ...]`, metres in the
+#           axes the table and `ends` are measured in (x the body's left, y up, z ahead), and
+#           `rotation` `[[t, degrees], ...]`, a turn about the vertical, positive left; `t` seconds
+#           into the clip. On each frame the clip's hips, its root bone, are turned about the vertical
+#           through the clip's origin and then moved, so the whole body is: its feet set back on the
+#           floor a clip sinks them through, or a clip that stands turned faced straight. The table
+#           and `ends` are measured on the clip as it is baked, the offset in them.
+#
+# A clip's poses: a JSON file beside its FBX, of the same name with `.poses.json` for `.fbx`
+# (`Flying.poses.json` beside `Flying.fbx`), `{ "poses": { "<frame>": "<pose>" } }`, names frames of the
+# clip, each a pose: a frame of the clip held. Frames count from 0, as the clip is sampled (below). Every
+# pose the rig's clips name is written to <table.poses.json> beside <table.json> as `{ <pose>: { clip,
+# frame, at } }`, the rig's name of the clip, the frame and its time in seconds, which `merge-table.mjs`
+# writes into the rig file's `poses`. Two poses of one name, or a frame the clip has not got, stop the
+# bake. A mirrored clip is anim's own and names none.
 #
 # Every clip is sampled once, as each bone's position and turn from its rest (`matrix_basis`), and
 # written onto each body as an action of its own name, one NLA track per clip, which the glTF
@@ -79,6 +100,16 @@
 # server poses a body off the packed glb itself (`anim.sim.ts`, `posed`) and carries each blade on its
 # joint by these. The bake stops if the glb's hips at rest stand more than a millimetre from Blender's.
 #
+# What each clip touches on each body. Once a body's bones are measured, its skin is measured on every
+# frame of every clip as baked, its sidecar laid on (`anim.touches.py`, beside this), and anim's touch
+# reader (`anim.touches.mjs`, run by the `node` on the PATH, or `NODE` from the environment or the
+# repo's `.env`) reads off it what the clip touches, as the rig has the clip (a loop where its entry says
+# `loop`) and lifting nothing, since the sidecar's lift is in the clip: where the hands grip, where the
+# feet stand, the floors, the seat, every patch of skin held still and when (`plants`), by the cases of
+# `anim.touches.json`. It is written to <table.touches.json> as `{ <body>: { <clip>: <reading> } }`,
+# which `merge-table.mjs` writes into the rig file's `touches`. A mirrored clip is anim's own and has
+# none.
+#
 # Each glb is packed by the native gltfpack (`GLTFPACK` from the environment or the repo's `.env`, else
 # `gltfpack` on the PATH; `yarn health` checks it) before it is written to its <out.glb>: meshopt compression (`-cc`), every named node, bone and
 # material kept (`-kn -km`), and translations at 20 bits (`-at 20`), since at its default 16 the hips
@@ -90,6 +121,7 @@
 # names of the meshes it draws, so each name is moved from the parent onto its mesh's node: the parent
 # is left unnamed, since a second node of the same name would make three call the mesh `<name>_1`.
 import bpy
+import importlib.util
 import json
 import math
 import numpy as np
@@ -100,12 +132,17 @@ import struct
 import subprocess
 import sys
 import tempfile
-from mathutils import Quaternion, Vector
+from mathutils import Matrix, Quaternion, Vector
 
 args = sys.argv[sys.argv.index('--') + 1:]
 RIG, TABLE = args[0], args[1]
 OUTS = dict(a.split('=', 1) for a in args[2:])
-REPO = os.path.join(os.path.dirname(os.path.abspath(__file__)), '../..')
+HERE = os.path.dirname(os.path.abspath(__file__))
+REPO = os.path.join(HERE, '../..')
+# anim's skin measure (`anim.touches.py`), beside this.
+_spec = importlib.util.spec_from_file_location('anim_touches', os.path.join(HERE, 'anim.touches.py'))
+touches = importlib.util.module_from_spec(_spec)
+_spec.loader.exec_module(touches)
 
 
 def dotenv(path):
@@ -126,7 +163,7 @@ def dotenv(path):
 
 
 ENV = {**dotenv(os.path.join(REPO, '.env')), **os.environ}
-C = os.path.expanduser('~/troupe-collection')
+C = os.path.expanduser(ENV.get('PATCHWORK_CLIPS') or '~/troupe-collection')
 LIBRARY = os.path.expanduser(ENV.get('PATCHWORK_LIBRARY') or '~/patchwork-library')
 
 
@@ -207,7 +244,48 @@ def file_of(e):
     return e if isinstance(e, str) else e.get('file')
 
 
+def rows_of(path, key, width, rows):
+    """A sidecar's offset rows, checked: `[[t, ...width numbers], ...]`, `t` rising."""
+    if not isinstance(rows, list) or not rows:
+        raise SystemExit(f'anim export: {path}: offset.{key} is no list of rows')
+    for i, row in enumerate(rows):
+        if not isinstance(row, list) or len(row) != 1 + width or not all(isinstance(v, (int, float)) and math.isfinite(v) for v in row):
+            raise SystemExit(f'anim export: {path}: offset.{key} row {i} is not [t, {width} numbers]')
+        if i and row[0] <= rows[i - 1][0]:
+            raise SystemExit(f'anim export: {path}: offset.{key} row {i} is at {row[0]} s, not after the row before')
+    return rows
+
+
+def sidecar(path):
+    """The offset of the clip's sidecar beside its FBX (see the header): `(position, rotation)` rows,
+    either None where the sidecar gives none, or None for a clip with no sidecar or no offset."""
+    full = os.path.join(C, os.path.splitext(path)[0] + '.json')
+    if not os.path.exists(full):
+        return None
+    off = json.load(open(full)).get('offset')
+    if off is None:
+        return None
+    pos, rot = off.get('position'), off.get('rotation')
+    if pos is None and rot is None:
+        raise SystemExit(f'anim export: {full}: offset gives neither position nor rotation')
+    print(f'SIDECAR {full}')
+    return (rows_of(full, 'position', 3, pos) if pos is not None else None,
+            rows_of(full, 'rotation', 1, rot) if rot is not None else None)
+
+
+def row_at(rows, t):
+    """Rows sampled straight between them at t, held past either end: the values after `t`."""
+    if t <= rows[0][0]:
+        return rows[0][1:]
+    for a, b in zip(rows, rows[1:]):
+        if t <= b[0]:
+            s = (t - a[0]) / (b[0] - a[0])
+            return [x + (y - x) * s for x, y in zip(a[1:], b[1:])]
+    return rows[-1][1:]
+
+
 clips = {}
+fixes = {}
 for name, e in spec['clips'].items():
     f = file_of(e)
     if not f:
@@ -220,6 +298,37 @@ for name, e in spec['clips'].items():
         fr = [{b: (onto[b][0] + (loc - base[b][0]), onto[b][1] @ base[b][1].inverted() @ rot) for b, (loc, rot) in pose.items()}
               for pose in fr]
     clips[name] = fr
+    fixes[name] = sidecar(f)
+
+
+def poses_of(name, path, frames):
+    """The poses the clip's `.poses.json` beside its FBX names (see the header), each `{ clip, frame, at }`."""
+    full = os.path.join(C, os.path.splitext(path)[0] + '.poses.json')
+    if not os.path.exists(full):
+        return {}
+    named = json.load(open(full)).get('poses')
+    if not isinstance(named, dict):
+        raise SystemExit(f'anim export: {full}: poses is no {{ "<frame>": "<pose>" }}')
+    out = {}
+    for f, pose in named.items():
+        if not re.fullmatch(r'\d+', f) or int(f) >= frames:
+            raise SystemExit(f'anim export: {full}: pose {pose} is at frame {f}, and the clip has frames 0 to {frames - 1}')
+        if not isinstance(pose, str) or not pose:
+            raise SystemExit(f'anim export: {full}: frame {f} names no pose')
+        out[pose] = {'clip': name, 'frame': int(f), 'at': round(int(f) / FPS, 6)}
+    print(f'POSES {full} poses={len(out)}')
+    return out
+
+
+posed = {}
+for name, e in spec['clips'].items():
+    f = file_of(e)
+    if not f:
+        continue
+    for pose, at in poses_of(name, f, len(clips[name])).items():
+        if pose in posed:
+            raise SystemExit(f'anim export: two poses are named {pose}: frame {posed[pose]["frame"]} of {posed[pose]["clip"]} and frame {at["frame"]} of {name}')
+        posed[pose] = at
 
 
 def spreads(body, degrees):
@@ -240,8 +349,32 @@ def spreads(body, degrees):
     return out
 
 
-def write(body, name, fr, spread):
-    """The clip as an action on the body, and an NLA track that holds it."""
+def offset(body, fr, fix):
+    """The clip's frames with its sidecar's offset laid onto the hips (see the header): the hips' pose
+    in the armature, turned about the world's vertical through its origin and moved, in the world, and
+    taken back into the hips' own rest frame."""
+    pos, rot = fix
+    hips = next(pb for pb in body.pose.bones if pb.parent is None)
+    b = bare(hips.name)
+    world = body.matrix_world.copy()
+    rest = hips.bone.matrix_local.copy()
+    out = []
+    for f, pose in enumerate(fr):
+        t = f / FPS
+        x, y, z = row_at(pos, t) if pos else (0, 0, 0)
+        turn = row_at(rot, t)[0] if rot else 0
+        # glTF's (x, y, z) is Blender's (x, −z, y); a turn left about glTF's up is one about Blender's z.
+        laid = Matrix.Translation(Vector((x, -z, y))) @ Matrix.Rotation(math.radians(turn), 4, 'Z')
+        loc, q = pose[b]
+        moved = rest.inverted() @ world.inverted() @ laid @ world @ rest @ Matrix.LocRotScale(loc, q, None)
+        out.append({**pose, b: (moved.to_translation(), moved.to_quaternion())})
+    return out
+
+
+def write(body, name, fr, spread, fix):
+    """The clip as an action on the body, its sidecar's offset laid on, and an NLA track that holds it."""
+    if fix:
+        fr = offset(body, fr, fix)
     act = bpy.data.actions.new(name)
     body.animation_data.action = act
     bones = {bare(pb.name): pb for pb in body.pose.bones}
@@ -540,6 +673,7 @@ work = tempfile.mkdtemp(prefix='anim-export-')
 table = None
 measured = {}
 gripped = {}
+skins = {}
 for body_name, out in OUTS.items():
     fresh()
     body, keep = load(spec['bodies'][body_name], LIBRARY)
@@ -557,7 +691,7 @@ for body_name, out in OUTS.items():
     for a in list(bpy.data.actions):
         bpy.data.actions.remove(a)
     spread = spreads(body, spec.get('spread', {}).get(body_name, 0))
-    acts = {name: write(body, name, fr, spread) for name, fr in clips.items()}
+    acts = {name: write(body, name, fr, spread, fixes[name]) for name, fr in clips.items()}
     if table is None:
         table = {name: measure(body, act) for name, act in acts.items()}
     metal_rough(keep)
@@ -578,13 +712,29 @@ for body_name, out in OUTS.items():
     print(f'MODEL {body_name} {out} clips={len(acts)} meshes={sum(o.type == "MESH" for o in keep)}')
     measured[body_name] = ends(body, acts, held)
     print(f'ENDS {body_name} clips={len(measured[body_name])}')
+    skin = touches.skin_of(body, keep)
+    skins[body_name] = {name: touches.measure(skin, act, file_of(spec['clips'][name])) for name, act in acts.items()}
+    print(f'SKIN {body_name} clips={len(skins[body_name])}')
 
 shutil.rmtree(work)
 json.dump(table, open(TABLE, 'w'))
 print(f'TABLE {TABLE} clips={len(table)}')
+POSES = os.path.splitext(TABLE)[0] + '.poses.json'
+json.dump(posed, open(POSES, 'w'))
+print(f'POSES {POSES} poses={len(posed)}')
 ENDS = os.path.splitext(TABLE)[0] + '.ends.json'
 json.dump(measured, open(ENDS, 'w'))
 print(f'ENDS {ENDS} bodies={len(measured)}')
 GRIPS = os.path.splitext(TABLE)[0] + '.grips.json'
 json.dump(gripped, open(GRIPS, 'w'))
 print(f'GRIPS {GRIPS} bodies={len(gripped)}')
+# What each clip touches on each body, read off its skin by anim's touch reader (see the header).
+SKINS = os.path.splitext(TABLE)[0] + '.skin.json'
+json.dump(skins, open(SKINS, 'w'), separators=(',', ':'))
+TOUCHES = os.path.splitext(TABLE)[0] + '.touches.json'
+node = ENV.get('NODE') or shutil.which('node', path=ENV.get('PATH'))
+if not node:
+    raise SystemExit('anim.export.py: no node on the PATH to read what the clips touch with (anim.touches.mjs)')
+subprocess.run([node, os.path.join(HERE, 'anim.touches.mjs'), 'rig', RIG, SKINS, TOUCHES], check=True)
+os.remove(SKINS)
+print(f'TOUCHES {TOUCHES} bodies={len(skins)}')

@@ -18,7 +18,7 @@
 // file, and every other pack of it, reads, parses and is read by `read`, whose throws are the
 // loader's own words, and each page it names loads as an image; a palette reads as a GIMP palette
 // (`gpl`); a tilemap reads as a Tiled map with every tileset it names (`readMap`), and each image it
-// draws from loads; a pixels file reads as a PNG (`decodePng`); a texture loads as an image; a model's, a sound's or a bitmap font's file is in
+// draws from loads; a pixels file reads as a PNG (`decodePng`); a texture loads as an image; a font loads as a font (`FontFace`); a model's, a sound's or a bitmap font's file is in
 // its folder. An entry neither way has tried is untried, and is never said to load. Check again tries
 // every entry through its files anew and reads every sheet back again, its images read anew too.
 //
@@ -1076,7 +1076,7 @@ export async function imageAt(ed: Editor, url: string): Promise<HTMLImageElement
   throw new Error(`${url} does not load as an image`)
 }
 
-export const TYPES = ['json', 'texture', 'sheet', 'palette', 'pixels', 'binary', 'tilemap', 'bitmapfont', 'model', 'sound']
+export const TYPES = ['json', 'texture', 'sheet', 'palette', 'pixels', 'binary', 'tilemap', 'bitmapfont', 'font', 'model', 'sound']
 
 // What of an entry the loader reads, each as it reads it: `type` one of the types it knows, `url` the
 // path of a file, `for` the ui alone, and `palette` a name, which `entryEdits` holds to the
@@ -1189,6 +1189,17 @@ export async function tried(ed: Editor, name: string, a: Asset): Promise<Tried> 
     if (a.type === 'texture') {
       await imageAt(ed, a.url)
       return { by: 'files', ok: true, what: 'its image loads' }
+    }
+    if (a.type === 'font') {
+      const res = await fetch(encodeURI(a.url))
+      if (!res.ok) throw new Error(`${path} does not read: ${res.status}`)
+      // Loaded as a face of its own, never added to the page, so the editor's fonts stay its own.
+      try {
+        await new FontFace(name, await res.arrayBuffer()).load()
+      } catch {
+        throw new Error(`${path} does not load as a font`)
+      }
+      return { by: 'files', ok: true, what: 'its file loads as a font' }
     }
     if (a.type === 'model' && !/\.glb$/i.test(a.url)) return fail(`loader ${name}: a model is one .glb`)
     const folder = path.slice(0, path.lastIndexOf('/'))
